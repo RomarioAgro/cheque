@@ -1,3 +1,32 @@
-import win32api
-e_msg = win32api.FormatMessage(-2147221164)
-print(e_msg)
+
+import win32com.client
+
+fr = win32com.client.Dispatch('Addin.DRvFR')
+
+fr.StringForPrinting = '1'
+fr.Price = 10
+fr.Quantity = 1
+fr.Summ1Enabled = False
+fr.PaymentTypeSign = 4  # 1
+fr.PaymentItemSign = 1
+fr.FNOperation()
+print(fr.ResultCode, fr.ResultCodeDescription)
+
+qr1 = "dddddddddddddddd"
+fr.BarCode = qr1
+fr.ItemStatus = 1
+fr.FNCheckItemBarcode()
+print(fr.ResultCode, fr.ResultCodeDescription)
+# print(f'������ ��������� ��������: {fr.CheckItemLocalResult}')
+# print(f'�������, �� ������� �� ���� ��������� ��������� ��������: {fr.CheckItemLocalError}')
+# print(f'������������ ��� ��, (��� 2100 ���): {fr.MarkingType2}')
+# print(f'��� ������ �� �� ������� ������-��������: {fr.KMServerErrorCode}')
+# print(f'��������� �������� ��***. (��� 2106 ���): {fr.KMServerCheckingStatus}')
+
+fr.FNAcceptMarkingCode()
+
+fr.Barcode = qr1
+fr.FNSendItemBarcode()
+
+fr.Summ1 = 10
+fr.FNCloseCheckEx()
