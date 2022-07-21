@@ -3,7 +3,7 @@ import json
 from sys import argv
 import logging
 import re
-# from types import
+from typing import List
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
                         'correct_sale': 128,
@@ -52,7 +52,8 @@ def pinpad_operation(sum: str = '0', operation: int = 4000):
 def shtrih_operation_attic(comp_rec: dict):
     """функция оформления начала чека,
         задаем тип чека,
-        открываем сам документ в объекте"""
+        открываем сам документ в объекте
+    """
     # '0 ЭТО ПРОДАЖА 2 ЭТО ВОЗВРАТ 128 ЧЕК КОРРЕКЦИИ ПРОДАЖА 130 ЭТО ЧЕК КОРРЕКЦИИ ВОЗВРАТ'
     PRN.CheckType = DICT_OPERATION_CHECK.get(comp_rec['operationtype'])
     PRN.Password = 1
@@ -117,7 +118,7 @@ def shtrih_operation_basement(comp_rec: dict):
     # print(f'описание ошибки операции закрытия чека: {PRN.ResultCodeDescription}')
 
 
-def print_str(i_str: str, i_font=5):
+def print_str(i_str: str, i_font:int = 5):
     """
     печать одиночной строки
     :param i_str: str
@@ -154,16 +155,17 @@ def print_pinpad(i_str: str, sum_operation: str):
 
 
 
-def print_advertisement(i_list: list[list]):
+def print_advertisement(i_list: List[list]):
     """
     функция печати рекламного текста в начале чека
     """
     for item in i_list:
         print_str(i_str=item[0], i_font=item[1])
 
-def print_barcode(i_list: list):
+def print_barcode(i_list: List[str]):
     """
-    функция печати штрихкода на чеке, обычно это для рекламы
+    функция печати штрихкода на чеке,
+    обычно это для рекламы
     """
     for item in i_list:
         PRN.BarCode = item
@@ -178,17 +180,17 @@ def check_km(comp_rec: dict):
     функция проверки кодов маркировки в честном знаке
     :param comp_rec: dict словарь с нашим чеком
     """
-    pattern =r'91\S+92'
+    pattern = r'91\S+92'
+    s_break = '\x1D'
     for qr in comp_rec['km']:
         """
         поиск шиблона между 91 и 92 с помощью регулярного выражения
         и замена потом этого шаблона на него же но с символами разрыва
-        перед 91 и 92, надо подумать потому что эти символы ставятся после 31 символа
-        и надо с кавычкой решить
+        перед 91 и 92
         """
-        list_break_pattern = re.findall(pattern, qr)
-        repl = ('\x1D' + list_break_pattern[0]).replace('92', '\x1D' + '92')
-        km = re.sub(pattern, repl, qr)
+        list_break_pattern = re.findall(pattern, qr[30:])
+        repl = (s_break + list_break_pattern[0]).replace('92', s_break + '92')
+        km = qr[:30] + re.sub(pattern, repl, qr[30:])
         PRN.BarCode = km
         if (DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0 or
                 DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 128):
