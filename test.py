@@ -1,4 +1,4 @@
-
+# -*- coding: UTF-8 -*-
 import win32com.client
 
 fr = win32com.client.Dispatch('Addin.DRvFR')
@@ -12,7 +12,7 @@ fr.PaymentItemSign = 1
 fr.FNOperation()
 print(fr.ResultCode, fr.ResultCodeDescription)
 
-qr1 = "dddddddddddddddd"
+qr1 = "0102900021916404213Rfn-(uL4hLHv\x1D91EE06\x1D92ZL1qUSqxS/jylFxi1Sp/HouC05T7FqUi34uslMAoDc8="
 fr.BarCode = qr1
 fr.ItemStatus = 1
 fr.FNCheckItemBarcode()
