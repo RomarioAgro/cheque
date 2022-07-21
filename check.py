@@ -2,6 +2,7 @@ import win32com.client
 import json
 from sys import argv
 import logging
+import re
 # from types import
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -177,8 +178,17 @@ def check_km(comp_rec: dict):
     функция проверки кодов маркировки в честном знаке
     :param comp_rec: dict словарь с нашим чеком
     """
+    pattern =r'91\S+92'
     for qr in comp_rec['km']:
-        km = qr.replace('\\x1D', '\x1D')
+        """
+        поиск шиблона между 91 и 92 с помощью регулярного выражения
+        и замена потом этого шаблона на него же но с символами разрыва
+        перед 91 и 92, надо подумать потому что эти символы ставятся после 31 символа
+        и надо с кавычкой решить
+        """
+        list_break_pattern = re.findall(pattern, qr)
+        repl = ('\x1D' + list_break_pattern[0]).replace('92', '\x1D' + '92')
+        km = re.sub(pattern, repl, qr)
         PRN.BarCode = km
         if (DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0 or
                 DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 128):
