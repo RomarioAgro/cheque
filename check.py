@@ -308,19 +308,21 @@ def close_session(comp_rec: dict):
     PRN.WaitForPrinting()
 
 
-def kill_document():
+def kill_document(comp_rec: dict = {}):
     PRN.Password = 30
     PRN.SysAdminCancelCheck()
     PRN.ContinuePrint()
     PRN.WaitForPrinting()
 
 
-def i_dont_know():
+def i_dont_know(comp_rec: dict = {}):
     """
     будет ли это работать?
+    всего режимов ECR 16, что надо делать в остальных
+    вообще без понятия
     :return:
     """
-    Mbox('я не знаю что делать', f'неищвестный режим: {get_ecr_status()}', 4096 + 16)
+    Mbox('я не знаю что делать', f'неизвестный режим: {get_ecr_status()}', 4096 + 16)
 
 DICT_OF_COMMAND_ECR_MODE = {
     4: open_session,
@@ -329,6 +331,11 @@ DICT_OF_COMMAND_ECR_MODE = {
 }
 
 def getinfoexchangewithOFD():
+    """
+    функция проверки когда был
+    отправлен последний чек в офд
+    :return:
+    """
     PRN.Password = 30
     PRN.FNGetInfoExchangeStatus()
     count_mess = PRN.MessageCount
@@ -344,7 +351,7 @@ def main(composition_receipt):
             # Mbox('все хорошо', f'Ошибок нет', 4096 + 16)
             break
         else:
-            DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, None)(composition_receipt)
+            DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, i_dont_know)(composition_receipt)
 
     pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
     logging.debug(composition_receipt)
