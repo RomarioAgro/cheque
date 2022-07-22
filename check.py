@@ -28,6 +28,23 @@ def read_composition_receipt(file_json_name: str) -> dict:
     return composition_receipt
 
 
+def send_tag_1021_1203(comp_rec: dict ):
+    """
+    функция отправки тэгов 1021 и 1203
+    ФИО кассира и ИНН кассира
+    :param comp_res:
+    :return:
+    """
+    PRN.TagNumber = 1021
+    PRN.TagType = 7
+    PRN.TagValueStr = comp_rec['Tag1021']
+    PRN.FNSendTag()
+    PRN.TagNumber = 1203
+    PRN.TagType = 7
+    PRN.TagValueStr = comp_rec['Tag1203']
+    PRN.FNSendTag()
+
+
 def pinpad_operation(comp_rec: dict):
     """
     функция образщения к терминалу сбербанка
@@ -122,19 +139,19 @@ def shtrih_operation_basement(comp_rec: dict):
     PRN.Summ15 = comp_rec['Summ15']
     PRN.Summ16 = comp_rec['Summ16']
     PRN.TaxType = comp_rec['tax-type']
-    PRN.TagNumber = 1021
-    PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1021']
-    PRN.FNSendTag()
-    PRN.TagNumber = 1203
-    PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1203']
-    PRN.FNSendTag()
+    send_tag_1021_1203(comp_rec)
+    # PRN.TagNumber = 1021
+    # PRN.TagType = 7
+    # PRN.TagValueStr = comp_rec['Tag1021']
+    # PRN.FNSendTag()
+    # PRN.TagNumber = 1203
+    # PRN.TagType = 7
+    # PRN.TagValueStr = comp_rec['Tag1203']
+    # PRN.FNSendTag()
     PRN.FNCloseCheckEx()
-    error_decr = PRN.ResultCodeDescription
-    error_code = PRN.ResultCode
-    return error_code, error_decr
-
+    # error_descr = PRN.ResultCodeDescription
+    # error_code = PRN.ResultCode
+    return PRN.ResultCode, PRN.ResultCodeDescription
 
 def print_str(i_str: str, i_font: int = 5):
     """
@@ -266,24 +283,27 @@ def open_session(comp_rec: dict):
     PRN.Password = 30
     PRN.FnBeginOpenSession()
     PRN.WaitForPrinting()
-    PRN.TagNumber = 1021
-    PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1021']
-    PRN.FNSendTag()
-    PRN.TagNumber = 1203
-    PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1203']
+    send_tag_1021_1203(comp_rec)
+    # PRN.TagNumber = 1021
+    # PRN.TagType = 7
+    # PRN.TagValueStr = comp_rec['Tag1021']
+    # PRN.FNSendTag()
+    # PRN.TagNumber = 1203
+    # PRN.TagType = 7
+    # PRN.TagValueStr = comp_rec['Tag1203']
     PRN.FnOpenSession()
     PRN.WaitForPrinting()
 
 
 def close_session(comp_rec: dict):
     PRN.Password = 30
-    PRN.TagValueStr = comp_rec['Tag1021']
-    PRN.FNSendTag()
-    PRN.TagNumber = 1203
-    PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1203']
+    send_tag_1021_1203(comp_rec)
+    # PRN.TagNumber = 1021
+    # PRN.TagValueStr = comp_rec['Tag1021']
+    # PRN.FNSendTag()
+    # PRN.TagNumber = 1203
+    # PRN.TagType = 7
+    # PRN.TagValueStr = comp_rec['Tag1203']
     PRN.PrintReportWithCleaning()
     PRN.WaitForPrinting()
 
@@ -294,6 +314,13 @@ def kill_document():
     PRN.ContinuePrint()
     PRN.WaitForPrinting()
 
+
+def i_dont_know():
+    """
+    будет ли это работать?
+    :return:
+    """
+    Mbox('я не знаю что делать', f'неищвестный режим: {get_ecr_status()}', 4096 + 16)
 
 DICT_OF_COMMAND_ECR_MODE = {
     4: open_session,
@@ -306,7 +333,6 @@ def getinfoexchangewithOFD():
     PRN.FNGetInfoExchangeStatus()
     count_mess = PRN.MessageCount
     # mess_
-    pass
 
 def main(composition_receipt):
     # проверка режима работы кассы
@@ -347,9 +373,11 @@ def main(composition_receipt):
             while error_print_check_code != 0:
                 count_iteration += 1
                 Mbox('ошибка', error_decription, 4096 + 16)
-                PRN.Password = 30
-                PRN.SysAdminCancelCheck()
-                PRN.ContinuePrint()
+                # прибиваем "застрявший" документ
+                kill_document()
+                # PRN.Password = 30
+                # PRN.SysAdminCancelCheck()
+                # PRN.ContinuePrint()
                 error_print_check_code = PRN.ResultCode
                 error_decription = PRN.ResultCodeDescription
                 if count_iteration > 3:

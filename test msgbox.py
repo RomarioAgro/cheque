@@ -39,6 +39,7 @@ def open_session(comp_rec: dict):
 
 def close_session(comp_rec: dict):
     PRN.Password = 30
+    PRN.TagNumber = 1021
     PRN.TagValueStr = comp_rec['Tag1021']
     PRN.FNSendTag()
     PRN.TagNumber = 1203
