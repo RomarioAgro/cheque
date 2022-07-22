@@ -4,14 +4,17 @@ from sys import argv
 import logging
 import re
 from typing import List
+import ctypes
+
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
                         'correct_sale': 128,
                         'correct_return_sale': 130}
+
 CUTTER = '~S'
 logging.basicConfig(filename="d:\\files\\my_cheque.log", level=logging.DEBUG, filemode='w')
 PRN = win32com.client.Dispatch('Addin.DRvFR')
-pinpad = win32com.client.Dispatch('SBRFSRV.Server')
+PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 
 
 def read_composition_receipt(file_json_name: str) -> dict:
@@ -25,12 +28,12 @@ def read_composition_receipt(file_json_name: str) -> dict:
     return composition_receipt
 
 
-def pinpad_operation(sum: str = '0', operation: int = 4000):
+def pinpad_operation(comp_rec: dict):
     """
     функция образщения к терминалу сбербанка
     для оплат или возвратов
     :param sum: str сумма операции, в копейках!!!
-    :param operation: int тип операции
+    :param comp_rec: dict словарь с составом чека
     4000 оплата
     4002 возврат
     6001 ПОДТВЕРДИТЬ ОПЕРАЦИЮ
@@ -38,21 +41,31 @@ def pinpad_operation(sum: str = '0', operation: int = 4000):
     6004 ОТМЕНА ОПЕРАЦИИ
     :return: int код ошибки от терминала, str текстовый чек от терминала
     """
-    pinpad.Clear()
-    pinpad.SParam("Amount", sum)
-    pinpaderror = pinpad.NFun(operation)
-    logging.debug(operation)
-    logging.debug(sum)
-    mycheque = pinpad.GParamString("Cheque1251")
-    logging.debug(mycheque)
-    # print(f'ошибка терминала {pinpaderror}')
+    operation, pinpaderror, mycheque = 0, 0, ''
+    sum = comp_rec['sum-cashless'] * 100
+    if sum > 0:
+        if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0:
+            operation = 4000
+        if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 2:
+            operation = 4002
+    # если мы определили операцию то продолжаем работать
+    if operation != 0:
+        PINPAD.Clear()
+        PINPAD.SParam("Amount", sum)
+        PINPADerror = PINPAD.NFun(operation)
+        logging.debug(operation)
+        logging.debug(sum)
+        mycheque = PINPAD.GParamString("Cheque1251")
+        logging.debug(mycheque)
+        # print(f'ошибка терминала {pinpaderror}')
     return pinpaderror, mycheque
 
 
 def shtrih_operation_attic(comp_rec: dict):
-    """функция оформления начала чека,
-        задаем тип чека,
-        открываем сам документ в объекте
+    """
+    функция оформления начала чека,
+    задаем тип чека,
+    открываем сам документ в объекте
     """
     # '0 ЭТО ПРОДАЖА 2 ЭТО ВОЗВРАТ 128 ЧЕК КОРРЕКЦИИ ПРОДАЖА 130 ЭТО ЧЕК КОРРЕКЦИИ ВОЗВРАТ'
     PRN.CheckType = DICT_OPERATION_CHECK.get(comp_rec['operationtype'])
@@ -60,20 +73,23 @@ def shtrih_operation_attic(comp_rec: dict):
     PRN.OpenCheck()
     PRN.UseReceiptRibbon = "TRUE"
 
+
 def shtrih_operation_fn(comp_rec: dict):
     """
     функция печати позиций чека
+
     """
+    # уточняем по какому ФФД работает касса 1.05 или 1.2
     for item in comp_rec['items']:
+        print_str(i_str='_' * 30, i_font=2)
         if (DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0 or
                 DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 128):
-                    PRN.CheckType = 1
+            PRN.CheckType = 1
         else:
             PRN.CheckType = 2
         if (PRN.WorkModeEx == 16 and
-            item['qr'] != ''):
+                len(item['qr']) > 30):
             PRN.PaymentItemSign = 33
-            pass
         else:
             PRN.PaymentItemSign = 1
         PRN.Quantity = item['quantity']
@@ -86,10 +102,11 @@ def shtrih_operation_fn(comp_rec: dict):
         PRN.PaymentTypeSign = 4
         PRN.StringForPrinting = item['name']
         PRN.FNOperation()
-        PRN.BarCode = item['qr'].replace('\\x1D', '\x1D')
-        PRN.FNSendItemBarcode()
-        print_str('_' * 30)
-        # print(f'ошибка операции ФН:{PRN.ResultCode}, описание ошибки операции ФН: {PRN.ResultCodeDescription}')
+        if len(item['qr']) > 30:
+            PRN.BarCode = preparation_km(item['qr'])
+            PRN.FNSendItemBarcode()
+    print_str(i_str='_' * 30, i_font=2)
+
 
 def shtrih_operation_basement(comp_rec: dict):
     """
@@ -114,11 +131,12 @@ def shtrih_operation_basement(comp_rec: dict):
     PRN.TagValueStr = comp_rec['Tag1203']
     PRN.FNSendTag()
     PRN.FNCloseCheckEx()
-    # print(f'ошибка операции закрытия чека:{PRN.ResultCode}')
-    # print(f'описание ошибки операции закрытия чека: {PRN.ResultCodeDescription}')
+    error_decr = PRN.ResultCodeDescription
+    error_code = PRN.ResultCode
+    return error_code, error_decr
 
 
-def print_str(i_str: str, i_font:int = 5):
+def print_str(i_str: str, i_font: int = 5):
     """
     печать одиночной строки
     :param i_str: str
@@ -153,14 +171,13 @@ def print_pinpad(i_str: str, sum_operation: str):
                 print_str(i_str=line, i_font=5)
 
 
-
-
 def print_advertisement(i_list: List[list]):
     """
     функция печати рекламного текста в начале чека
     """
     for item in i_list:
         print_str(i_str=item[0], i_font=item[1])
+
 
 def print_barcode(i_list: List[str]):
     """
@@ -180,18 +197,13 @@ def check_km(comp_rec: dict):
     функция проверки кодов маркировки в честном знаке
     :param comp_rec: dict словарь с нашим чеком
     """
-    pattern = r'91\S+92'
-    s_break = '\x1D'
     for qr in comp_rec['km']:
         """
         поиск шиблона между 91 и 92 с помощью регулярного выражения
         и замена потом этого шаблона на него же но с символами разрыва
         перед 91 и 92
         """
-        list_break_pattern = re.findall(pattern, qr[30:])
-        repl = (s_break + list_break_pattern[0]).replace('92', s_break + '92')
-        km = qr[:30] + re.sub(pattern, repl, qr[30:])
-        PRN.BarCode = km
+        PRN.BarCode = preparation_km(qr)
         if (DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0 or
                 DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 128):
             PRN.ItemStatus = 1
@@ -204,18 +216,153 @@ def check_km(comp_rec: dict):
             PRN.FNAcceptMarkingCode()
 
 
-composition_receipt = read_composition_receipt(argv[1])
-pin_error, pinpad_text = pinpad_operation(sum=str(composition_receipt['sum-cashless']), operation=4000)
-# pin_error = 0
-logging.debug(composition_receipt)
-if pin_error == 0:
-    check_km(composition_receipt)
-    print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
-    if len(composition_receipt['text-attic']) > 0:
-        print_advertisement(composition_receipt['text-attic'])
-    if len(composition_receipt['barcode']) > 0:
-        print_barcode(composition_receipt['barcode'])
-    shtrih_operation_attic(composition_receipt)
-    shtrih_operation_fn(composition_receipt)
-    shtrih_operation_basement(composition_receipt)
+def preparation_km(in_km: str) -> str:
+    """
+    функция подготовки кода маркировки к отправке в честный знак
+    вставляем символы разрыва перед 91 и 92
+    :param in_km: str
+    :return: str
+    """
+    pattern = r'91\S+92'
+    s_break = '\x1D'
+    list_break_pattern = re.findall(pattern, in_km[30:])
+    if len(list_break_pattern) > 0:
+        repl = (s_break + list_break_pattern[0]).replace('92', s_break + '92')
+        out_km = in_km[:30] + re.sub(pattern, repl, in_km[30:])
+    else:
+        out_km = in_km[:]
+    return out_km
 
+
+def Mbox(title, text, style):
+    """
+        ##  Styles:
+        ##  0 : OK
+        ##  1 : OK | Cancel
+        ##  2 : Abort | Retry | Ignore
+        ##  3 : Yes | No | Cancel
+        ##  4 : Yes | No
+        ##  5 : Retry | Cancel
+        ##  6 : Cancel | Try Again | Continue
+
+    """
+    return ctypes.windll.user32.MessageBoxW(0, text, title, style)
+
+
+def get_info_about_FR():
+    PRN.Password = 30
+    PRN.Connect()
+    PRN.FNGetFiscalizationResult()
+
+
+def get_ecr_status():
+    PRN.Password = 30
+    PRN.GetECRStatus()
+    print(PRN.ECRMode, PRN.ECRModeDescription)
+    return PRN.ECRMode, PRN.ECRModeDescription
+
+
+def open_session(comp_rec: dict):
+    PRN.Password = 30
+    PRN.FnBeginOpenSession()
+    PRN.WaitForPrinting()
+    PRN.TagNumber = 1021
+    PRN.TagType = 7
+    PRN.TagValueStr = comp_rec['Tag1021']
+    PRN.FNSendTag()
+    PRN.TagNumber = 1203
+    PRN.TagType = 7
+    PRN.TagValueStr = comp_rec['Tag1203']
+    PRN.FnOpenSession()
+    PRN.WaitForPrinting()
+
+
+def close_session(comp_rec: dict):
+    PRN.Password = 30
+    PRN.TagValueStr = comp_rec['Tag1021']
+    PRN.FNSendTag()
+    PRN.TagNumber = 1203
+    PRN.TagType = 7
+    PRN.TagValueStr = comp_rec['Tag1203']
+    PRN.PrintReportWithCleaning()
+    PRN.WaitForPrinting()
+
+
+def kill_document():
+    PRN.Password = 30
+    PRN.SysAdminCancelCheck()
+    PRN.ContinuePrint()
+    PRN.WaitForPrinting()
+
+
+DICT_OF_COMMAND_ECR_MODE = {
+    4: open_session,
+    3: close_session,
+    8: kill_document
+}
+
+def getinfoexchangewithOFD():
+    PRN.Password = 30
+    PRN.FNGetInfoExchangeStatus()
+    count_mess = PRN.MessageCount
+    # mess_
+    pass
+
+def main(composition_receipt):
+    # проверка режима работы кассы
+    # режим 2 - Открытая смена, 24 часа не кончились
+    while True:
+        ecr_mode, ecr_mode_description = get_ecr_status()
+        if (ecr_mode == 2 or
+                ecr_mode == 0):
+            # Mbox('все хорошо', f'Ошибок нет', 4096 + 16)
+            break
+        else:
+            DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, None)(composition_receipt)
+
+    pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
+    logging.debug(composition_receipt)
+    while pin_error == 0:
+        # проверка статуса кассы
+        get_info_about_FR()
+        if PRN.WorkModeEx == 16:
+            check_km(composition_receipt)
+        print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
+        # печать рекламы
+        if len(composition_receipt['text-attic']) > 0:
+            print_advertisement(composition_receipt['text-attic'])
+        # печать баркода
+        if len(composition_receipt['barcode']) > 0:
+            print_barcode(composition_receipt['barcode'])
+        # печать номера чека
+        print_str(str(composition_receipt['number_receipt']), 3)
+        # начало чека
+        shtrih_operation_attic(composition_receipt)
+        # печать артикулов
+        shtrih_operation_fn(composition_receipt)
+        # закрытие чека
+        error_print_check_code, error_decription = shtrih_operation_basement(composition_receipt)
+        if error_print_check_code != 0:
+            count_iteration = 0
+            while error_print_check_code != 0:
+                count_iteration += 1
+                Mbox('ошибка', error_decription, 4096 + 16)
+                PRN.Password = 30
+                PRN.SysAdminCancelCheck()
+                PRN.ContinuePrint()
+                error_print_check_code = PRN.ResultCode
+                error_decription = PRN.ResultCodeDescription
+                if count_iteration > 3:
+                    Mbox('ошибка', f'Ты че, дура? исправь ошибку "{error_decription}"\nпотом тыкай ОК', 4096 + 16)
+                if count_iteration > 5:
+                    Mbox('ошибка', f'да ты полный пиздец\nвидал я дураков...', 4096 + 16)
+                    return error_print_check_code
+        else:
+            PRN.OpenDrawer()
+            return error_print_check_code
+    return pin_error
+
+
+compos_receipt = read_composition_receipt(argv[1])
+code_error_main = main(compos_receipt)
+# print(code_error_main)

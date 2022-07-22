@@ -10,7 +10,7 @@
   "tax-type":1,
   "Tag1021": "Кожин Роман",
   "Tag1203": "",
-  "operationtype": "sale",
+  "operationtype": "return_sale",
   "text-attic": [["блаблабла", 2], ["купон -10% купи все, получи - ничего", 5]],
   "barcode": ["2221223469919"],
   "text-basement": ["подвал"],
