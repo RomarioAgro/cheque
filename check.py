@@ -5,7 +5,7 @@ import logging
 import re
 from typing import List
 import ctypes
-
+#TODO убрать лишние комментарии, где закоментил повторяющийся код
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
                         'correct_sale': 128,
@@ -69,9 +69,10 @@ def pinpad_operation(comp_rec: dict):
     if operation != 0:
         PINPAD.Clear()
         PINPAD.SParam("Amount", sum)
-        PINPADerror = PINPAD.NFun(operation)
-        logging.debug(operation)
-        logging.debug(sum)
+        pinpaderror = PINPAD.NFun(operation)
+        #TODO будет ли так работать
+        logging.debug(operation, sum)
+        # logging.debug(sum)
         mycheque = PINPAD.GParamString("Cheque1251")
         logging.debug(mycheque)
         # print(f'ошибка терминала {pinpaderror}')
@@ -322,6 +323,7 @@ def i_dont_know(comp_rec: dict = {}):
     вообще без понятия
     :return:
     """
+    #TODO будет ли так работать
     Mbox('я не знаю что делать', f'неизвестный режим: {get_ecr_status()}', 4096 + 16)
 
 DICT_OF_COMMAND_ECR_MODE = {
@@ -336,6 +338,7 @@ def getinfoexchangewithOFD():
     отправлен последний чек в офд
     :return:
     """
+    #TODO дописать функцию вставить проверку этого статуса
     PRN.Password = 30
     PRN.FNGetInfoExchangeStatus()
     count_mess = PRN.MessageCount
@@ -379,6 +382,7 @@ def main(composition_receipt):
             count_iteration = 0
             while error_print_check_code != 0:
                 count_iteration += 1
+                #TODO дать кассиру здесь выйти досрочно из цикла, а деньги-то с карты снялись
                 Mbox('ошибка', error_decription, 4096 + 16)
                 # прибиваем "застрявший" документ
                 kill_document()
@@ -397,7 +401,7 @@ def main(composition_receipt):
             return error_print_check_code
     return pin_error
 
-
+#TODO проверить можно ли вернуть чтение json в main
 compos_receipt = read_composition_receipt(argv[1])
 code_error_main = main(compos_receipt)
 # print(code_error_main)
