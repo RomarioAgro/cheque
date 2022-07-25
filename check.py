@@ -236,10 +236,13 @@ def print_pinpad(i_str: str, sum_operation: str):
             PRN.CutType = 2
             PRN.CutCheck()
         else:
-            if line.find(sum_operation) != -1:
-                print_str(i_str=line, i_font=2)
+            if line.find(CUTTER) != -1:
+                pass
             else:
-                print_str(i_str=line, i_font=5)
+                if line.find(sum_operation) != -1:
+                    print_str(i_str=line, i_font=2)
+                else:
+                    print_str(i_str=line, i_font=5)
 
 
 @logging
