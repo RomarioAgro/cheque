@@ -1,7 +1,7 @@
 {
   "number_receipt": "112233/01",
-  "sum-cash": 3473.00,
-  "sum-cashless": 999.00,
+  "sum-cash": 3150.00,
+  "sum-cashless": 8.00,
   "Summ3": 0,
   "Summ4": 0,
   "Summ14": 0,
@@ -20,7 +20,6 @@
       "quantity": 1,
       "price": 1359.00,
       "name": "TRIEN Обувь HDL 7 35-40 розовый 4 219  36 Товар по распродаже",
-	  "sum": 1359.00,
       "TaxType": 4,
       "qr": "0104620046412948215YOpNN_oEIAiZ91EE0792iMCZl3lrWPDGDGl1bv9A4qIUoVWStWbg+SCJxjgWUCY="
     },
@@ -28,7 +27,6 @@
       "quantity": 1,
       "price": 146.00,
       "name": "CLE LTR12-008у Брюки жен   Цветной футер  т розовый 6 972  44",
-      "sum": 146.00,
       "TaxType": 4,
 	  "qr": "0102900021916404213Rfn-(uL4hLHv91EE0692ZL1qUSqxS/jylFxi1Sp/HouC05T7FqUi34uslMAoDc8="
     },
@@ -36,7 +34,6 @@
       "quantity": 1,
       "price": 1653.00,
       "name": "CLE LH12-008у Джемпер жен   Цветной футер  т розовый 6 972  46",
-	  "sum": 1653.00,
       "TaxType": 4,
 	  "qr": ""
     }

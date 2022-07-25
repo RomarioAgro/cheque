@@ -1,22 +1,72 @@
 import win32com.client
 import json
-from sys import argv
-import logging
+from sys import argv, exit
 import re
-from typing import List
+from typing import List, Callable, Any
 import ctypes
-#TODO убрать лишние комментарии, где закоментил повторяющийся код
+import datetime
+import functools
+
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
                         'correct_sale': 128,
                         'correct_return_sale': 130}
 
 CUTTER = '~S'
-logging.basicConfig(filename="d:\\files\\my_cheque.log", level=logging.DEBUG, filemode='w')
+
 PRN = win32com.client.Dispatch('Addin.DRvFR')
 PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
+current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+log_file = 'd:\\files\\' + argv[1] + "_" + current_time + ".log"
 
 
+def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
+    """
+    функция приведения args kwargs
+    к одной строке чтоб удобнее печатать было
+    :param args: Any
+    :param kwargs: Any
+    :return: str
+    """
+    a_str = str()
+    k_str = str()
+    if len(args) > 0:
+        a_str = repr(args)
+    if len(kwargs) > 0:
+        k_str = ', '.join([f'{repr(key)}={repr(val)}' for key, val in kwargs.items()])
+    if len(a_str) > 0 and len(k_str) > 0:
+        a_str += ', ' + k_str
+    if len(a_str) == 0:
+        return k_str
+    return a_str
+
+
+def logging(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapped_def(*args, **kwargs):
+        print(func.__name__)
+        print(func.__doc__)
+        file_log = open(log_file, 'a', encoding='utf-8')
+        current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+        file_log.write('-'*255 + '\n')
+        try:
+            result = 0
+            result = func(*args, **kwargs)
+        except Exception as exc:
+            file_log.write(
+                f'{current_time} Вызывается {func.__name__} {func.__doc__} параметры функции: ({print_args_kwargs(*args, **kwargs)}) ОШИБКА {exc}\n')
+        else:
+            file_log.write(f'{current_time} Вызывается {func.__name__} {func.__doc__} параметры функции: ({print_args_kwargs(*args, **kwargs)}) \n')
+            file_log.write(f'{current_time} РЕЗУЛЬТАТ: {func.__name__} = {result} \n')
+            file_log.write('-'*255+'\n')
+        finally:
+            file_log.close()
+        return result
+
+    return wrapped_def
+
+
+@logging
 def read_composition_receipt(file_json_name: str) -> dict:
     """
     функция чтения json файла чека
@@ -28,7 +78,8 @@ def read_composition_receipt(file_json_name: str) -> dict:
     return composition_receipt
 
 
-def send_tag_1021_1203(comp_rec: dict ):
+@logging
+def send_tag_1021_1203(comp_rec: dict):
     """
     функция отправки тэгов 1021 и 1203
     ФИО кассира и ИНН кассира
@@ -45,6 +96,7 @@ def send_tag_1021_1203(comp_rec: dict ):
     PRN.FNSendTag()
 
 
+@logging
 def pinpad_operation(comp_rec: dict):
     """
     функция образщения к терминалу сбербанка
@@ -70,28 +122,31 @@ def pinpad_operation(comp_rec: dict):
         PINPAD.Clear()
         PINPAD.SParam("Amount", sum)
         pinpaderror = PINPAD.NFun(operation)
-        #TODO будет ли так работать
-        logging.debug(operation, sum)
-        # logging.debug(sum)
+
         mycheque = PINPAD.GParamString("Cheque1251")
-        logging.debug(mycheque)
+
         # print(f'ошибка терминала {pinpaderror}')
     return pinpaderror, mycheque
 
 
+@logging
 def shtrih_operation_attic(comp_rec: dict):
     """
     функция оформления начала чека,
     задаем тип чека,
     открываем сам документ в объекте
+    0 ЭТО ПРОДАЖА
+    2 ЭТО ВОЗВРАТ
+    128 ЧЕК КОРРЕКЦИИ ПРОДАЖА
+    130 ЭТО ЧЕК КОРРЕКЦИИ ВОЗВРАТ'
     """
-    # '0 ЭТО ПРОДАЖА 2 ЭТО ВОЗВРАТ 128 ЧЕК КОРРЕКЦИИ ПРОДАЖА 130 ЭТО ЧЕК КОРРЕКЦИИ ВОЗВРАТ'
     PRN.CheckType = DICT_OPERATION_CHECK.get(comp_rec['operationtype'])
     PRN.Password = 1
     PRN.OpenCheck()
     PRN.UseReceiptRibbon = "TRUE"
 
 
+@logging
 def shtrih_operation_fn(comp_rec: dict):
     """
     функция печати позиций чека
@@ -126,11 +181,12 @@ def shtrih_operation_fn(comp_rec: dict):
     print_str(i_str='_' * 30, i_font=2)
 
 
+@logging
 def shtrih_operation_basement(comp_rec: dict):
     """
     функция печати конца чека, закрытие и все такое
     :param comp_rec:
-    :return:
+    :return: int, str код ошибки, описание ошибки
     """
     PRN.Summ1 = comp_rec['sum-cash']
     PRN.Summ2 = comp_rec['sum-cashless']
@@ -141,23 +197,18 @@ def shtrih_operation_basement(comp_rec: dict):
     PRN.Summ16 = comp_rec['Summ16']
     PRN.TaxType = comp_rec['tax-type']
     send_tag_1021_1203(comp_rec)
-    # PRN.TagNumber = 1021
-    # PRN.TagType = 7
-    # PRN.TagValueStr = comp_rec['Tag1021']
-    # PRN.FNSendTag()
-    # PRN.TagNumber = 1203
-    # PRN.TagType = 7
-    # PRN.TagValueStr = comp_rec['Tag1203']
-    # PRN.FNSendTag()
     PRN.FNCloseCheckEx()
     # error_descr = PRN.ResultCodeDescription
     # error_code = PRN.ResultCode
     return PRN.ResultCode, PRN.ResultCodeDescription
 
+
+@logging
 def print_str(i_str: str, i_font: int = 5):
     """
     печать одиночной строки
     :param i_str: str
+    :param i_font: int номер шрифта печати
     """
     PRN.FontType = i_font
     PRN.StringForPrinting = i_str
@@ -165,14 +216,16 @@ def print_str(i_str: str, i_font: int = 5):
     PRN.WaitForPrinting()
 
 
+@logging
 def print_pinpad(i_str: str, sum_operation: str):
     """
     функция печати ответа от пинпада сбербанка
     :param i_str: str строка печати
     sum_operation: str сумма операции
+    count_cutter: int количество команд отрезки,
+        отрезать надо только на 1
     """
     i_text = i_str.split('\n')
-    # количество команд отрезки, отрезать надо только на 1
     count_cutter = 0
     for line in i_text:
         if (line.find(CUTTER) != -1 and
@@ -189,6 +242,7 @@ def print_pinpad(i_str: str, sum_operation: str):
                 print_str(i_str=line, i_font=5)
 
 
+@logging
 def print_advertisement(i_list: List[list]):
     """
     функция печати рекламного текста в начале чека
@@ -197,6 +251,7 @@ def print_advertisement(i_list: List[list]):
         print_str(i_str=item[0], i_font=item[1])
 
 
+@logging
 def print_barcode(i_list: List[str]):
     """
     функция печати штрихкода на чеке,
@@ -210,6 +265,7 @@ def print_barcode(i_list: List[str]):
         PRN.FeedDocument()
 
 
+@logging
 def check_km(comp_rec: dict):
     """
     функция проверки кодов маркировки в честном знаке
@@ -234,6 +290,7 @@ def check_km(comp_rec: dict):
             PRN.FNAcceptMarkingCode()
 
 
+@logging
 def preparation_km(in_km: str) -> str:
     """
     функция подготовки кода маркировки к отправке в честный знак
@@ -252,6 +309,7 @@ def preparation_km(in_km: str) -> str:
     return out_km
 
 
+@logging
 def Mbox(title, text, style):
     """
         ##  Styles:
@@ -267,64 +325,89 @@ def Mbox(title, text, style):
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
 
+@logging
 def get_info_about_FR():
+    """
+    функция запроса итогов фискализации
+    она ничего не возвращиет, но послее нее у объекта PRN
+    появляются дополнительные свойства
+    """
     PRN.Password = 30
     PRN.Connect()
     PRN.FNGetFiscalizationResult()
 
 
+@logging
+def check_connect_fr():
+    """
+    функция проверки связи с фискальмым регистратором
+    """
+    PRN.Password = 30
+    PRN.Connect()
+    return PRN.ResultCode, PRN.ResultCodeDescription
+
+
+@logging
 def get_ecr_status():
+    """
+    функция запрoса режима кассы
+    :return: int, str
+    """
     PRN.Password = 30
     PRN.GetECRStatus()
     print(PRN.ECRMode, PRN.ECRModeDescription)
     return PRN.ECRMode, PRN.ECRModeDescription
 
 
+@logging
 def open_session(comp_rec: dict):
+    """
+    функция открытия смены на кассе
+    :param comp_rec: dict
+    """
     PRN.Password = 30
     PRN.FnBeginOpenSession()
     PRN.WaitForPrinting()
     send_tag_1021_1203(comp_rec)
-    # PRN.TagNumber = 1021
-    # PRN.TagType = 7
-    # PRN.TagValueStr = comp_rec['Tag1021']
-    # PRN.FNSendTag()
-    # PRN.TagNumber = 1203
-    # PRN.TagType = 7
-    # PRN.TagValueStr = comp_rec['Tag1203']
     PRN.FnOpenSession()
     PRN.WaitForPrinting()
 
 
+@logging
 def close_session(comp_rec: dict):
+    """
+    функция закрытия смены
+    :param comp_rec: dict
+    """
     PRN.Password = 30
     send_tag_1021_1203(comp_rec)
-    # PRN.TagNumber = 1021
-    # PRN.TagValueStr = comp_rec['Tag1021']
-    # PRN.FNSendTag()
-    # PRN.TagNumber = 1203
-    # PRN.TagType = 7
-    # PRN.TagValueStr = comp_rec['Tag1203']
     PRN.PrintReportWithCleaning()
     PRN.WaitForPrinting()
 
 
+@logging
 def kill_document(comp_rec: dict = {}):
+    """
+    функция прибития застрявшего документа
+    :param comp_rec:  dict
+    """
     PRN.Password = 30
     PRN.SysAdminCancelCheck()
     PRN.ContinuePrint()
     PRN.WaitForPrinting()
 
 
+@logging
 def i_dont_know(comp_rec: dict = {}):
     """
-    будет ли это работать?
-    всего режимов ECR 16, что надо делать в остальных
-    вообще без понятия
+    функция-заглушка для обработки
+    неизвестных мне режимов,
+    всего режимов ECR 16, мне известно решение в 4 из них
+    что надо делать в остальных вообще без понятия
     :return:
     """
-    #TODO будет ли так работать
     Mbox('я не знаю что делать', f'неизвестный режим: {get_ecr_status()}', 4096 + 16)
+
 
 DICT_OF_COMMAND_ECR_MODE = {
     4: open_session,
@@ -332,37 +415,40 @@ DICT_OF_COMMAND_ECR_MODE = {
     8: kill_document
 }
 
-def getinfoexchangewithOFD():
-    """
-    функция проверки когда был
-    отправлен последний чек в офд
-    :return:
-    """
-    #TODO дописать функцию вставить проверку этого статуса
-    PRN.Password = 30
-    PRN.FNGetInfoExchangeStatus()
-    count_mess = PRN.MessageCount
-    # mess_
 
-def main(composition_receipt):
+def main():
+    """
+    основная функция печати чека
+    composition_receipt :dict словарь нашего чека
+    :return: int код ошибки
+    """
+    # проверка связи с кассой
+    connect_error, connect_error_description = check_connect_fr()
+    if connect_error != 0:
+        Mbox('ошибка', f'ошибка: "{connect_error_description}"', 4096 + 16)
+        exit(connect_error)
+
+    composition_receipt = read_composition_receipt(argv[1] + '.json')
     # проверка режима работы кассы
     # режим 2 - Открытая смена, 24 часа не кончились
     while True:
         ecr_mode, ecr_mode_description = get_ecr_status()
-        if (ecr_mode == 2 or
-                ecr_mode == 0):
-            # Mbox('все хорошо', f'Ошибок нет', 4096 + 16)
+        if (ecr_mode == 0 or
+                ecr_mode == 2):
             break
         else:
             DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, i_dont_know)(composition_receipt)
 
+    # оплата по пинпаду
     pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
-    logging.debug(composition_receipt)
+
     while pin_error == 0:
+        # проверка связи с ккм
         # проверка статуса кассы
         get_info_about_FR()
         if PRN.WorkModeEx == 16:
             check_km(composition_receipt)
+        # печать слипа терминала
         print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
         # печать рекламы
         if len(composition_receipt['text-attic']) > 0:
@@ -382,13 +468,9 @@ def main(composition_receipt):
             count_iteration = 0
             while error_print_check_code != 0:
                 count_iteration += 1
-                #TODO дать кассиру здесь выйти досрочно из цикла, а деньги-то с карты снялись
                 Mbox('ошибка', error_decription, 4096 + 16)
                 # прибиваем "застрявший" документ
                 kill_document()
-                # PRN.Password = 30
-                # PRN.SysAdminCancelCheck()
-                # PRN.ContinuePrint()
                 error_print_check_code = PRN.ResultCode
                 error_decription = PRN.ResultCodeDescription
                 if count_iteration > 3:
@@ -401,7 +483,7 @@ def main(composition_receipt):
             return error_print_check_code
     return pin_error
 
-#TODO проверить можно ли вернуть чтение json в main
-compos_receipt = read_composition_receipt(argv[1])
-code_error_main = main(compos_receipt)
-# print(code_error_main)
+
+code_error_main = main()
+exit(code_error_main)
+# print(f'код ошибки последней операции: {code_error_main}')
