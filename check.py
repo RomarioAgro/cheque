@@ -17,7 +17,7 @@ CUTTER = '~S'
 PRN = win32com.client.Dispatch('Addin.DRvFR')
 PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-log_file = 'd:\\files\\' + argv[1] + "_" + current_time + ".log"
+log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
 
 
 def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
@@ -52,7 +52,9 @@ def logging(func: Callable) -> Callable:
         result = 0
         try:
             result = func(*args, **kwargs)
+            print(result)
         except Exception as exc:
+            print(exc)
             file_log.write(
                 f'{current_time} Вызывается {func.__name__} {func.__doc__} параметры функции: ({print_args_kwargs(*args, **kwargs)}) ОШИБКА {exc}\n')
         else:
@@ -73,7 +75,7 @@ def read_composition_receipt(file_json_name: str) -> dict:
     :param file_json_name: str имя файла
     :return: dict состав чека
     """
-    with open(file_json_name, 'r', encoding='utf-8') as json_file:
+    with open(file_json_name, 'r') as json_file:
         composition_receipt = json.load(json_file)
     return composition_receipt
 
@@ -88,11 +90,11 @@ def send_tag_1021_1203(comp_rec: dict) -> None:
     """
     PRN.TagNumber = 1021
     PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1021']
+    PRN.TagValueStr = comp_rec['tag1021']
     PRN.FNSendTag()
     PRN.TagNumber = 1203
     PRN.TagType = 7
-    PRN.TagValueStr = comp_rec['Tag1203']
+    PRN.TagValueStr = comp_rec['tag1203']
     PRN.FNSendTag()
 
 
@@ -153,30 +155,27 @@ def shtrih_operation_fn(comp_rec: dict):
     """
     # уточняем по какому ФФД работает касса 1.05 или 1.2
     for item in comp_rec['items']:
-        print_str(i_str='_' * 30, i_font=2)
-        if (DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0 or
-                DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 128):
-            PRN.CheckType = 1
-        else:
-            PRN.CheckType = 2
-        if (PRN.WorkModeEx == 16 and
-                len(item['qr']) > 30):
-            PRN.PaymentItemSign = 33
-        else:
-            PRN.PaymentItemSign = 1
-        PRN.Quantity = item['quantity']
-        PRN.Price = item['price']
-        PRN.Summ1 = item['quantity'] * item['price']
-        PRN.Summ1Enabled = 'TRUE'
-        PRN.Tax1 = 0
-        PRN.TaxType = item['TaxType']
-        PRN.Department = 1
-        PRN.PaymentTypeSign = 4
-        PRN.StringForPrinting = item['name']
-        PRN.FNOperation()
-        if len(item['qr']) > 30:
-            PRN.BarCode = preparation_km(item['qr'])
-            PRN.FNSendItemBarcode()
+        if item['quantity'] !=0:
+            print_str(i_str='_' * 30, i_font=2)
+            if (DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0 or
+                    DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 128):
+                PRN.CheckType = 1
+            else:
+                PRN.CheckType = 2
+            PRN.PaymentItemSign = item['paymentitemsign']
+            PRN.Quantity = item['quantity']
+            PRN.Price = item['price']
+            PRN.Summ1 = item['quantity'] * item['price']
+            PRN.Summ1Enabled = True
+            PRN.Tax1 = item['taxtype']
+            PRN.DivisionalQuantity = False
+            PRN.Department = 1
+            PRN.PaymentTypeSign = item['paymenttypesign']
+            PRN.StringForPrinting = item['name']
+            PRN.FNOperation()
+            if len(item['qr']) > 30:
+                PRN.BarCode = preparation_km(item['qr'])
+                PRN.FNSendItemBarcode()
     print_str(i_str='_' * 30, i_font=2)
 
 
@@ -189,11 +188,11 @@ def shtrih_operation_basement(comp_rec: dict):
     """
     PRN.Summ1 = comp_rec['sum-cash']
     PRN.Summ2 = comp_rec['sum-cashless']
-    PRN.Summ3 = comp_rec['Summ3']
-    PRN.Summ4 = comp_rec['Summ4']
-    PRN.Summ14 = comp_rec['Summ14']
-    PRN.Summ15 = comp_rec['Summ15']
-    PRN.Summ16 = comp_rec['Summ16']
+    PRN.Summ3 = comp_rec['summ3']
+    PRN.Summ4 = comp_rec['summ4']
+    PRN.Summ14 = comp_rec['summ14']
+    PRN.Summ15 = comp_rec['summ15']
+    PRN.Summ16 = comp_rec['summ16']
     PRN.TaxType = comp_rec['tax-type']
     send_tag_1021_1203(comp_rec)
     PRN.FNCloseCheckEx()
@@ -430,7 +429,7 @@ def main():
         Mbox('ошибка', f'ошибка: "{connect_error_description}"', 4096 + 16)
         exit(connect_error)
 
-    composition_receipt = read_composition_receipt(argv[1] + '.json')
+    composition_receipt = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     # проверка режима работы кассы
     # режим 2 - Открытая смена, 24 часа не кончились
     while True:
