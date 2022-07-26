@@ -18,7 +18,7 @@ PRN = win32com.client.Dispatch('Addin.DRvFR')
 PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
-
+#TODO реализовать внесение наличных
 
 def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
     """
