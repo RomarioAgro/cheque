@@ -49,8 +49,8 @@ def logging(func: Callable) -> Callable:
         file_log = open(log_file, 'a', encoding='utf-8')
         current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
         file_log.write('-'*255 + '\n')
+        result = 0
         try:
-            result = 0
             result = func(*args, **kwargs)
         except Exception as exc:
             file_log.write(
@@ -79,11 +79,11 @@ def read_composition_receipt(file_json_name: str) -> dict:
 
 
 @logging
-def send_tag_1021_1203(comp_rec: dict):
+def send_tag_1021_1203(comp_rec: dict) -> None:
     """
     функция отправки тэгов 1021 и 1203
     ФИО кассира и ИНН кассира
-    :param comp_res:
+    :param comp_rec: dict словарь нашего чека
     :return:
     """
     PRN.TagNumber = 1021
@@ -101,7 +101,6 @@ def pinpad_operation(comp_rec: dict):
     """
     функция образщения к терминалу сбербанка
     для оплат или возвратов
-    :param sum: str сумма операции, в копейках!!!
     :param comp_rec: dict словарь с составом чека
     4000 оплата
     4002 возврат
@@ -389,7 +388,7 @@ def close_session(comp_rec: dict):
 
 
 @logging
-def kill_document(comp_rec: dict = {}):
+def kill_document(comp_rec: dict):
     """
     функция прибития застрявшего документа
     :param comp_rec:  dict
@@ -401,7 +400,7 @@ def kill_document(comp_rec: dict = {}):
 
 
 @logging
-def i_dont_know(comp_rec: dict = {}):
+def i_dont_know(comp_rec: dict):
     """
     функция-заглушка для обработки
     неизвестных мне режимов,

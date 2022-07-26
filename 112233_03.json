@@ -1,20 +1,14 @@
 {
   "number_receipt": "112233/01",
-  "sum-cash": 3150.00,
-  "sum-cashless": 8.00,
-  "Summ3": 0,
-  "Summ4": 0,
-  "Summ14": 0,
-  "Summ15": 0,
-  "Summ16": 0,  
   "tax-type":1,
   "Tag1021": "Кожин Роман",
   "Tag1203": "",
-  "operationtype": "sale",
   "text-attic": [["блаблабла", 2], ["купон -10% купи все, получи - ничего", 5]],
   "barcode": ["2221223469919"],
-  "text-basement": ["подвал"],
-  "km":["0104620046412948215YOpNN_oEIAiZ91EE0792iMCZl3lrWPDGDGl1bv9A4qIUoVWStWbg+SCJxjgWUCY=", "0102900021916404213Rfn-(uL4hLHv91EE0692ZL1qUSqxS/jylFxi1Sp/HouC05T7FqUi34uslMAoDc8="],
+  "km":[
+    "0104620046412948215YOpNN_oEIAiZ91EE0792iMCZl3lrWPDGDGl1bv9A4qIUoVWStWbg+SCJxjgWUCY=",
+    "0102900021916404213Rfn-(uL4hLHv91EE0692ZL1qUSqxS/jylFxi1Sp/HouC05T7FqUi34uslMAoDc8="
+  ],
   "items": [
     {
       "quantity": 1,
@@ -37,6 +31,14 @@
       "TaxType": 4,
 	  "qr": ""
     }
-  ]
-
+  ],
+  "sum-cash": 3150.00,
+  "sum-cashless": 8.00,
+  "Summ3": 0,
+  "Summ4": 0,
+  "Summ14": 0,
+  "Summ15": 0,
+  "Summ16": 0,
+  "text-basement": ["подвал"],
+  "operationtype": "sale"
 }
