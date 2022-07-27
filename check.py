@@ -18,7 +18,7 @@ PRN = win32com.client.Dispatch('Addin.DRvFR')
 PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
-#TODO реализовать внесение наличных
+
 
 def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
     """
@@ -148,6 +148,30 @@ def shtrih_operation_attic(comp_rec: dict):
 
 
 @logging
+def sendcustomeremail(comp_rec: dict):
+    """
+    функция отправки чека по почте или смс
+    ОФД сам решает
+    """
+    PRN.Password = 1
+    PRN.CustomerEmail = comp_rec["email"]
+    PRN.FNSendCustomerEmail()
+    return PRN.ResultCode
+
+
+@logging
+def shtrih_operation_cashincime(comp_rec: dict):
+    """
+    функция внесения наличных в кассу
+    на случай 1-го возврата в смене
+    """
+    PRN.Summ1 = comp_rec['cashincome']
+    PRN.CashIncome()
+    return PRN.ResultCode
+
+
+
+@logging
 def shtrih_operation_fn(comp_rec: dict):
     """
     функция печати позиций чека
@@ -271,6 +295,8 @@ def check_km(comp_rec: dict):
     """
     функция проверки кодов маркировки в честном знаке
     :param comp_rec: dict словарь с нашим чеком
+    PRN.ItemStatus = 1 при продаже
+    PRN.ItemStatus = 3 при возврате
     """
     for qr in comp_rec['km']:
         """
@@ -287,9 +313,9 @@ def check_km(comp_rec: dict):
         PRN.CheckItemMode = 0
         PRN.DivisionalQuantity = False
         PRN.FNCheckItemBarcode2()
-        if PRN.KMServerCheckingStatus != 15:
+        if PRN.KMServerCheckingStatus() != 15:
             PRN.FNAcceptMarkingCode()
-
+        return PRN.KMServerCheckingStatus()
 
 @logging
 def preparation_km(in_km: str) -> str:
@@ -356,7 +382,7 @@ def get_ecr_status():
     """
     PRN.Password = 30
     PRN.GetECRStatus()
-    print(PRN.ECRMode, PRN.ECRModeDescription)
+    # print(PRN.ECRMode, PRN.ECRModeDescription)
     return PRN.ECRMode, PRN.ECRModeDescription
 
 
@@ -371,7 +397,7 @@ def open_session(comp_rec: dict):
     PRN.WaitForPrinting()
     send_tag_1021_1203(comp_rec)
     PRN.FnOpenSession()
-    PRN.WaitForPrinting()
+    return PRN.ECRMode, PRN.ECRModeDescription
 
 
 @logging
@@ -383,7 +409,7 @@ def close_session(comp_rec: dict):
     PRN.Password = 30
     send_tag_1021_1203(comp_rec)
     PRN.PrintReportWithCleaning()
-    PRN.WaitForPrinting()
+    return PRN.ECRMode, PRN.ECRModeDescription
 
 
 @logging
@@ -395,7 +421,7 @@ def kill_document(comp_rec: dict):
     PRN.Password = 30
     PRN.SysAdminCancelCheck()
     PRN.ContinuePrint()
-    PRN.WaitForPrinting()
+    return PRN.ECRMode, PRN.ECRModeDescription
 
 
 @logging
@@ -439,7 +465,9 @@ def main():
             break
         else:
             DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, i_dont_know)(composition_receipt)
-
+    # внесение наличных в кассу, если это у нас первый возврат в смене
+    if composition_receipt['cashincome'] > 0:
+        shtrih_operation_cashincime(composition_receipt)
     # оплата по пинпаду
     pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
 
@@ -463,6 +491,9 @@ def main():
         shtrih_operation_attic(composition_receipt)
         # печать артикулов
         shtrih_operation_fn(composition_receipt)
+        # отправка чека по смс или почте
+        if composition_receipt['email'] != '':
+            sendcustomeremail(composition_receipt)
         # закрытие чека
         error_print_check_code, error_decription = shtrih_operation_basement(composition_receipt)
         if error_print_check_code != 0:
