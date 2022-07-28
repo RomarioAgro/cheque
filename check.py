@@ -477,7 +477,7 @@ def main():
         pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
     else:
         pin_error = 0
-        pinpad_text = 'Ошибок нет'
+        pinpad_text = 'py'
 
     while pin_error == 0:
         # проверка связи с ккм
