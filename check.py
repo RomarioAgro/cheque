@@ -251,21 +251,27 @@ def print_pinpad(i_str: str, sum_operation: str):
     """
     i_text = i_str.split('\n')
     count_cutter = 0
-    for line in i_text:
+    for i_line in i_text:
+        line = i_line.strip('\r')
         if (line.find(CUTTER) != -1 and
                 count_cutter == 0):
             count_cutter += 1
-            PRN.StringQuantity = 2
+            PRN.StringQuantity = 5
             PRN.FeedDocument()
             PRN.CutType = 2
             PRN.CutCheck()
         else:
             if line.find(CUTTER) != -1:
+                # сам символ отрезки печатать не надо
                 pass
             else:
                 if line.find(sum_operation) != -1:
-                    print_str(i_str=line, i_font=5)
-                    print_str(i_str=sum_operation, i_font=2)
+                    if line.strip().startswith(sum_operation) is True:
+                        print_str(i_str=line, i_font=2)
+                    else:
+                        print_str(i_str='Сумма (Руб):', i_font=5)
+                        print_str(i_str=sum_operation, i_font=2)
+
                 else:
                     print_str(i_str=line, i_font=5)
 
