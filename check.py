@@ -469,7 +469,11 @@ def main():
     if composition_receipt['cashincome'] > 0:
         shtrih_operation_cashincime(composition_receipt)
     # оплата по пинпаду
-    pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
+    if composition_receipt['sum-cashless'] > 0:
+        pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
+    else:
+        pin_error = 0
+        pinpad_text = 'Ошибок нет'
 
     while pin_error == 0:
         # проверка связи с ккм
@@ -480,11 +484,14 @@ def main():
         # печать слипа терминала
         print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
         # печать рекламы
-        if len(composition_receipt['text-attic']) > 0:
-            print_advertisement(composition_receipt['text-attic'])
+        if len(composition_receipt['text-attic-before-bc']) > 0:
+            print_advertisement(composition_receipt['text-attic-before-bc'])
         # печать баркода
         if len(composition_receipt['barcode']) > 0:
             print_barcode(composition_receipt['barcode'])
+        if len(composition_receipt['text-attic-after-bc']) > 0:
+            print_advertisement(composition_receipt['text-attic-after-bc'])
+
         # печать номера чека
         print_str(str(composition_receipt['number_receipt']), 3)
         # начало чека

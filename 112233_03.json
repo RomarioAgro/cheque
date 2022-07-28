@@ -3,8 +3,16 @@
   "tax-type":1,
   "Tag1021": "Кожин Роман",
   "Tag1203": "",
-  "text-attic": [["блаблабла", 2], ["купон -10% купи все, получи - ничего", 5]],
+  "text-attic-before-bc": [
+    ["блаблабла", 2]
+    ,
+    ["",0]
+  ],
   "barcode": ["2221223469919"],
+  "text-attic-after-bc": [
+    ["купон -10% купи все, получи - ничего", 5]
+  ],
+
   "km":[
     "0104620046412948215YOpNN_oEIAiZ91EE0792iMCZl3lrWPDGDGl1bv9A4qIUoVWStWbg+SCJxjgWUCY=",
     "0102900021916404213Rfn-(uL4hLHv91EE0692ZL1qUSqxS/jylFxi1Sp/HouC05T7FqUi34uslMAoDc8="
