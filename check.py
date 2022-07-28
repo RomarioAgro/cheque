@@ -264,9 +264,11 @@ def print_pinpad(i_str: str, sum_operation: str):
                 pass
             else:
                 if line.find(sum_operation) != -1:
-                    print_str(i_str=line, i_font=2)
+                    print_str(i_str=line, i_font=5)
+                    print_str(i_str=sum_operation, i_font=2)
                 else:
                     print_str(i_str=line, i_font=5)
+
 
 
 @logging
