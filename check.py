@@ -200,6 +200,7 @@ def shtrih_operation_fn(comp_rec: dict):
             if len(item['qr']) > 30:
                 PRN.BarCode = preparation_km(item['qr'])
                 PRN.FNSendItemBarcode()
+            PRN.WaitForPrinting()
     print_str(i_str='_' * 30, i_font=2)
 
 
@@ -222,6 +223,7 @@ def shtrih_operation_basement(comp_rec: dict):
     PRN.FNCloseCheckEx()
     # error_descr = PRN.ResultCodeDescription
     # error_code = PRN.ResultCode
+    PRN.WaitForPrinting()
     return PRN.ResultCode, PRN.ResultCodeDescription
 
 
@@ -397,6 +399,7 @@ def open_session(comp_rec: dict):
     PRN.WaitForPrinting()
     send_tag_1021_1203(comp_rec)
     PRN.FnOpenSession()
+    PRN.WaitForPrinting()
     return PRN.ECRMode, PRN.ECRModeDescription
 
 
@@ -409,6 +412,7 @@ def close_session(comp_rec: dict):
     PRN.Password = 30
     send_tag_1021_1203(comp_rec)
     PRN.PrintReportWithCleaning()
+    PRN.WaitForPrinting()
     return PRN.ECRMode, PRN.ECRModeDescription
 
 
@@ -479,7 +483,8 @@ def main():
         # проверка связи с ккм
         # проверка статуса кассы
         get_info_about_FR()
-        if PRN.WorkModeEx == 16:
+        if (PRN.WorkModeEx == 16 and
+                len(composition_receipt['km'])) > 0:
             check_km(composition_receipt)
         # печать слипа терминала
         print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
