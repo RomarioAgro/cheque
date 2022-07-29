@@ -536,6 +536,8 @@ def main():
                 Mbox('ошибка', error_decription, 4096 + 16)
                 # прибиваем "застрявший" документ
                 error_print_check_code, error_decription, error_ecr, error_ecr_descr = kill_document(composition_receipt)
+                if error_ecr == 0:
+                    error_ecr = 2
                 if error_ecr != 2:
                     error_print_check_code = error_ecr
                     error_decription = error_ecr_descr
