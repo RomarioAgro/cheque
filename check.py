@@ -504,9 +504,7 @@ def main():
     if pin_error == 0:
         # проверка связи с ккм
         # проверка статуса кассы
-        a = PRN.WorkModeEx
         get_info_about_FR()
-        aa = PRN.WorkModeEx
         if (PRN.WorkModeEx == 16 and
                 len(composition_receipt['km'])) > 0:
             check_km(composition_receipt)
@@ -546,7 +544,7 @@ def main():
                 error_print_check_code, error_decription, error_ecr, error_ecr_descr = kill_document(composition_receipt)
                 if error_ecr == 0:
                     error_ecr = 2
-                if error_ecr != 2:
+                if error_ecr != 2 and error_print_check_code == 0:
                     error_print_check_code = error_ecr
                     error_decription = error_ecr_descr
                 # error_print_check_code = PRN.ResultCode
