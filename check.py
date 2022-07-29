@@ -533,7 +533,7 @@ def main():
             count_iteration = 0
             while error_print_check_code != 0:
                 count_iteration += 1
-                Mbox('ошибка', error_decription, 4096 + 16)
+                Mbox('ошибка', 'возможно проблема с бумагой\n' + error_decription, 4096 + 16)
                 # прибиваем "застрявший" документ
                 error_print_check_code, error_decription, error_ecr, error_ecr_descr = kill_document(composition_receipt)
                 if error_ecr == 0:
