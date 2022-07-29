@@ -6,6 +6,7 @@ from typing import List, Callable, Any
 import ctypes
 import datetime
 import functools
+import time
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -101,7 +102,7 @@ def send_tag_1021_1203(comp_rec: dict) -> None:
 @logging
 def pinpad_operation(comp_rec: dict):
     """
-    функция образщения к терминалу сбербанка
+    функция обращения к терминалу сбербанка
     для оплат или возвратов
     :param comp_rec: dict словарь с составом чека
     4000 оплата
@@ -165,7 +166,7 @@ def shtrih_operation_cashincime(comp_rec: dict):
     функция внесения наличных в кассу
     на случай 1-го возврата в смене
     """
-    PRN.Summ1 = comp_rec['cashincome']
+    PRN.Summ1 = comp_rec.get('cashincome', 0)
     PRN.CashIncome()
     return PRN.ResultCode
 
@@ -221,10 +222,14 @@ def shtrih_operation_basement(comp_rec: dict):
     PRN.TaxType = comp_rec['tax-type']
     send_tag_1021_1203(comp_rec)
     PRN.FNCloseCheckEx()
-    # error_descr = PRN.ResultCodeDescription
-    # error_code = PRN.ResultCode
+    error_descr = PRN.ResultCodeDescription
+    error_code = PRN.ResultCode
     PRN.WaitForPrinting()
-    return PRN.ResultCode, PRN.ResultCodeDescription
+    ecr_code, ecr_decr = get_ecr_status()
+    print(ecr_code)
+    print(ecr_decr)
+
+    return error_code, error_descr, ecr_code, ecr_decr
 
 
 @logging
@@ -433,7 +438,10 @@ def kill_document(comp_rec: dict):
     PRN.Password = 30
     PRN.SysAdminCancelCheck()
     PRN.ContinuePrint()
-    return PRN.ECRMode, PRN.ECRModeDescription
+    PRN.WaitForPrinting()
+    error_print_check_code = PRN.ResultCode
+    error_decription = PRN.ResultCodeDescription
+    return error_print_check_code, error_decription, PRN.ECRMode, PRN.ECRModeDescription
 
 
 @logging
@@ -478,16 +486,16 @@ def main():
         else:
             DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, i_dont_know)(composition_receipt)
     # внесение наличных в кассу, если это у нас первый возврат в смене
-    if composition_receipt['cashincome'] > 0:
+    if composition_receipt.get('cashincome', 0) > 0:
         shtrih_operation_cashincime(composition_receipt)
     # оплата по пинпаду
-    if composition_receipt['sum-cashless'] > 0:
+    if int(composition_receipt.get('sum-cashless', 0)) > 0:
         pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
     else:
         pin_error = 0
         pinpad_text = 'py'
 
-    while pin_error == 0:
+    if pin_error == 0:
         # проверка связи с ккм
         # проверка статуса кассы
         get_info_about_FR()
@@ -495,14 +503,16 @@ def main():
                 len(composition_receipt['km'])) > 0:
             check_km(composition_receipt)
         # печать слипа терминала
-        print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
+        if composition_receipt['sum-cashless'] > 0:
+            print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
         # печать рекламы
-        if len(composition_receipt['text-attic-before-bc']) > 0:
+        if composition_receipt.get('text-attic-before-bc', None) is not None:
             print_advertisement(composition_receipt['text-attic-before-bc'])
         # печать баркода
-        if len(composition_receipt['barcode']) > 0:
+        if composition_receipt.get('barcode', None) is not None:
             print_barcode(composition_receipt['barcode'])
-        if len(composition_receipt['text-attic-after-bc']) > 0:
+        # печать рекламы после баркода
+        if composition_receipt.get('text-attic-after-bc', None) is not None:
             print_advertisement(composition_receipt['text-attic-after-bc'])
 
         # печать номера чека
@@ -512,19 +522,25 @@ def main():
         # печать артикулов
         shtrih_operation_fn(composition_receipt)
         # отправка чека по смс или почте
-        if composition_receipt['email'] != '':
+        if composition_receipt.get('email', '') != '':
             sendcustomeremail(composition_receipt)
         # закрытие чека
-        error_print_check_code, error_decription = shtrih_operation_basement(composition_receipt)
+        error_print_check_code, error_decription, error_ecr, error_ecr_descr = shtrih_operation_basement(composition_receipt)
+        # если у нас печать неудачно закончилась, то надо что-то с  этим делать
+        if error_ecr == 8:
+            error_print_check_code, error_decription = error_ecr, error_ecr_descr
         if error_print_check_code != 0:
             count_iteration = 0
             while error_print_check_code != 0:
                 count_iteration += 1
                 Mbox('ошибка', error_decription, 4096 + 16)
                 # прибиваем "застрявший" документ
-                kill_document()
-                error_print_check_code = PRN.ResultCode
-                error_decription = PRN.ResultCodeDescription
+                error_print_check_code, error_decription, error_ecr, error_ecr_descr = kill_document(composition_receipt)
+                if error_ecr != 2:
+                    error_print_check_code = error_ecr
+                    error_decription = error_ecr_descr
+                # error_print_check_code = PRN.ResultCode
+                # error_decription = PRN.ResultCodeDescription
                 if count_iteration > 3:
                     Mbox('ошибка', f'Ты че, дура? исправь ошибку "{error_decription}"\nпотом тыкай ОК', 4096 + 16)
                 if count_iteration > 5:
