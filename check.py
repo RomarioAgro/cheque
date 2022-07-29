@@ -187,22 +187,28 @@ def shtrih_operation_fn(comp_rec: dict):
                 PRN.CheckType = 1
             else:
                 PRN.CheckType = 2
-            PRN.PaymentItemSign = item['paymentitemsign']
+            paymentitemsign = item['paymentitemsign']
+            if PRN.WorkModeEx == 0 and paymentitemsign == 33:
+                paymentitemsign = 1
+            PRN.PaymentItemSign = paymentitemsign
+
             PRN.Quantity = item['quantity']
             PRN.Price = item['price']
             PRN.Summ1 = item['quantity'] * item['price']
             PRN.Summ1Enabled = True
             PRN.Tax1 = item['taxtype']
-            PRN.DivisionalQuantity = False
             PRN.Department = 1
             PRN.PaymentTypeSign = item['paymenttypesign']
             PRN.StringForPrinting = item['name']
-            PRN.FNOperation()
+            error_code = PRN.FNOperation()
             if len(item['qr']) > 30:
+                PRN.DivisionalQuantity = False
                 PRN.BarCode = preparation_km(item['qr'])
                 PRN.FNSendItemBarcode()
             PRN.WaitForPrinting()
     print_str(i_str='_' * 30, i_font=2)
+    print(f'FNOperation= {error_code}')
+    return error_code
 
 
 @logging
@@ -228,7 +234,7 @@ def shtrih_operation_basement(comp_rec: dict):
     ecr_code, ecr_decr = get_ecr_status()
     print(ecr_code)
     print(ecr_decr)
-
+    # error_code, error_descr, ecr_code, ecr_decr = 142, 'Нулевой итог чека', 8, 'Открытый документ: продажа'
     return error_code, error_descr, ecr_code, ecr_decr
 
 
@@ -498,7 +504,9 @@ def main():
     if pin_error == 0:
         # проверка связи с ккм
         # проверка статуса кассы
+        a = PRN.WorkModeEx
         get_info_about_FR()
+        aa = PRN.WorkModeEx
         if (PRN.WorkModeEx == 16 and
                 len(composition_receipt['km'])) > 0:
             check_km(composition_receipt)
