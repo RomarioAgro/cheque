@@ -6,7 +6,6 @@ from typing import List, Callable, Any
 import ctypes
 import datetime
 import functools
-import time
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -520,9 +519,12 @@ def main():
         # печать рекламы после баркода
         if composition_receipt.get('text-attic-after-bc', None) is not None:
             print_advertisement(composition_receipt['text-attic-after-bc'])
-
         # печать номера чека
         print_str(str(composition_receipt['number_receipt']), 3)
+        # печать бонусов
+        if composition_receipt.get('bonusi', None) is not None:
+            for item in composition_receipt['bonusi']:
+                print_str(item, 3)
         # начало чека
         shtrih_operation_attic(composition_receipt)
         # печать артикулов
