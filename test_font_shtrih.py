@@ -1,12 +1,10 @@
 import win32com.client
-import json
-from sys import argv, exit
-import re
-from typing import List, Callable, Any
-import ctypes
-import datetime
-import functools
+"""
+тестер шрифтов кассы
+проходи по порядку, смотрим какие строки арспеатались 
+значит такие шрифты в прошивке есть
 
+"""
 
 PRN = win32com.client.Dispatch('Addin.DRvFR')
 
