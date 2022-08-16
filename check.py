@@ -520,7 +520,7 @@ def main():
         if composition_receipt.get('text-attic-after-bc', None) is not None:
             print_advertisement(composition_receipt['text-attic-after-bc'])
         # печать номера чека
-        print_str(str(composition_receipt['number_receipt']), 3)
+        print_str(' ' * 3 + str(composition_receipt['number_receipt']), 3)
         # печать бонусов
         if composition_receipt.get('bonusi', None) is not None:
             for item in composition_receipt['bonusi']:
