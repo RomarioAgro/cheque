@@ -9,8 +9,8 @@ import json
 
 def get_token(client_id: str, client_secret: str):
     """
-    функция получения авторизационного
-    токена сбербанка для вызова api СБП
+    функция получения токена авторизации
+    сбербанка для вызова api СБП
     :param client_id: str строка с ID получена в ЛК сбера
     :param client_secret: str строка с secret получена в ЛК сбера
     доступна была 1 раз, в случае потери придется получать заново
@@ -28,16 +28,23 @@ def get_token(client_id: str, client_secret: str):
         "rquid": rq_uid,
         "x-ibm-client-id": client_id
     }
-    dict_params = {
+    data = {
         "grant_type": "client_credentials",
         "scope": 'https://api.sberbank.ru/qr/order.create'
     }
-    params = json.dumps(dict_params)
-    r = requests.post(url=url, headers=headers, json=dict_params, cert=('client_cert.crt', 'private.key'))
+    r = requests.post(url=url, headers=headers, data=data, cert=('client_cert.crt', 'private.key'))
+    return r.json()['access_token']
 
-    print(r.text)
-    print(r.request.headers)
-    print(r.request.body)
+
+def order_create(token: str = '', tid: str = ''):
+    """
+    функция формирования заказа,
+    получить должны картинку QR кода
+    :param tokenaccess_token:
+    :param tid:
+    :return:
+    """
+    pass
 
 
 def main():
@@ -45,7 +52,8 @@ def main():
     clientID = conf_token('clientID', default=None)
     tid = conf_token('tid', default=None)
     merchant = conf_token('merchant', default=None)
-    get_token(clientID, clientSecret)
+    access_token = get_token(clientID, clientSecret)
+    order_create(token=access_token, tid=tid)
 
 if __name__ == '__main__':
     main()
