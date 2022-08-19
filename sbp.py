@@ -52,15 +52,15 @@ def order_create(token: str = '', tid: str = '', scope: str = '', rq_uid: str = 
     """
     url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
     headers = {
-        # "accept": "",
-        "content-type": "application/x-www-form-urlencoded",
+        "accept": "application/json",
+        "content-type": 'application/json',
         "Authorization": "Bearer " + token,
         "rquid": rq_uid
     }
     data = {
         "rq_uid": rq_uid,
         "rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "member_id": clientid,
+        "member_id": tid,
         "order_number": '123',
         "order_create_date": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
         "order_params_type": [
@@ -75,12 +75,12 @@ def order_create(token: str = '', tid: str = '', scope: str = '', rq_uid: str = 
         "currency": '643',
         "description": 'test',
         "sbp_member_id": '100000000111',
-        "scope": scope
     }
-    # j_data = json.load(data)
-    r = requests.post(url=url, headers=headers, data=data, cert=('client_cert.crt', 'private.key'))
+    j_data = json.dumps(data)
+    r = requests.post(url=url, headers=headers, data=j_data, cert=('client_cert.crt', 'private.key'))
     print(r.text)
-    pass
+    print(r.request.headers)
+    print(r.request.body)
 
 
 def main():
@@ -92,7 +92,8 @@ def main():
     scope = 'https://api.sberbank.ru/qr/order.create'
     access_token = get_token(clientID, clientSecret, rq_uid, scope)
     print(f'токен доступа получен: {access_token}')
-    order_create(token=access_token, tid=tid, scope=scope, rq_uid=rq_uid, clientid=clientID)
+    rq_uid = str(uuid.uuid4()).replace('-', '')
+    order_create(token=access_token, tid=tid, scope=scope, rq_uid=rq_uid, clientid=merchant)
 
 if __name__ == '__main__':
     main()
