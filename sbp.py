@@ -5,8 +5,6 @@ import uuid
 import datetime
 import json
 
-# url = 'https://api.sberbank.ru/prod/qr/order/v3'
-
 
 def get_token(client_id: str, client_secret: str, rq_uid: str, scope: str) -> str:
     """
@@ -38,15 +36,13 @@ def get_token(client_id: str, client_secret: str, rq_uid: str, scope: str) -> st
     return r.json()['access_token']
 
 
-def order_create(token: str = '', tid: str = '', scope: str = '', rq_uid: str = '', clientid: str = ''):
+def order_create(token: str = '', tid: str = '', rq_uid: str = ''):
     """
     функция формирования заказа,
     получить должны картинку QR кода
     :param tokenaccess_token: токен доступа к сбербанку
     :param tid: ТИД торговой точки, выдал сбербанк
-    :param scope: str область видимости токена
     :param rq_uid: str UUID запроса генерирую сам
-    :param clientid: str наверно это ID который сбер выдал
 
     :return:
     """
@@ -83,7 +79,12 @@ def order_create(token: str = '', tid: str = '', scope: str = '', rq_uid: str = 
     print(r.request.body)
 
 
+def order_list():
+
+    pass
+
 def main():
+
     clientSecret = conf_token('clientSecret', default=None)
     clientID = conf_token('clientID', default=None)
     tid = conf_token('tid', default=None)
@@ -92,8 +93,7 @@ def main():
     scope = 'https://api.sberbank.ru/qr/order.create'
     access_token = get_token(clientID, clientSecret, rq_uid, scope)
     print(f'токен доступа получен: {access_token}')
-    rq_uid = str(uuid.uuid4()).replace('-', '')
-    order_create(token=access_token, tid=tid, scope=scope, rq_uid=rq_uid, clientid=merchant)
+    order_create(token=access_token, tid=tid, rq_uid=rq_uid)
 
 if __name__ == '__main__':
     main()
