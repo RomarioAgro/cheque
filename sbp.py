@@ -89,7 +89,7 @@ def main():
     clientSecret = conf_token('clientSecret', default=None)
     clientID = conf_token('clientID', default=None)
     tid = conf_token('tid', default=None)
-    merchant = conf_token('merchant', default=None)
+    memberid = conf_token('memberid', default=None)
     rq_uid = str(uuid.uuid4()).replace('-', '')
     scope = 'https://api.sberbank.ru/qr/order.create'
     access_token = get_token(clientID, clientSecret, rq_uid, scope)
