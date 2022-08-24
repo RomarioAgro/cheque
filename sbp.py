@@ -56,6 +56,7 @@ def order_create(token: str = '', tid: str = '', rq_uid: str = ''):
     data = {
         "rq_uid": rq_uid,
         "rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        # надо проверить с этим "member_id"
         "member_id": tid,
         "order_number": '123',
         "order_create_date": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
