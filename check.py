@@ -6,7 +6,10 @@ from typing import List, Callable, Any
 import ctypes
 import datetime
 import functools
+import uuid
 from SBP_OOP import SBP
+import time
+
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -250,6 +253,24 @@ def print_str(i_str: str, i_font: int = 5):
     PRN.PrintStringWithFont()
     PRN.WaitForPrinting()
 
+@logging
+def print_QR(item: str):
+    """
+    функция печати QRкода на чеке,
+    """
+    PRN.Password = 30
+    PRN.BarCode = item
+    PRN.BarcodeType = 3
+    PRN.BarcodeStartBlockNumber = 0
+    PRN.BarcodeParameter1 = 0
+    PRN.BarcodeParameter3 = 6
+    PRN.BarcodeParameter5 = 3
+    PRN.LoadAndPrint2DBarcode()
+    PRN.WaitForPrinting()
+    PRN.StringQuantity = 10
+    PRN.FeedDocument()
+    PRN.CutType = 2
+    PRN.CutCheck()
 
 @logging
 def print_pinpad(i_str: str, sum_operation: str):
@@ -258,7 +279,7 @@ def print_pinpad(i_str: str, sum_operation: str):
     :param i_str: str строка печати
     sum_operation: str сумма операции
     count_cutter: int количество команд отрезки,
-        отрезать надо только на 1
+    отрезать надо только на 1
     """
     i_text = i_str.split('\n')
     count_cutter = 0
@@ -285,8 +306,6 @@ def print_pinpad(i_str: str, sum_operation: str):
 
                 else:
                     print_str(i_str=line, i_font=5)
-
-
 
 @logging
 def print_advertisement(i_list: List[list]):
@@ -434,7 +453,27 @@ def close_session(comp_rec: dict):
     PRN.WaitForPrinting()
     return PRN.ECRMode, PRN.ECRModeDescription
 
+@logging
+def make_dict_for_sbp(comp_rec: dict) -> dict:
+    """
+    функция подготовки словаря для СБП
+    :return: dict
+    """
+    sbp_dict = {}
+    sbp_items = []
+    sbp_dict['order_sum'] = int(comp_rec['sum-cashless'] * 100)
+    sbp_dict['order_number'] = comp_rec['number_receipt']
+    for item in comp_rec['items']:
+        sbp_item = dict()
+        if item['quantity'] != 0:
+            sbp_item['position_name'] = item['name']
+            sbp_item['position_count'] = item['quantity']
+            sbp_item['position_sum'] = int(item['quantity'] * item['price'] * 100)
+            sbp_item['position_description'] = ''
+            sbp_items.append(sbp_item)
+    sbp_dict['items'] = sbp_items
 
+    return sbp_dict
 @logging
 def kill_document(comp_rec: dict):
     """
@@ -494,8 +533,32 @@ def main():
     # внесение наличных в кассу, если это у нас первый возврат в смене
     if composition_receipt.get('cashincome', 0) > 0:
         shtrih_operation_cashincime(composition_receipt)
+
+    if composition_receipt.get('sum-cashless', 0) > 0 \
+            and composition_receipt.get('SBP', 0) == 1:
+        sbp_dict = make_dict_for_sbp(composition_receipt)
+        sbp_qr = SBP()
+        order_uid = str(uuid.uuid4()).replace('-', '')
+        print('заказ ордера')
+        order_info = sbp_qr.create_order(rq_uid=order_uid, my_order=sbp_dict)
+        print_QR(order_info['order_form_url'])
+        status_uid = str(uuid.uuid4()).replace('-', '')
+        while True:
+            time.sleep(1)
+            data_status = sbp_qr.status_order(
+                rq_uid=status_uid,
+                order_id=order_info['order_id'],
+                partner_order_number=composition_receipt['number_receipt'])
+            print(data_status)
+
+            if data_status['order_state'] == 'PAID':
+                print('Оплачено')
+                break
+
+
     # оплата по пинпаду
-    if int(composition_receipt.get('sum-cashless', 0)) > 0:
+    if int(composition_receipt.get('sum-cashless', 0)) > 0\
+            and composition_receipt.get('SBP', 0) == 0:
         pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
     else:
         pin_error = 0
@@ -509,7 +572,8 @@ def main():
                 len(composition_receipt['km'])) > 0:
             check_km(composition_receipt)
         # печать слипа терминала
-        if composition_receipt['sum-cashless'] > 0:
+        if composition_receipt['sum-cashless'] > 0 \
+                and composition_receipt.get('SBP', 0) == 0:
             print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
         # печать рекламы
         if composition_receipt.get('text-attic-before-bc', None) is not None:

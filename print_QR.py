@@ -34,7 +34,6 @@ def print_str(i_str: str, i_font: int = 5):
 def print_QR(item: str):
     """
     функция печати QRкода на чеке,
-    обычно это для рекламы
     """
     PRN.Password = 30
     PRN.BarCode = item
@@ -47,7 +46,8 @@ def print_QR(item: str):
     PRN.WaitForPrinting()
     PRN.StringQuantity = 10
     PRN.FeedDocument()
-
+    PRN.CutType = 2
+    PRN.CutCheck()
 
 check_connect_fr()
 # print_str(i_str=qr_data, i_font=3)
