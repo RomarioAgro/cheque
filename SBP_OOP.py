@@ -105,7 +105,7 @@ class SBP(object):
         headers = {
             "accept": "application/json",
             "content-type": 'application/json',
-            "Authorization": "Bearer " + self.token(Scope.create),
+            "Authorization": f"Bearer {self.token(Scope.create)}",
             "rquid": rq_uid
         }
         param = {
@@ -118,7 +118,7 @@ class SBP(object):
             "id_qr": self.tid,
             "order_sum": my_order["order_sum"],
             "currency": '643',
-            "description": 'test',
+            "description": '',
             "sbp_member_id": '100000000111',
         }
         j_data = json.dumps(param)
@@ -146,7 +146,7 @@ class SBP(object):
         headers = {
             "accept": "application/json",
             "content-type": 'application/json',
-            "Authorization": "Bearer " + self.token(Scope.status),
+            "Authorization": f"Bearer {self.token(Scope.status)}",
             "rquid": rq_uid
         }
         param = {
@@ -172,7 +172,7 @@ class SBP(object):
         headers = {
             "accept": "application/json",
             "content-type": 'application/x-www-form-urlencoded',
-            "Authorization": "Bearer " + self.token(Scope.revoke),
+            "Authorization": f"Bearer {self.token(Scope.revoke)}",
             "rquid": rq_uid
         }
         param = {
@@ -215,7 +215,7 @@ class SBP(object):
             "cancel_operation_sum": order_refund['cancel_sum'],
             "operation_currency": '643',
             "sbp_payer_id": order_refund['sbppayerid'],
-            "operation_description": order_refund['description']
+            "operation_description": ''
 
         }
         j_data = json.dumps(param)
@@ -244,7 +244,7 @@ class SBP(object):
         logging.basicConfig(filename="d:\\files\\registry" + rq_uid + '.log', level=logging.DEBUG)
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/registry'
         headers = {
-            "Authorization": "Bearer " + self.token(Scope.registry),
+            "Authorization": f"Bearer {self.token(Scope.registry)}",
             "Accept": "*/*",
             "Content-Type": 'application/json',
             'x-ibm-client-id': self.client_id,
