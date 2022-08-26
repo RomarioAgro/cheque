@@ -6,6 +6,7 @@ import datetime
 import json
 
 
+
 def get_token(client_id: str, client_secret: str, rq_uid: str, scope: str) -> str:
     """
     функция получения токена авторизации

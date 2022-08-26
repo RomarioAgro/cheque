@@ -6,6 +6,7 @@ from typing import List, Callable, Any
 import ctypes
 import datetime
 import functools
+from SBP_OOP import SBP
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
