@@ -454,27 +454,6 @@ def close_session(comp_rec: dict):
     return PRN.ECRMode, PRN.ECRModeDescription
 
 @logging
-def make_dict_for_sbp(comp_rec: dict) -> dict:
-    """
-    функция подготовки словаря для СБП
-    :return: dict
-    """
-    sbp_dict = {}
-    sbp_items = []
-    sbp_dict['order_sum'] = int(comp_rec['sum-cashless'] * 100)
-    sbp_dict['order_number'] = comp_rec['number_receipt']
-    for item in comp_rec['items']:
-        sbp_item = dict()
-        if item['quantity'] != 0:
-            sbp_item['position_name'] = item['name']
-            sbp_item['position_count'] = item['quantity']
-            sbp_item['position_sum'] = int(item['quantity'] * item['price'] * 100)
-            sbp_item['position_description'] = ''
-            sbp_items.append(sbp_item)
-    sbp_dict['items'] = sbp_items
-
-    return sbp_dict
-@logging
 def kill_document(comp_rec: dict):
     """
     функция прибития застрявшего документа
@@ -536,10 +515,10 @@ def main():
 
     if composition_receipt.get('sum-cashless', 0) > 0 \
             and composition_receipt.get('SBP', 0) == 1:
-        sbp_dict = make_dict_for_sbp(composition_receipt)
+        # sbp_dict = make_dict_for_sbp(composition_receipt)
         sbp_qr = SBP()
         print('заказ ордера')
-        order_info = sbp_qr.create_order(my_order=sbp_dict)
+        order_info = sbp_qr.create_order(my_order=composition_receipt)
         print_QR(order_info['order_form_url'])
         while True:
             time.sleep(1)
@@ -547,7 +526,6 @@ def main():
                 order_id=order_info['order_id'],
                 partner_order_number=composition_receipt['number_receipt'])
             print(data_status)
-
             if data_status['order_state'] == 'PAID':
                 print('Оплачено')
                 break
