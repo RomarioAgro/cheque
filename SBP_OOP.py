@@ -93,13 +93,14 @@ class SBP(object):
         )
         return r.json()['access_token']
 
-    def create_order(self, rq_uid: str = '', my_order: dict = {}) -> dict:
+    def create_order(self, my_order: dict = {}) -> dict:
         """
         метод формирования заказа, ну в общем на выходе
         словарь с QR кодом и всякими UUID которые надо потом сохранять
         :param rq_uid: str UUID запроса генерирую сам
         :return: dict словарь QR кодом, и прочей инфой
         """
+        rq_uid = str(uuid.uuid4()).replace('-', '')
         logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log', level=logging.DEBUG)
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
         headers = {
@@ -134,7 +135,7 @@ class SBP(object):
         logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
         return r.json()
 
-    def status_order(self, rq_uid: str = '',  order_id: str = '', partner_order_number: str = '') -> dict:
+    def status_order(self, order_id: str = '', partner_order_number: str = '') -> dict:
         """
         метод проверки статуса оплаты
         rq_uid: str уникальный uuid генерирую сам
@@ -142,6 +143,7 @@ class SBP(object):
         partner_order_number: str номер чека в CRM системе торговой точки(у нас сбис)
         :return: dict ответ сервера со статусом, ошибками и прочим
         """
+        rq_uid = str(uuid.uuid4()).replace('-', '')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/status'
         headers = {
             "accept": "application/json",
@@ -163,11 +165,12 @@ class SBP(object):
         logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
         return r.json()
 
-    def revoke(self, rq_uid: str = '',  order_id: str = '') -> dict:
+    def revoke(self, order_id: str = '') -> dict:
         """
         метод отмены НЕОПЛАЧЕННОГО заказа, зачем нужен пока хызы
         :return:
         """
+        rq_uid = str(uuid.uuid4()).replace('-', '')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/revocation'
         headers = {
             "accept": "application/json",
@@ -190,11 +193,12 @@ class SBP(object):
         )
         return r.json()
 
-    def cancel(self, rq_uid: str = '',  order_refund: dict = {}) -> dict:
+    def cancel(self, order_refund: dict = {}) -> dict:
         """
         метод оформления возврата покупателя
         :return:
         """
+        rq_uid = str(uuid.uuid4()).replace('-', '')
         logging.basicConfig(filename="d:\\files\\cancel_" + rq_uid + '.log', level=logging.DEBUG)
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/cancel'
         headers = {
@@ -289,11 +293,11 @@ def main():
         ]
     }
     order_refund = {
-        "order_id": '56093e70daaf42768bfd37a3ece2e985',
-        "operation_id": '51bb98fb66b742e8aa54007482f38b52',
-        "authcode": '662400',
-        "cancel_sum": 100,
-        "sbppayerid": '+79513501389',
+        "order_id": '3c4c4891b13d4ebb9341c256e664d24b',
+        "operation_id": 'b0d53f7f43e144a796c7e2830886477f',
+        "authcode": '315535',
+        "cancel_sum": 200,
+        "sbppayerid": '',
         "description": 'test'
     }
     sbp_qr = SBP()
@@ -308,8 +312,10 @@ def main():
     # print('статус ордера')
     # sbp_qr.status_order(rq_uid=status_uid,  order_id=order_id, partner_order_number=my_order["order_number"])
 
-    cancel_uid = str(uuid.uuid4()).replace('-', '')
-    sbp_qr.cancel(rq_uid=cancel_uid, order_refund=order_refund)
+    # print('отмена заказа')
+    # cancel_uid = str(uuid.uuid4()).replace('-', '')
+    # cancel_answer = sbp_qr.cancel(rq_uid=cancel_uid, order_refund=order_refund)
+    # print(cancel_answer)
 
     # запрос на отмену не оплаченного заказа
     # time.sleep(2)
@@ -319,14 +325,15 @@ def main():
     # status_uid = str(uuid.uuid4()).replace('-', '')
     # print('статус ордера')
     # sbp_qr.status_order(rq_uid=status_uid, order_id=order_id, partner_order_number=my_order["order_number"])
-    registry_uid = str(uuid.uuid4()).replace('-', '')
-    t_delta_start = datetime.timedelta(days=7)
-    t_delta_end = datetime.timedelta(days=5)
-    date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
-    date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
+    # print('запрос реестра')
+    # registry_uid = str(uuid.uuid4()).replace('-', '')
+    # t_delta_start = datetime.timedelta(days=6)
+    # t_delta_end = datetime.timedelta(days=6)
+    # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
+    # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
     # logging.basicConfig(filename="d:\\files\\registry" + registry_uid + '.log', level=logging.DEBUG)
-    print('запрос реестра')
-    sbp_qr.registry(rq_uid=registry_uid, start_date=date_s, end_date=date_e)
+    # registry = sbp_qr.registry(rq_uid=registry_uid, start_date=date_s, end_date=date_e)
+    # print(registry)
     # sbp_qr.registry(rq_uid=registry_uid)
 
 if __name__ == '__main__':

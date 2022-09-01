@@ -538,15 +538,12 @@ def main():
             and composition_receipt.get('SBP', 0) == 1:
         sbp_dict = make_dict_for_sbp(composition_receipt)
         sbp_qr = SBP()
-        order_uid = str(uuid.uuid4()).replace('-', '')
         print('заказ ордера')
-        order_info = sbp_qr.create_order(rq_uid=order_uid, my_order=sbp_dict)
+        order_info = sbp_qr.create_order(my_order=sbp_dict)
         print_QR(order_info['order_form_url'])
-        status_uid = str(uuid.uuid4()).replace('-', '')
         while True:
             time.sleep(1)
             data_status = sbp_qr.status_order(
-                rq_uid=status_uid,
                 order_id=order_info['order_id'],
                 partner_order_number=composition_receipt['number_receipt'])
             print(data_status)
