@@ -101,7 +101,7 @@ class SBP(object):
         :return: dict словарь QR кодом, и прочей инфой
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log', level=logging.DEBUG)
+        logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log', level=logging.DEBUG, filemode='a')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
         headers = {
             "accept": "application/json",
@@ -199,7 +199,7 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(filename="d:\\files\\cancel_" + rq_uid + '.log', level=logging.DEBUG)
+        logging.basicConfig(filename="d:\\files\\cancel_" + rq_uid + '.log', level=logging.DEBUG, filemode='a')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/cancel'
         headers = {
             "Accept": "application/json",
@@ -211,14 +211,14 @@ class SBP(object):
             "rq_uid": rq_uid,
             "rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
             "order_id": order_refund['order_id'],
-            "operation_type": 'REFUND',
+            "operation_type": order_refund['operation_type'],
             "operation_id": order_refund['operation_id'],
             "auth_code": order_refund['authcode'],
             "id_qr": self.tid,
             "tid": self.tid,
             "cancel_operation_sum": order_refund['cancel_sum'],
             "operation_currency": '643',
-            "sbp_payer_id": order_refund['sbppayerid'],
+            # "sbp_payer_id": order_refund['sbppayerid'],
             "operation_description": ''
 
         }
@@ -236,8 +236,7 @@ class SBP(object):
         logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
         return r.json()
 
-    def registry(self, start_date: str = datetime.datetime.now().strftime('%Y-%m-%dT14:00:01Z'),
-                 end_date: str = datetime.datetime.now().strftime('%Y-%m-%dT14:59:59Z')):
+    def registry(self, delta_start: int = 0, delta_end: int = 0):
         """
         метод реестр заказов, типа X и Z отчет в одном флаконе
         rq_uid: str уникальный uuid генерирую сам
@@ -245,6 +244,10 @@ class SBP(object):
         end_date: str конец периода реестра операций
         :return: dict ответ сервера с реестром операций
         """
+        t_delta_start = datetime.timedelta(days=delta_start)
+        t_delta_end = datetime.timedelta(days=delta_end)
+        start_date = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
+        end_date = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
         rq_uid = str(uuid.uuid4()).replace('-', '')
         logging.basicConfig(filename="d:\\files\\registry" + rq_uid + '.log', level=logging.DEBUG)
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/registry'
@@ -279,6 +282,39 @@ class SBP(object):
         return r.json()
 
 
+    def search_operation(self, registry_dict: dict = {}, check_number: str = '1/01') -> dict:
+        """
+        метод поиска продажи в реестре операций
+        для того чтобы возврат пробить
+        :param registry_dict: dict словарь с реестром операций
+        :param check_number: str номер чека в нашей учетной систее
+         по которому делаем возврат
+        :return: dict словарь с данными для возврата денег
+        """
+        order_refund = {}
+        for item in registry_dict['registryData']['orderParams']['orderParam']:
+            if item['partnerOrderNumber'] == check_number:
+                # print(f'orderOperationParams: {item["orderOperationParams"]["orderOperationParam"][0]["operationId"]}')
+                order_refund = {
+                    # 'orderId': '7246aa0f138f4fc1830d310c5c59c7b1'
+                    "order_id": item.get('orderId', ''),
+                    # 'operationId': 'EC2440B618134DE69A09A774410DBB2E'
+                    "operation_id": item["orderOperationParams"]["orderOperationParam"][0]["operationId"],
+                    "authcode": item["orderOperationParams"]["orderOperationParam"][0]["authCode"],
+                    "cancel_sum": item.get('amount', ''),
+                    "operation_type": 'REFUND',
+                    "description": 'test'
+                }
+                return order_refund
+
+
+def print_registry_on_fr(registry_dict: dict = {}) -> list:
+    i_list = []
+    for item in registry_dict['registryData']['orderParams']['orderParam']:
+        i_str = f'{item["partnerOrderNumber"]} - {item["amount"] // 100} руб - {item["orderState"]}'
+        i_list.append(i_str)
+    print(i_list)
+
 def main():
 
     my_order = {
@@ -293,14 +329,17 @@ def main():
             }
         ]
     }
-    order_refund = {
-        "order_id": 'fe4a1cdb0b424bfa96ef800fdcbebe63',
-        "operation_id": 'cd425677d1044665980490f9a2880b97',
-        "authcode": '241969',
-        "cancel_sum": 100,
-        "sbppayerid": '0079642506709',
-        "description": 'test'
-    }
+    # order_refund = {
+    #     # 'orderId': '7246aa0f138f4fc1830d310c5c59c7b1'
+    #     "order_id": '7246aa0f138f4fc1830d310c5c59c7b1',
+    #     # 'operationId': 'EC2440B618134DE69A09A774410DBB2E'
+    #     "operation_id": 'EC2440B618134DE69A09A774410DBB2E',
+    #     "authcode": '155558',
+    #     "cancel_sum": 100,
+    #     # "sbppayerid": '0079642506709',
+    #     "operation_type": 'REFUND',
+    #     "description": 'test'
+    # }
     sbp_qr = SBP()
     # запрос на создание заказа
     # order_uid = str(uuid.uuid4()).replace('-', '')
@@ -313,9 +352,9 @@ def main():
     # print('статус ордера')
     # sbp_qr.status_order(rq_uid=status_uid,  order_id=order_id, partner_order_number=my_order["order_number"])
 
-    print('отмена заказа')
-    cancel_answer = sbp_qr.cancel(order_refund=order_refund)
-    print(cancel_answer)
+    # print('отмена заказа')
+    # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
+    # print(cancel_answer)
 
     # запрос на отмену не оплаченного заказа
     # time.sleep(2)
@@ -328,12 +367,20 @@ def main():
     # print('запрос реестра')
     # registry_uid = str(uuid.uuid4()).replace('-', '')
 
-    # t_delta_start = datetime.timedelta(hours=1)
+    # t_delta_start = datetime.timedelta(days=0)
     # t_delta_end = datetime.timedelta(days=0)
     # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
+    # # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT%H:%M:%SZ')
     # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
-    # registry = sbp_qr.registry(start_date=date_s, end_date=date_e)
-    # print(registry)
+    # # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT%H:%M:%SZ')
+    registry = sbp_qr.registry(delta_start=0, delta_end=0)
+    print(f'реестр заказов: {registry}')
+    print_registry_on_fr(registry_dict=registry)
+    # order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273909/01')
+    # print('отмена заказа')
+    # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
+    # print(cancel_answer)
+
     # sbp_qr.registry(rq_uid=registry_uid)
 
 if __name__ == '__main__':

@@ -9,6 +9,7 @@ import functools
 import uuid
 from SBP_OOP import SBP
 import time
+import logging
 
 
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -517,19 +518,22 @@ def main():
             and composition_receipt.get('SBP', 0) == 1:
         # sbp_dict = make_dict_for_sbp(composition_receipt)
         sbp_qr = SBP()
-        print('заказ ордера')
-        order_info = sbp_qr.create_order(my_order=composition_receipt)
-        print_QR(order_info['order_form_url'])
-        while True:
-            time.sleep(1)
-            data_status = sbp_qr.status_order(
-                order_id=order_info['order_id'],
-                partner_order_number=composition_receipt['number_receipt'])
-            print(data_status)
-            if data_status['order_state'] == 'PAID':
-                print('Оплачено')
-                break
-
+        if composition_receipt.get('operationtype', 'sale') == 'sale':
+            print('заказ ордера')
+            order_info = sbp_qr.create_order(my_order=composition_receipt)
+            print_QR(order_info['order_form_url'])
+            while True:
+                time.sleep(1)
+                data_status = sbp_qr.status_order(
+                    order_id=order_info['order_id'],
+                    partner_order_number=composition_receipt['number_receipt'])
+                print(data_status)
+                if data_status['order_state'] == 'PAID':
+                    print('Оплачено')
+                    break
+        else:
+            registry = sbp_qr.registry(delta_start=0, delta_end=0)
+            print(registry)
 
     # оплата по пинпаду
     if int(composition_receipt.get('sum-cashless', 0)) > 0\
