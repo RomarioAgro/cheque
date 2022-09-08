@@ -1,16 +1,17 @@
+import logging
+import os
 import win32com.client
 import json
-from sys import argv, exit
+from sys import argv, exit, path
 import re
 from typing import List, Callable, Any
 import ctypes
 import datetime
 import functools
-import uuid
-from SBP_OOP import SBP
 import time
-import logging
-
+path.insert(0, 'd:\\kassa\\script_py\\')
+os.chdir('d:\\kassa\\script_py\\')
+from SBP_OOP import SBP
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -23,7 +24,8 @@ PRN = win32com.client.Dispatch('Addin.DRvFR')
 PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
-
+logging.basicConfig(filename='d:\\files\\' + argv[2] + "_" + current_time + '_log.log', filemode='a', level=logging.DEBUG)
+logging.debug('start')
 
 def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
     """
@@ -46,7 +48,7 @@ def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
     return a_str
 
 
-def logging(func: Callable) -> Callable:
+def logging_decorator(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapped_def(*args, **kwargs):
         print(func.__name__)
@@ -73,7 +75,7 @@ def logging(func: Callable) -> Callable:
     return wrapped_def
 
 
-@logging
+@logging_decorator
 def read_composition_receipt(file_json_name: str) -> dict:
     """
     функция чтения json файла чека
@@ -85,7 +87,7 @@ def read_composition_receipt(file_json_name: str) -> dict:
     return composition_receipt
 
 
-@logging
+@logging_decorator
 def send_tag_1021_1203(comp_rec: dict) -> None:
     """
     функция отправки тэгов 1021 и 1203
@@ -103,7 +105,7 @@ def send_tag_1021_1203(comp_rec: dict) -> None:
     PRN.FNSendTag()
 
 
-@logging
+@logging_decorator
 def pinpad_operation(comp_rec: dict):
     """
     функция обращения к терминалу сбербанка
@@ -135,7 +137,7 @@ def pinpad_operation(comp_rec: dict):
     return pinpaderror, mycheque
 
 
-@logging
+@logging_decorator
 def shtrih_operation_attic(comp_rec: dict):
     """
     функция оформления начала чека,
@@ -152,7 +154,7 @@ def shtrih_operation_attic(comp_rec: dict):
     PRN.UseReceiptRibbon = "TRUE"
 
 
-@logging
+@logging_decorator
 def sendcustomeremail(comp_rec: dict):
     """
     функция отправки чека по почте или смс
@@ -164,7 +166,7 @@ def sendcustomeremail(comp_rec: dict):
     return PRN.ResultCode
 
 
-@logging
+@logging_decorator
 def shtrih_operation_cashincime(comp_rec: dict):
     """
     функция внесения наличных в кассу
@@ -176,7 +178,7 @@ def shtrih_operation_cashincime(comp_rec: dict):
 
 
 
-@logging
+@logging_decorator
 def shtrih_operation_fn(comp_rec: dict):
     """
     функция печати позиций чека
@@ -215,7 +217,7 @@ def shtrih_operation_fn(comp_rec: dict):
     return error_code
 
 
-@logging
+@logging_decorator
 def shtrih_operation_basement(comp_rec: dict):
     """
     функция печати конца чека, закрытие и все такое
@@ -242,7 +244,7 @@ def shtrih_operation_basement(comp_rec: dict):
     return error_code, error_descr, ecr_code, ecr_decr
 
 
-@logging
+@logging_decorator
 def print_str(i_str: str, i_font: int = 5):
     """
     печать одиночной строки
@@ -254,7 +256,8 @@ def print_str(i_str: str, i_font: int = 5):
     PRN.PrintStringWithFont()
     PRN.WaitForPrinting()
 
-@logging
+
+@logging_decorator
 def print_QR(item: str):
     """
     функция печати QRкода на чеке,
@@ -273,7 +276,8 @@ def print_QR(item: str):
     PRN.CutType = 2
     PRN.CutCheck()
 
-@logging
+
+@logging_decorator
 def print_pinpad(i_str: str, sum_operation: str):
     """
     функция печати ответа от пинпада сбербанка
@@ -308,7 +312,7 @@ def print_pinpad(i_str: str, sum_operation: str):
                 else:
                     print_str(i_str=line, i_font=5)
 
-@logging
+@logging_decorator
 def print_advertisement(i_list: List[list]):
     """
     функция печати рекламного текста в начале чека
@@ -317,7 +321,7 @@ def print_advertisement(i_list: List[list]):
         print_str(i_str=item[0], i_font=item[1])
 
 
-@logging
+@logging_decorator
 def print_barcode(i_list: List[str]):
     """
     функция печати штрихкода на чеке,
@@ -331,7 +335,7 @@ def print_barcode(i_list: List[str]):
         PRN.FeedDocument()
 
 
-@logging
+@logging_decorator
 def check_km(comp_rec: dict):
     """
     функция проверки кодов маркировки в честном знаке
@@ -358,7 +362,7 @@ def check_km(comp_rec: dict):
             PRN.FNAcceptMarkingCode()
         return PRN.KMServerCheckingStatus()
 
-@logging
+@logging_decorator
 def preparation_km(in_km: str) -> str:
     """
     функция подготовки кода маркировки к отправке в честный знак
@@ -377,7 +381,7 @@ def preparation_km(in_km: str) -> str:
     return out_km
 
 
-@logging
+@logging_decorator
 def Mbox(title, text, style):
     """
         ##  Styles:
@@ -393,7 +397,7 @@ def Mbox(title, text, style):
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
 
-@logging
+@logging_decorator
 def get_info_about_FR():
     """
     функция запроса итогов фискализации
@@ -405,7 +409,7 @@ def get_info_about_FR():
     PRN.FNGetFiscalizationResult()
 
 
-@logging
+@logging_decorator
 def check_connect_fr():
     """
     функция проверки связи с фискальмым регистратором
@@ -415,7 +419,7 @@ def check_connect_fr():
     return PRN.ResultCode, PRN.ResultCodeDescription
 
 
-@logging
+@logging_decorator
 def get_ecr_status():
     """
     функция запрoса режима кассы
@@ -427,7 +431,7 @@ def get_ecr_status():
     return PRN.ECRMode, PRN.ECRModeDescription
 
 
-@logging
+@logging_decorator
 def open_session(comp_rec: dict):
     """
     функция открытия смены на кассе
@@ -442,7 +446,7 @@ def open_session(comp_rec: dict):
     return PRN.ECRMode, PRN.ECRModeDescription
 
 
-@logging
+@logging_decorator
 def close_session(comp_rec: dict):
     """
     функция закрытия смены
@@ -454,7 +458,8 @@ def close_session(comp_rec: dict):
     PRN.WaitForPrinting()
     return PRN.ECRMode, PRN.ECRModeDescription
 
-@logging
+
+@logging_decorator
 def kill_document(comp_rec: dict):
     """
     функция прибития застрявшего документа
@@ -469,7 +474,7 @@ def kill_document(comp_rec: dict):
     return error_print_check_code, error_decription, PRN.ECRMode, PRN.ECRModeDescription
 
 
-@logging
+@logging_decorator
 def i_dont_know(comp_rec: dict):
     """
     функция-заглушка для обработки
@@ -479,6 +484,108 @@ def i_dont_know(comp_rec: dict):
     :return:
     """
     Mbox('я не знаю что делать', f'неизвестный режим: {get_ecr_status()}', 4096 + 16)
+
+
+@logging_decorator
+def format_string(elem: str) -> str:
+    """
+    функция выравнивания строки
+    добавляем в середину строки пробелы
+    :param elem: str строка
+    :return: выходить будем с одной строкой
+    """
+    len_string = 33
+    pattern = elem.rpartition(' ')
+    i = 0
+    while len(pattern[0]) + len(' ' * i) + len(pattern[2]) < len_string:
+        i += 1
+    o_str = f'{pattern[0]} {" " * i} {pattern[2]}'
+    return o_str
+
+
+@logging_decorator
+def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
+    """
+    печать операции PAY СБП в человекопонятном виде
+    на кассовом аппарате
+    печатать будем
+    дату,
+    время,
+    tid,
+    mid
+    покупатель,
+    ID операции
+    rrn
+    код авторизации
+    Сумма
+    :param operation_dict: dict словарь с ответом от СБП
+    :return: итоговая строка для печати на кассовом аппарате
+    """
+    i_list = []
+    i_str = f'{datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").date()} {datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").time()}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП операция {operation_dict["order_operation_params"][0]["operation_type"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП терминал {operation_dict["tid"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП мерчант {operation_dict["mid"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП Покупатель {operation_dict["sbp_operation_params"]["sbp_masked_payer_id"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП ID операции:'
+    i_list.append(format_string(i_str))
+    i_str = f'{operation_dict["order_operation_params"][0]["operation_id"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП номер ссылки {operation_dict["order_operation_params"][0]["rrn"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП код авторизации {operation_dict["order_operation_params"][0]["auth_code"]}'
+    i_list.append(format_string(i_str))
+    i_str = f' Сумма: '
+    i_list.append(format_string(i_str))
+    i_str = f'   {operation_dict["order_operation_params"][0]["operation_sum"] // 100}.00'
+    i_list.append(i_str)
+    o_str = '\n'.join(i_list) + '\n' + '~S' + '\n'.join(i_list)
+    return o_str
+
+@logging_decorator
+def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
+    """
+    печать операции REFUND СБП в человекопонятном виде
+    на кассовом аппарате
+    печатать будем
+    дату,
+    время,
+    tid,
+    mid
+    покупатель,
+    ID операции
+    rrn
+    код авторизации
+    Сумма
+    :param operation_dict: dict словарь с ответом от СБП
+    :return: итоговая строка для печати на кассовом аппарате
+    """
+    i_list = []
+    i_str = f'{datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").date()} {datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").time()}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП операция {operation_dict["operation_type"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП терминал {operation_dict["tid"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП ID операции:'
+    i_list.append(format_string(i_str))
+    i_str = f'{operation_dict["operation_id"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП номер ссылки {operation_dict["rrn"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП код авторизации {operation_dict["auth_code"]}'
+    i_list.append(format_string(i_str))
+    i_str = f' Сумма: '
+    i_list.append(format_string(i_str))
+    i_str = f'   {operation_dict["operation_sum"] // 100}.00'
+    i_list.append(i_str)
+    o_str = '\n'.join(i_list) + '\n' + '~S' + '\n'.join(i_list)
+    return o_str
 
 
 DICT_OF_COMMAND_ECR_MODE = {
@@ -505,34 +612,52 @@ def main():
     # режим 2 - Открытая смена, 24 часа не кончились
     while True:
         ecr_mode, ecr_mode_description = get_ecr_status()
-        if (ecr_mode == 0 or
-                ecr_mode == 2):
+        if ecr_mode == 2:
             break
         else:
             DICT_OF_COMMAND_ECR_MODE.get(ecr_mode, i_dont_know)(composition_receipt)
     # внесение наличных в кассу, если это у нас первый возврат в смене
+    logging.debug('проверили статус')
     if composition_receipt.get('cashincome', 0) > 0:
         shtrih_operation_cashincime(composition_receipt)
-
-    if composition_receipt.get('sum-cashless', 0) > 0 \
+        logging.debug('cashincome')
+    if composition_receipt.get('summ3', 0) > 0 \
             and composition_receipt.get('SBP', 0) == 1:
         # sbp_dict = make_dict_for_sbp(composition_receipt)
-        sbp_qr = SBP()
+        logging.debug('зашли в СБП')
+        try:
+            sbp_qr = SBP()
+        except Exception as exc:
+            logging.debug(exc)
         if composition_receipt.get('operationtype', 'sale') == 'sale':
             print('заказ ордера')
             order_info = sbp_qr.create_order(my_order=composition_receipt)
             print_QR(order_info['order_form_url'])
+            i = 0
             while True:
                 time.sleep(1)
+                i += 1
+                if i > 60:
+                    exit(2000)
                 data_status = sbp_qr.status_order(
                     order_id=order_info['order_id'],
                     partner_order_number=composition_receipt['number_receipt'])
                 print(data_status)
                 if data_status['order_state'] == 'PAID':
                     print('Оплачено')
+                    sbp_text = print_operation_SBP_PAY(data_status)
+                    print_pinpad(sbp_text, str(composition_receipt['summ3']))
+                    logging.debug(data_status)
                     break
         else:
-            registry = sbp_qr.registry(delta_start=0, delta_end=0)
+            t_delta = (datetime.datetime.now().date() - datetime.datetime.strptime(composition_receipt['initial_sale_date'], '%d.%m.%y').date()).days
+            registry = sbp_qr.registry(delta_start=t_delta, delta_end=t_delta)
+            order_refund = sbp_qr.search_operation(registry_dict=registry, check_number=composition_receipt['initial_sale_number'])
+            data_status = sbp_qr.cancel(order_refund=order_refund)
+            sbp_text = print_operation_SBP_REFUND(data_status)
+            print_pinpad(sbp_text, str(composition_receipt['summ3']))
+            logging.debug(order_refund)
+            logging.debug(data_status)
             print(registry)
 
     # оплата по пинпаду

@@ -54,7 +54,8 @@ def print_registry_on_fr(registry_dict: dict = {}) -> list:
 
 
 check_connect_fr()
-registry = sbp_qr.registry(delta_start=1, delta_end=1)
+registry = sbp_qr.registry(delta_start=0, delta_end=0)
+print(registry)
 otchet_SBP = print_registry_on_fr(registry_dict=registry)
 print(otchet_SBP)
 for i_str in otchet_SBP:

@@ -117,7 +117,7 @@ class SBP(object):
             "order_create_date": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
             # "order_params_type": my_order.get("items", []),
             "id_qr": self.tid,
-            "order_sum": int(my_order.get("sum-cashless", 0)) * 100,
+            "order_sum": int(my_order.get("summ3", 0)) * 100,
             "currency": '643',
             "description": '',
             "sbp_member_id": '100000000111',
@@ -329,17 +329,17 @@ def main():
             }
         ]
     }
-    # order_refund = {
-    #     # 'orderId': '7246aa0f138f4fc1830d310c5c59c7b1'
-    #     "order_id": '7246aa0f138f4fc1830d310c5c59c7b1',
-    #     # 'operationId': 'EC2440B618134DE69A09A774410DBB2E'
-    #     "operation_id": 'EC2440B618134DE69A09A774410DBB2E',
-    #     "authcode": '155558',
-    #     "cancel_sum": 100,
-    #     # "sbppayerid": '0079642506709',
-    #     "operation_type": 'REFUND',
-    #     "description": 'test'
-    # }
+    order_refund = {
+        # 'orderId': '7246aa0f138f4fc1830d310c5c59c7b1'
+        "order_id": 'fbee595da0ff43a3a8f9e8d881cf9c7a',
+        # 'operationId': 'EC2440B618134DE69A09A774410DBB2E'
+        "operation_id": '8C27C28F1C774B6F86A95899B684C294',
+        "authcode": '301004',
+        "cancel_sum": 100,
+        # "sbppayerid": '0079642506709',
+        "operation_type": 'REFUND',
+        "description": 'test'
+    }
     sbp_qr = SBP()
     # запрос на создание заказа
     # order_uid = str(uuid.uuid4()).replace('-', '')
@@ -376,10 +376,10 @@ def main():
     registry = sbp_qr.registry(delta_start=0, delta_end=0)
     print(f'реестр заказов: {registry}')
     print_registry_on_fr(registry_dict=registry)
-    # order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273909/01')
-    # print('отмена заказа')
-    # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
-    # print(cancel_answer)
+    order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273912/01')
+    print('отмена заказа')
+    cancel_answer = sbp_qr.cancel(order_refund=order_refund)
+    print(cancel_answer)
 
     # sbp_qr.registry(rq_uid=registry_uid)
 
