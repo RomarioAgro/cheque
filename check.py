@@ -12,6 +12,7 @@ import time
 path.insert(0, 'd:\\kassa\\script_py\\')
 os.chdir('d:\\kassa\\script_py\\')
 from SBP_OOP import SBP
+from pinpad_OOP import PinPad
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -21,7 +22,7 @@ DICT_OPERATION_CHECK = {'sale': 0,
 CUTTER = '~S'
 
 PRN = win32com.client.Dispatch('Addin.DRvFR')
-PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
+# PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
 logging.basicConfig(filename='d:\\files\\' + argv[2] + "_" + current_time + '_log.log', filemode='a', level=logging.DEBUG)
@@ -31,6 +32,7 @@ def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
     """
     функция приведения args kwargs
     к одной строке чтоб удобнее печатать было
+    используется для логирования
     :param args: Any
     :param kwargs: Any
     :return: str
@@ -105,36 +107,36 @@ def send_tag_1021_1203(comp_rec: dict) -> None:
     PRN.FNSendTag()
 
 
-@logging_decorator
-def pinpad_operation(comp_rec: dict):
-    """
-    функция обращения к терминалу сбербанка
-    для оплат или возвратов
-    :param comp_rec: dict словарь с составом чека
-    4000 оплата
-    4002 возврат
-    6001 ПОДТВЕРДИТЬ ОПЕРАЦИЮ
-    6003 ПЕРЕВОД ОПЕРАЦИИ В НЕПОДТВЕРЖДЕННОЕ СОСТОЯНИЕ
-    6004 ОТМЕНА ОПЕРАЦИИ
-    :return: int код ошибки от терминала, str текстовый чек от терминала
-    """
-    operation, pinpaderror, mycheque = 0, 0, ''
-    sum = comp_rec['sum-cashless'] * 100
-    if sum > 0:
-        if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0:
-            operation = 4000
-        if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 2:
-            operation = 4002
-    # если мы определили операцию то продолжаем работать
-    if operation != 0:
-        PINPAD.Clear()
-        PINPAD.SParam("Amount", sum)
-        pinpaderror = PINPAD.NFun(operation)
-
-        mycheque = PINPAD.GParamString("Cheque1251")
-
-        # print(f'ошибка терминала {pinpaderror}')
-    return pinpaderror, mycheque
+# @logging_decorator
+# def pinpad_operation(comp_rec: dict):
+#     """
+#     функция обращения к терминалу сбербанка
+#     для оплат или возвратов
+#     :param comp_rec: dict словарь с составом чека
+#     4000 оплата
+#     4002 возврат
+#     6001 ПОДТВЕРДИТЬ ОПЕРАЦИЮ
+#     6003 ПЕРЕВОД ОПЕРАЦИИ В НЕПОДТВЕРЖДЕННОЕ СОСТОЯНИЕ
+#     6004 ОТМЕНА ОПЕРАЦИИ
+#     :return: int код ошибки от терминала, str текстовый чек от терминала
+#     """
+#     operation, pinpaderror, mycheque = 0, 0, ''
+#     sum = comp_rec['sum-cashless'] * 100
+#     if sum > 0:
+#         if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0:
+#             operation = 4000
+#         if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 2:
+#             operation = 4002
+#     # если мы определили операцию то продолжаем работать
+#     if operation != 0:
+#         PINPAD.Clear()
+#         PINPAD.SParam("Amount", sum)
+#         pinpaderror = PINPAD.NFun(operation)
+#
+#         mycheque = PINPAD.GParamString("Cheque1251")
+#
+#         # print(f'ошибка терминала {pinpaderror}')
+#     return pinpaderror, mycheque
 
 
 @logging_decorator
@@ -621,6 +623,7 @@ def main():
     if composition_receipt.get('cashincome', 0) > 0:
         shtrih_operation_cashincime(composition_receipt)
         logging.debug('cashincome')
+    # операци по СБП, оплата или возврат
     if composition_receipt.get('summ3', 0) > 0 \
             and composition_receipt.get('SBP', 0) == 1:
         # sbp_dict = make_dict_for_sbp(composition_receipt)
@@ -631,6 +634,7 @@ def main():
             logging.debug(exc)
         if composition_receipt.get('operationtype', 'sale') == 'sale':
             print('заказ ордера')
+            # начинаем оплату по сбп
             order_info = sbp_qr.create_order(my_order=composition_receipt)
             print_QR(order_info['order_form_url'])
             i = 0
@@ -639,21 +643,27 @@ def main():
                 i += 1
                 if i > 60:
                     exit(2000)
+                #проверяем статус нашей оплаты, есть 60сек на оплату
                 data_status = sbp_qr.status_order(
                     order_id=order_info['order_id'],
                     partner_order_number=composition_receipt['number_receipt'])
                 print(data_status)
                 if data_status['order_state'] == 'PAID':
                     print('Оплачено')
+                    # если оплатили, то начинаем печатать ответ сервера
                     sbp_text = print_operation_SBP_PAY(data_status)
                     print_pinpad(sbp_text, str(composition_receipt['summ3']))
                     logging.debug(data_status)
                     break
         else:
+            # возврат денег по сбп, сначала запрашиваем все операции за нужную нам дату
             t_delta = (datetime.datetime.now().date() - datetime.datetime.strptime(composition_receipt['initial_sale_date'], '%d.%m.%y').date()).days
             registry = sbp_qr.registry(delta_start=t_delta, delta_end=t_delta)
+            # среди списка операций ищем ту которую надо вернуть
             order_refund = sbp_qr.search_operation(registry_dict=registry, check_number=composition_receipt['initial_sale_number'])
+            # делаем возврат
             data_status = sbp_qr.cancel(order_refund=order_refund)
+            # печатаем ответ сервера СБП
             sbp_text = print_operation_SBP_REFUND(data_status)
             print_pinpad(sbp_text, str(composition_receipt['summ3']))
             logging.debug(order_refund)
@@ -663,7 +673,8 @@ def main():
     # оплата по пинпаду
     if int(composition_receipt.get('sum-cashless', 0)) > 0\
             and composition_receipt.get('SBP', 0) == 0:
-        pin_error, pinpad_text = pinpad_operation(comp_rec=composition_receipt)
+        sber_pinpad = PinPad()
+        pin_error, pinpad_text = sber_pinpad.pinpad_operation(comp_rec=composition_receipt)
     else:
         pin_error = 0
         pinpad_text = 'py'
