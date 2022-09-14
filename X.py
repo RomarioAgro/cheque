@@ -8,7 +8,7 @@ import ctypes
 import datetime
 import functools
 import time
-os.chdir('d:\\kassa\\script_py\\shtrih\\')
+# os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
 
@@ -18,14 +18,6 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'correct_return_sale': 130}
 
 CUTTER = '~S'
-
-
-current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-log_file = 'd:\\files\\X_' + current_time + ".log"
-logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
-logging.debug(current_time + ' start X')
-
-
 
 
 class Shtrih(object):
@@ -91,14 +83,18 @@ class Shtrih(object):
 
 
 def main():
+    i_shtrih = Shtrih()
+    comp_rec = dict()
+    comp_rec['sum-cashless'] = 0
+    comp_rec['operationtype'] = 'full_otchet'
+    current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+    log_file = 'd:\\files\\pinpad_' + comp_rec['operationtype'] + '_' + current_time + ".log"
+    logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
+    logging.debug(current_time + ' ' + comp_rec['operationtype'])
+    sber_pinpad = PinPad(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
+    sber_pinpad.pinpad_operation()
+    i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
 
-    sber_pinpad = PinPad()
-    shtrih = Shtrih()
-    str_pinpad = sber_pinpad.x_otchet()
-    shtrih.print_pinpad(str_pinpad, CUTTER)
-    # shtrih.x_otchet()
-
-    pass
 
 
 if __name__ == '__main__':

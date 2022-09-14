@@ -10,6 +10,7 @@ import datetime
 import functools
 import time
 path.insert(0, 'd:\\kassa\\script_py\\')
+path.insert(0, 'd:\\kassa\\script_py\\shtrih\\')
 os.chdir('d:\\kassa\\script_py\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
@@ -22,7 +23,6 @@ DICT_OPERATION_CHECK = {'sale': 0,
 CUTTER = '~S'
 
 PRN = win32com.client.Dispatch('Addin.DRvFR')
-# PINPAD = win32com.client.Dispatch('SBRFSRV.Server')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
 logging.basicConfig(filename='d:\\files\\' + argv[2] + "_" + current_time + '_log.log', filemode='a', level=logging.DEBUG)
@@ -105,38 +105,6 @@ def send_tag_1021_1203(comp_rec: dict) -> None:
     PRN.TagType = 7
     PRN.TagValueStr = comp_rec['tag1203']
     PRN.FNSendTag()
-
-
-# @logging_decorator
-# def pinpad_operation(comp_rec: dict):
-#     """
-#     функция обращения к терминалу сбербанка
-#     для оплат или возвратов
-#     :param comp_rec: dict словарь с составом чека
-#     4000 оплата
-#     4002 возврат
-#     6001 ПОДТВЕРДИТЬ ОПЕРАЦИЮ
-#     6003 ПЕРЕВОД ОПЕРАЦИИ В НЕПОДТВЕРЖДЕННОЕ СОСТОЯНИЕ
-#     6004 ОТМЕНА ОПЕРАЦИИ
-#     :return: int код ошибки от терминала, str текстовый чек от терминала
-#     """
-#     operation, pinpaderror, mycheque = 0, 0, ''
-#     sum = comp_rec['sum-cashless'] * 100
-#     if sum > 0:
-#         if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 0:
-#             operation = 4000
-#         if DICT_OPERATION_CHECK.get(comp_rec['operationtype']) == 2:
-#             operation = 4002
-#     # если мы определили операцию то продолжаем работать
-#     if operation != 0:
-#         PINPAD.Clear()
-#         PINPAD.SParam("Amount", sum)
-#         pinpaderror = PINPAD.NFun(operation)
-#
-#         mycheque = PINPAD.GParamString("Cheque1251")
-#
-#         # print(f'ошибка терминала {pinpaderror}')
-#     return pinpaderror, mycheque
 
 
 @logging_decorator
@@ -673,8 +641,9 @@ def main():
     # оплата по пинпаду
     if int(composition_receipt.get('sum-cashless', 0)) > 0\
             and composition_receipt.get('SBP', 0) == 0:
-        sber_pinpad = PinPad()
-        pin_error, pinpad_text = sber_pinpad.pinpad_operation(comp_rec=composition_receipt)
+        sber_pinpad = PinPad(operation_name=composition_receipt['operationtype'], oper_sum=composition_receipt['sum-cashless'])
+        sber_pinpad.pinpad_operation()
+        pin_error = sber_pinpad.error
     else:
         pin_error = 0
         pinpad_text = 'py'
@@ -689,7 +658,7 @@ def main():
         # печать слипа терминала
         if composition_receipt['sum-cashless'] > 0 \
                 and composition_receipt.get('SBP', 0) == 0:
-            print_pinpad(pinpad_text, str(composition_receipt['sum-cashless']))
+            print_pinpad(sber_pinpad.text, str(composition_receipt['sum-cashless']))
         # печать рекламы
         if composition_receipt.get('text-attic-before-bc', None) is not None:
             print_advertisement(composition_receipt['text-attic-before-bc'])
