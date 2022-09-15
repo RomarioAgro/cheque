@@ -11,7 +11,7 @@ import functools
 import time
 path.insert(0, 'd:\\kassa\\script_py\\')
 path.insert(0, 'd:\\kassa\\script_py\\shtrih\\')
-os.chdir('d:\\kassa\\script_py\\')
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
 

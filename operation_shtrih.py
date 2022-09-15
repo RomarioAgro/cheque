@@ -31,6 +31,27 @@ class Shtrih(object):
     def x_otchet(self):
         self.prn.PrintReportWithoutCleaning()
 
+    def z_otchet(self, tag1021: str = 'john doe', tag1203: str = '1234567890'):
+        """
+        метод закрытия смены на штрихе
+        при закрытии надо отправить тэги
+        ФИО кассира
+        ИНН кассира
+        :param tag1021: str ФИО кассира
+        :param tag1203: str ИНН кассира
+        :return:
+        """
+        self.prn.FNBeginCloseSession()
+        self.prn.TagNumber = 1021
+        self.prn.TagType = 7
+        self.prn.TagValueStr = tag1021
+        self.prn.FNSendTag()
+        self.prn.TagNumber = 1203
+        self.prn.TagType = 7
+        self.prn.TagValueStr = tag1203
+        self.prn.FNSendTag()
+        self.prn.FNCloseSession()
+
     def about_me(self):
         pass
 
@@ -82,18 +103,38 @@ class Shtrih(object):
                         self.print_str(i_str=line, i_font=5)
 
 
+def read_composition_receipt(file_json_name: str) -> dict:
+    """
+    функция чтения json файла чека
+    :param file_json_name: str имя файла
+    :return: dict состав чека
+    """
+    with open(file_json_name, 'r') as json_file:
+        composition_receipt = json.load(json_file)
+    return composition_receipt
+
+
 def main():
-    i_shtrih = Shtrih()
-    comp_rec = dict()
-    comp_rec['sum-cashless'] = 0
-    comp_rec['operationtype'] = 'full_otchet'
+    comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
     log_file = 'd:\\files\\pinpad_' + comp_rec['operationtype'] + '_' + current_time + ".log"
     logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
     logging.debug(current_time + ' ' + comp_rec['operationtype'])
+    i_shtrih = Shtrih()
+    # печать отчета СБП
+    if comp_rec.get('SBP', 0) == 1:
+        i_sbp = SBP()
+        str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
+        i_shtrih.print_pinpad(str_registry_SBP, CUTTER)
+    # печать отчета эквайринга
     sber_pinpad = PinPad(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
     sber_pinpad.pinpad_operation()
     i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
+    # печать отчета штрих
+    if comp_rec['operationtype'] == 'x_otchet':
+        i_shtrih.x_otchet()
+    if comp_rec['operationtype'] == 'z_otchet':
+        i_shtrih.z_otchet(tag1021=comp_rec['tag1021'], tag1203=comp_rec['tag1203'])
 
 
 

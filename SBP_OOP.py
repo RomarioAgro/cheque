@@ -308,12 +308,37 @@ class SBP(object):
                 return order_refund
 
 
+    def make_registry_for_print_on_fr(self, registry_dict: dict = {}) -> str:
+        """
+        метод подготовки реестра операций для печати
+        СБП в человекопонятном виде на кассовом аппарате
+        :param registry_dict: dict словарь с операциями СБП
+        :return: str строка для печати на кассе
+        """
+        i_list = ['СПИСОК ОПЕРАЦИ ПО СБП']
+        total_sum = {}
+        for order in registry_dict['registryData']['orderParams']['orderParam']:
+            for operation in order['orderOperationParams']['orderOperationParam']:
+                i_str = f'{operation["operationDateTime"]}'
+                i_list.append(i_str)
+                i_str = f'чек {order["partnerOrderNumber"]}-{operation["operationSum"] // 100} руб-{operation["operationType"]}'
+                i_list.append(i_str)
+                total_sum[operation["operationType"]] = total_sum.get(operation["operationType"], 0) + int(
+                    operation["operationSum"] // 100)
+                i_list.append('-'*20)
+        for key, val in total_sum.items():
+            i_list.append(f'всего {key} - {val}руб')
+        i_list.append('-' * 20)
+        o_str = '\n'.join(i_list) + '\n'
+        return o_str
+
 def print_registry_on_fr(registry_dict: dict = {}) -> list:
     i_list = []
     for item in registry_dict['registryData']['orderParams']['orderParam']:
         i_str = f'{item["partnerOrderNumber"]} - {item["amount"] // 100} руб - {item["orderState"]}'
         i_list.append(i_str)
     print(i_list)
+
 
 def main():
 
