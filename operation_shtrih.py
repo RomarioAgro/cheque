@@ -8,7 +8,7 @@ import ctypes
 import datetime
 import functools
 import time
-# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
 

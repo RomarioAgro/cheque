@@ -329,10 +329,17 @@ class SBP(object):
         for key, val in total_sum.items():
             i_list.append(f'всего {key} - {val}руб')
         i_list.append('-' * 20)
+        i_list.append('КОНЕЦ СПИСКА ОПЕРАЦИЙ СБП')
+        i_list.append(' ')
         o_str = '\n'.join(i_list) + '\n'
         return o_str
 
 def print_registry_on_fr(registry_dict: dict = {}) -> list:
+    """
+    функция печати реестраопераций на кассе
+    :param registry_dict:
+    :return:
+    """
     i_list = []
     for item in registry_dict['registryData']['orderParams']['orderParam']:
         i_str = f'{item["partnerOrderNumber"]} - {item["amount"] // 100} руб - {item["orderState"]}'
@@ -398,13 +405,13 @@ def main():
     # # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT%H:%M:%SZ')
     # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
     # # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT%H:%M:%SZ')
-    registry = sbp_qr.registry(delta_start=0, delta_end=0)
+    registry = sbp_qr.registry(delta_start=2, delta_end=2)
     print(f'реестр заказов: {registry}')
     print_registry_on_fr(registry_dict=registry)
-    order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273912/01')
-    print('отмена заказа')
-    cancel_answer = sbp_qr.cancel(order_refund=order_refund)
-    print(cancel_answer)
+    # order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273912/01')
+    # print('отмена заказа')
+    # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
+    # print(cancel_answer)
 
     # sbp_qr.registry(rq_uid=registry_uid)
 
