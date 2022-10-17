@@ -5,6 +5,7 @@ import json
 from sys import argv, exit, path
 import re
 from typing import List, Callable, Any
+import PySimpleGUI as sg
 import ctypes
 import datetime
 import functools
@@ -606,23 +607,51 @@ def main():
             order_info = sbp_qr.create_order(my_order=composition_receipt)
             print_QR(order_info['order_form_url'])
             i = 0
-            while True:
-                time.sleep(1)
-                i += 1
-                if i > 60:
-                    exit(2000)
-                #проверяем статус нашей оплаты, есть 60сек на оплату
-                data_status = sbp_qr.status_order(
-                    order_id=order_info['order_id'],
-                    partner_order_number=composition_receipt['number_receipt'])
-                print(data_status)
-                if data_status['order_state'] == 'PAID':
-                    print('Оплачено')
-                    # если оплатили, то начинаем печатать ответ сервера
-                    sbp_text = print_operation_SBP_PAY(data_status)
-                    print_pinpad(sbp_text, str(composition_receipt['summ3']))
-                    logging.debug(data_status)
+            latenсy = 60
+            progressbar = [
+                [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
+            ]
+            outputwin = [
+                [sg.Output(size=(60, 10))]
+            ]
+            layout = [
+                [sg.Frame('Progress', layout=progressbar)],
+                [sg.Frame('Output', layout=outputwin)],
+                [sg.Button('Cancel')]
+            ]
+            window = sg.Window('Связь с банком', layout)
+            progress_bar = window['progressbar']
+            show_window = True
+            i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
+            i = 0
+            while show_window:
+                event, values = window.read(timeout=10)
+                if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
+                    i_exit = 2000
                     break
+                else:
+                    data_status = sbp_qr.status_order(
+                        order_id=order_info['order_id'],
+                        partner_order_number=composition_receipt['number_receipt'])
+                    print('ожидание оплаты {0} руб.'.format(str(composition_receipt['summ3'])))
+                    if data_status['order_state'] == 'PAID':
+                        print('Оплачено')
+                        # если оплатили, то начинаем печатать ответ сервера
+                        sbp_text = print_operation_SBP_PAY(data_status)
+                        print_pinpad(sbp_text, str(composition_receipt['summ3']))
+                        logging.debug(data_status)
+                        show_window = False
+                        break
+                    time.sleep(1)
+                    progress_bar.UpdateBar(i + 1)
+                    event, values = window.read(timeout=10)
+                    if event == 'Cancel' or event == sg.WIN_CLOSED:
+                        show_window = False
+                        break
+                i += 1
+            window.close()
+            exit(i_exit)
+            #проверяем статус нашей оплаты, есть 60сек на оплату
         else:
             # возврат денег по сбп, сначала запрашиваем все операции за нужную нам дату
             t_delta = (datetime.datetime.now().date() - datetime.datetime.strptime(composition_receipt['initial_sale_date'], '%d.%m.%y').date()).days
