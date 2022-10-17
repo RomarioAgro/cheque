@@ -606,7 +606,6 @@ def main():
             # начинаем оплату по сбп
             order_info = sbp_qr.create_order(my_order=composition_receipt)
             print_QR(order_info['order_form_url'])
-            i = 0
             latenсy = 60
             progressbar = [
                 [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
@@ -622,9 +621,9 @@ def main():
             window = sg.Window('Связь с банком', layout)
             progress_bar = window['progressbar']
             show_window = True
-            i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
+            i_exit = 0  # по-умолчанию ошибка выход 2000 - отказ от оплаты
             i = 0
-            while show_window:
+            while show_window:  #запускаем показ прогрессбара типа связь с банком
                 event, values = window.read(timeout=10)
                 if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
                     i_exit = 2000
@@ -641,16 +640,19 @@ def main():
                         print_pinpad(sbp_text, str(composition_receipt['summ3']))
                         logging.debug(data_status)
                         show_window = False
+                        i_exit = 0
                         break
                     time.sleep(1)
                     progress_bar.UpdateBar(i + 1)
                     event, values = window.read(timeout=10)
                     if event == 'Cancel' or event == sg.WIN_CLOSED:
+                        i_exit = 2000
                         show_window = False
                         break
                 i += 1
             window.close()
-            exit(i_exit)
+            if i_exit != 0:
+                exit(i_exit)
             #проверяем статус нашей оплаты, есть 60сек на оплату
         else:
             # возврат денег по сбп, сначала запрашиваем все операции за нужную нам дату
