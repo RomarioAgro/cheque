@@ -620,13 +620,11 @@ def main():
             ]
             window = sg.Window('Связь с банком', layout)
             progress_bar = window['progressbar']
-            show_window = True
-            i_exit = 0  # по-умолчанию ошибка выход 2000 - отказ от оплаты
             i = 0
-            while show_window:  #запускаем показ прогрессбара типа связь с банком
+            while True:  #запускаем показ прогрессбара типа связь с банком
                 event, values = window.read(timeout=10)
                 if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
-                    i_exit = 2000
+                    i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
                     break
                 else:
                     data_status = sbp_qr.status_order(
@@ -642,21 +640,14 @@ def main():
                         sbp_text = print_operation_SBP_PAY(data_status)
                         print_pinpad(sbp_text, str(composition_receipt['summ3']))
                         logging.debug(data_status)
-                        show_window = False
-                        i_exit = 0
+                        i_exit = 0  # ошибка выхода 0 - нет ошибок
                         break
                     time.sleep(1)
                     progress_bar.UpdateBar(i + 1)
-                    event, values = window.read(timeout=10)
-                    if event == 'Cancel' or event == sg.WIN_CLOSED:
-                        i_exit = 2000
-                        show_window = False
-                        break
                 i += 1
             window.close()
             if i_exit != 0:
                 exit(i_exit)
-            #проверяем статус нашей оплаты, есть 60сек на оплату
         else:
             # возврат денег по сбп, сначала запрашиваем все операции за нужную нам дату
             t_delta = (datetime.datetime.now().date() - datetime.datetime.strptime(composition_receipt['initial_sale_date'], '%d.%m.%y').date()).days
