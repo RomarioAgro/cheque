@@ -606,12 +606,12 @@ def main():
             # начинаем оплату по сбп
             order_info = sbp_qr.create_order(my_order=composition_receipt)
             print_QR(order_info['order_form_url'])
-            latenсy = 60
+            latenсy = 100  #длина прогресс бара
             progressbar = [
                 [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
             ]
             outputwin = [
-                [sg.Output(size=(60, 10))]
+                [sg.Output(size=(100, 10))]
             ]
             layout = [
                 [sg.Frame('Progress', layout=progressbar)],
@@ -632,7 +632,10 @@ def main():
                     data_status = sbp_qr.status_order(
                         order_id=order_info['order_id'],
                         partner_order_number=composition_receipt['number_receipt'])
-                    print('ожидание оплаты {0} руб.'.format(str(composition_receipt['summ3'])))
+                    print('Запрос состояния заказа {3}, сумма {0} руб. Попытка запроса № {1}. Статус заказа {2}'.
+                          format(str(composition_receipt['summ3']),
+                                 i + 1, data_status['order_state'],
+                                 composition_receipt['number_receipt']))
                     if data_status['order_state'] == 'PAID':
                         print('Оплачено')
                         # если оплатили, то начинаем печатать ответ сервера
