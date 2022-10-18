@@ -642,6 +642,12 @@ def main():
                         logging.debug(data_status)
                         i_exit = 0  # ошибка выхода 0 - нет ошибок
                         break
+                    if data_status['order_state'] == 'DECLINED':
+                        logging.debug(data_status)
+                        print('ОПЛАТА ЗАКАЗА ОТКЛОНЕНА')
+                        time.sleep(5)
+                        i_exit = 2000  # ошибка выхода 2000 - заказ отклонен
+                        break
                     time.sleep(1)
                     progress_bar.UpdateBar(i + 1)
                 i += 1
