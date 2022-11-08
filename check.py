@@ -515,7 +515,8 @@ def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
     i_list.append(format_string(i_str))
     i_str = f'   {operation_dict["order_operation_params"][0]["operation_sum"] // 100}.00'
     i_list.append(i_str)
-    o_str = '\n'.join(i_list) + '\n' + '~S' + '\n'.join(i_list)
+
+    o_str = '\n'.join(i_list) + '\n'*3 + '~S' + '\n'*2 + '\n'.join(i_list)
     return o_str
 
 @logging_decorator
