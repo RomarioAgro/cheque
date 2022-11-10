@@ -301,7 +301,7 @@ class SBP(object):
                     # 'operationId': 'EC2440B618134DE69A09A774410DBB2E'
                     "operation_id": item["orderOperationParams"]["orderOperationParam"][0]["operationId"],
                     "authcode": item["orderOperationParams"]["orderOperationParam"][0]["authCode"],
-                    "cancel_sum": item.get('amount', ''),
+                    # "cancel_sum": item.get('amount', ''),
                     "operation_type": 'REFUND',
                     "description": 'test'
                 }

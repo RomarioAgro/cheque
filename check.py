@@ -661,6 +661,7 @@ def main():
             registry = sbp_qr.registry(delta_start=t_delta, delta_end=t_delta)
             # среди списка операций ищем ту которую надо вернуть
             order_refund = sbp_qr.search_operation(registry_dict=registry, check_number=composition_receipt['initial_sale_number'])
+            order_refund['cancel_sum'] = int(composition_receipt.get('summ3', 0) * 100)
             # делаем возврат
             data_status = sbp_qr.cancel(order_refund=order_refund)
             # печатаем ответ сервера СБП
