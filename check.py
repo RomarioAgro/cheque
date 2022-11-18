@@ -26,7 +26,13 @@ CUTTER = '~S'
 PRN = win32com.client.Dispatch('Addin.DRvFR')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
-logging.basicConfig(filename='d:\\files\\' + argv[2] + "_" + current_time + '_log.log', filemode='a', level=logging.DEBUG)
+logging.basicConfig(
+    filename='D:\\files\\' + argv[2] + "_" + current_time + '_.log',
+    filemode='a',
+    level=logging.DEBUG,
+    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+    datefmt='%H:%M:%S')
+
 logging.debug('start')
 
 def print_args_kwargs(*args: Any, **kwargs: Any) -> str:
@@ -594,6 +600,7 @@ def main():
         shtrih_operation_cashincime(composition_receipt)
         logging.debug('cashincome')
     # операци по СБП, оплата или возврат
+
     if composition_receipt.get('summ3', 0) > 0 \
             and composition_receipt.get('SBP', 0) == 1:
         # sbp_dict = make_dict_for_sbp(composition_receipt)
@@ -608,20 +615,26 @@ def main():
             order_info = sbp_qr.create_order(my_order=composition_receipt)
             print_QR(order_info['order_form_url'])
             latenсy = 100  #длина прогресс бара
+
             progressbar = [
                 [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
             ]
+
             outputwin = [
                 [sg.Output(size=(100, 10))]
             ]
+
             layout = [
                 [sg.Frame('Progress', layout=progressbar)],
                 [sg.Frame('Output', layout=outputwin)],
                 [sg.Button('Cancel')]
             ]
-            window = sg.Window('Связь с банком', layout)
+            window = sg.Window('Связь с банком', layout, finalize=True)
             progress_bar = window['progressbar']
             i = 0
+            i_title = 'нет ошибки'
+            i_text_error = 'не текста ошибки'
+            data_status = {}
             while True:  #запускаем показ прогрессбара типа связь с банком
                 event, values = window.read(timeout=10)
                 if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
@@ -635,6 +648,7 @@ def main():
                           format(str(composition_receipt['summ3']),
                                  i + 1, data_status['order_state'],
                                  composition_receipt['number_receipt']))
+                    logging.debug(data_status)
                     if data_status['order_state'] == 'PAID':
                         print('Оплачено')
                         # если оплатили, то начинаем печатать ответ сервера
@@ -645,15 +659,21 @@ def main():
                         break
                     if data_status['order_state'] == 'DECLINED':
                         logging.debug(data_status)
+                        error_code = data_status.get('order_operation_params', None)[0].get('response_code', 'код ошибки')
+                        i_title = 'ошибка {}'.format(error_code)
+                        i_text_error = sbp_qr.error_code(error_number=error_code)
+                        logging.debug(i_title + ' ' + ' ' + i_text_error)
                         print('ОПЛАТА ЗАКАЗА ОТКЛОНЕНА')
-                        time.sleep(5)
-                        i_exit = 2000  # ошибка выхода 2000 - заказ отклонен
+                        i_exit = int(error_code)  # ошибка выхода
                         break
                     time.sleep(1)
                     progress_bar.UpdateBar(i + 1)
                 i += 1
             window.close()
             if i_exit != 0:
+                id_bad_order = data_status.get('order_id', '')
+                sbp_qr.revoke(order_id=id_bad_order)
+                Mbox(i_title, i_text_error, 4096 + 16)
                 exit(i_exit)
         else:
             # возврат денег по сбп, сначала запрашиваем все операции за нужную нам дату
