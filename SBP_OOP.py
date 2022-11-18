@@ -101,7 +101,11 @@ class SBP(object):
         :return: dict словарь QR кодом, и прочей инфой
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log', level=logging.DEBUG, filemode='a')
+        logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log',
+                            level=logging.DEBUG,
+                            filemode='a',
+                            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+                            datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
         headers = {
             "accept": "application/json",
@@ -123,8 +127,8 @@ class SBP(object):
             "sbp_member_id": '100000000111',
         }
         j_data = json.dumps(param)
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' HEADERS ' + str(headers))
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' DATA ' + str(param))
+        logging.debug('HEADERS ' + str(headers))
+        logging.debug('DATA ' + str(param))
         r = post(
             url=url,
             data=j_data,
@@ -132,7 +136,7 @@ class SBP(object):
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
+        logging.debug('answer= ' + str(r.text))
         return r.json()
 
     def status_order(self, order_id: str = '', partner_order_number: str = '') -> dict:
@@ -158,25 +162,31 @@ class SBP(object):
             "tid": self.tid,
             "partner_order_number": partner_order_number
         }
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' HEADERS ' + str(headers))
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' DATA ' + str(param))
+        logging.debug('HEADERS ' + str(headers))
+        logging.debug('DATA ' + str(param))
         j_data = json.dumps(param)
         r = post(url=url, data=j_data, headers=headers, pkcs12_filename=self.sert_name, pkcs12_password=self.sert_pass)
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
+        logging.debug('answer= ' + str(r.text))
         return r.json()
 
     def revoke(self, order_id: str = '') -> dict:
         """
-        метод отмены НЕОПЛАЧЕННОГО заказа, зачем нужен пока хызы
+        метод отмены НЕОПЛАЧЕННОГО заказа, нужен в случае неудачной первой оплаты
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
+        logging.basicConfig(
+            filename="d:\\files\\revoke_" + rq_uid + '.log',
+            level=logging.DEBUG,
+            filemode='a',
+            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+            datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/revocation'
         headers = {
-            "accept": "application/json",
-            "content-type": 'application/x-www-form-urlencoded',
+            "accept": '*/*',
+            "content-type": 'application/json',
             "Authorization": f"Bearer {self.token(Scope.revoke)}",
-            "rquid": rq_uid
+            "RqUID": rq_uid
         }
         param = {
             "rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -184,6 +194,8 @@ class SBP(object):
             "rq_uid": rq_uid,
         }
         j_data = json.dumps(param)
+        logging.debug('HEADERS ' + str(headers))
+        logging.debug('DATA ' + str(param))
         r = post(
             url=url,
             data=j_data,
@@ -191,6 +203,8 @@ class SBP(object):
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
+        logging.debug('revoke= ' + str(r.text))
+        print(r.text)
         return r.json()
 
     def cancel(self, order_refund: dict = {}) -> dict:
@@ -199,7 +213,12 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(filename="d:\\files\\cancel_" + rq_uid + '.log', level=logging.DEBUG, filemode='a')
+        logging.basicConfig(
+            filename="d:\\files\\cancel_" + rq_uid + '.log',
+            level=logging.DEBUG,
+            filemode='a',
+            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+            datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/cancel'
         headers = {
             "Accept": "application/json",
@@ -223,8 +242,8 @@ class SBP(object):
 
         }
         j_data = json.dumps(param)
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' HEADERS ' + str(headers))
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' DATA ' + str(param))
+        logging.debug('HEADERS ' + str(headers))
+        logging.debug('DATA ' + str(param))
         httpclient_logging_patch()
         r = post(
             url=url,
@@ -233,7 +252,7 @@ class SBP(object):
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
+        logging.debug('answer= ' + str(r.text))
         return r.json()
 
     def registry(self, delta_start: int = 0, delta_end: int = 0):
@@ -249,7 +268,12 @@ class SBP(object):
         start_date = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
         end_date = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(filename="d:\\files\\registry" + rq_uid + '.log', level=logging.DEBUG)
+        logging.basicConfig(
+            filename="d:\\files\\registry" + rq_uid + '.log',
+            level=logging.DEBUG,
+            filemode='a',
+            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+            datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/registry'
         headers = {
             "Authorization": f"Bearer {self.token(Scope.registry)}",
@@ -267,8 +291,8 @@ class SBP(object):
             "startPeriod": start_date,
             "endPeriod": end_date
         }
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' HEADERS ' + str(headers))
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' DATA ' + str(param))
+        logging.debug('HEADERS ' + str(headers))
+        logging.debug('DATA ' + str(param))
         httpclient_logging_patch()
         j_data = json.dumps(param)
         r = post(
@@ -278,9 +302,8 @@ class SBP(object):
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
-        logging.debug(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' answer= ' + str(r.text))
+        logging.debug('answer= ' + str(r.text))
         return r.json()
-
 
     def search_operation(self, registry_dict: dict = {}, check_number: str = '1/01') -> dict:
         """
@@ -307,7 +330,6 @@ class SBP(object):
                 }
                 return order_refund
 
-
     def make_registry_for_print_on_fr(self, registry_dict: dict = {}) -> str:
         """
         метод подготовки реестра операций для печати
@@ -333,6 +355,59 @@ class SBP(object):
         i_list.append(' ')
         o_str = '\n'.join(i_list) + '\n'
         return o_str
+
+    def error_code(self, error_number: str = '00') -> str:
+        """
+        метод расшифровки кодов ошибок
+        :param error_number: str код ошибки
+        :return: str возвращаем описание ошибки
+        """
+        error_dict = {
+            '00': 'Успешная операция',
+            '01': 'Транзакция не была проведена. Свяжитесь с банком-эмитентом.',
+            '03': 'Неверный идентификатор торговой точки или терминала продавца',
+            '04': 'Данные карты невалидны',
+            '05': 'Операция не одобрена',
+            '06': 'Общая ошибка',
+            '07': 'Данные карты невалидны',
+            '08': 'Операция не одобрена',
+            '12': 'Неверная/недопустимая транзакция',
+            '13': 'Неверная/недопустимая сумма',
+            '14': 'Необходимо проверить данные платежа и повторить транзакцию',
+            '15': 'Неверный/недопустимый банк-эмитент',
+            '21': 'Операция не одобрена',
+            '25': 'Операция не одобрена',
+            '30': 'Неверный формат',
+            '31': 'Повторите позже',
+            '33': 'Карта просрочена',
+            '36': 'Счет карты заблокирован',
+            '37': 'Необходимо связаться с Банком',
+            '41': 'Карта потеряна',
+            '43': 'Карта украдена',
+            '51': 'На счете недостаточно средств',
+            '52': 'Неверный счет',
+            '53': 'Неверный счет',
+            '54': 'Карта просрочена',
+            '55': 'Некорректный пин',
+            '57': 'Транзакция запрещена или счет карты заблокирован',
+            '58': 'Транзакция запрещена для торговой точки',
+            '61': 'Превышен лимит операции по карте',
+            '62': 'Ограничено для карты',
+            '65': 'Превышен лимит операции по карте',
+            '68': 'Повторите позже',
+            '75': 'Некорректный пин',
+            '76': 'Не найдена оригинальная транзакция при обработке отмены или введен некорректный пин',
+            '81': 'Повторите позже',
+            '82': 'Некорректный CVV',
+            '89': 'Неверный идентификатор торговой точки или терминала продавца',
+            '92': 'Неверный параметр платежа',
+            '93': 'Неверная/недопустимая транзакция',
+            '94': 'Неверная/недопустимая транзакция',
+            '95': 'Операция не одобрена',
+            '96': 'Общая ошибка'
+        }
+        return error_dict.get(error_number, 'Общая ошибка')
+
 
 def print_registry_on_fr(registry_dict: dict = {}) -> list:
     """
@@ -405,15 +480,21 @@ def main():
     # # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT%H:%M:%SZ')
     # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
     # # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT%H:%M:%SZ')
-    registry = sbp_qr.registry(delta_start=0, delta_end=0)
-    print(f'реестр заказов: {registry}')
-    print_registry_on_fr(registry_dict=registry)
+
+    # registry = sbp_qr.registry(delta_start=0, delta_end=0)
+    # print(f'реестр заказов: {registry}')
+    # print_registry_on_fr(registry_dict=registry)
+
     # order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273912/01')
     # print('отмена заказа')
     # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
     # print(cancel_answer)
-
+    order_id = '174bf07b7a31426baa4cbb6c38a8a582'
+    print('начало')
+    sbp_qr.revoke(order_id=order_id)
+    print('конец')
     # sbp_qr.registry(rq_uid=registry_uid)
 
 if __name__ == '__main__':
+
     main()
