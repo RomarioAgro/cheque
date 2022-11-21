@@ -673,7 +673,7 @@ def main():
             if i_exit != 0:
                 id_bad_order = data_status.get('order_id', '')
                 sbp_qr.revoke(order_id=id_bad_order)
-                Mbox(i_title, i_text_error, 4096 + 16)
+                Mbox(i_title, i_text_error +'\nделайте новый чек', 4096 + 16)
                 exit(i_exit)
         else:
             # возврат денег по сбп, сначала запрашиваем все операции за нужную нам дату
