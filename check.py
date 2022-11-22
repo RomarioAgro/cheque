@@ -270,7 +270,7 @@ def print_pinpad(i_str: str, sum_operation: str):
         if (line.find(CUTTER) != -1 and
                 count_cutter == 0):
             count_cutter += 1
-            PRN.StringQuantity = 5
+            PRN.StringQuantity = 7
             PRN.FeedDocument()
             PRN.CutType = 2
             PRN.CutCheck()
@@ -522,7 +522,7 @@ def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
     i_str = f'   {operation_dict["order_operation_params"][0]["operation_sum"] // 100}.00'
     i_list.append(i_str)
 
-    o_str = '\n'.join(i_list) + '\n'*3 + '~S' + '\n'*2 + '\n'.join(i_list)
+    o_str = '\n'.join(i_list) + '\n'*2 + '~S' + '\n'*2 + '\n'.join(i_list)
     return o_str
 
 @logging_decorator
@@ -562,7 +562,7 @@ def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
     i_list.append(format_string(i_str))
     i_str = f'   {operation_dict["operation_sum"] // 100}.00'
     i_list.append(i_str)
-    o_str = '\n'.join(i_list) + '\n' + '~S' + '\n'.join(i_list)
+    o_str = '\n'.join(i_list) + '\n'*2 + '~S' + '\n'.join(i_list)
     return o_str
 
 
@@ -654,7 +654,8 @@ def main():
                         # если оплатили, то начинаем печатать ответ сервера
                         sbp_text = print_operation_SBP_PAY(data_status)
                         print_pinpad(sbp_text, str(composition_receipt['summ3']))
-                        logging.debug(data_status)
+                        # logging.debug(data_status)
+                        logging.debug('печать чека СБП: {}'.format(sbp_text))
                         i_exit = 0  # ошибка выхода 0 - нет ошибок
                         break
                     if data_status['order_state'] == 'DECLINED':
