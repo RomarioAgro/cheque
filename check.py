@@ -189,7 +189,16 @@ def shtrih_operation_fn(comp_rec: dict):
                 PRN.BarCode = preparation_km(item['qr'])
                 PRN.FNSendItemBarcode()
             PRN.WaitForPrinting()
-    print_str(i_str='_' * 30, i_font=2)
+            if item.get('fullprice', None) is not None:
+                print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
+            if item.get('discount', None) is not None:
+                print_str(i_str='Скидка = ' + str(item.get('discount', '0')), i_font=1)
+            if item.get('bonuswritedown', None) is not None:
+                print_str(i_str='Бонусов списано = ' + str(item.get('bonuswritedown', '0')), i_font=1)
+            if item.get('bonusaccrual', None) is not None:
+                print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
+            print_str(i_str='_' * 20, i_font=2)
+    print_str(i_str='_' * 20, i_font=2)
     print(f'FNOperation= {error_code}')
     return error_code
 
@@ -209,6 +218,7 @@ def shtrih_operation_basement(comp_rec: dict):
     PRN.Summ15 = comp_rec['summ15']
     PRN.Summ16 = comp_rec['summ16']
     PRN.TaxType = comp_rec['tax-type']
+    print_str(i_str='Итоговая скидка = ' + str(comp_rec.get('total-discount', '0')), i_font=6)
     send_tag_1021_1203(comp_rec)
     PRN.FNCloseCheckEx()
     error_descr = PRN.ResultCodeDescription
@@ -232,6 +242,7 @@ def print_str(i_str: str, i_font: int = 5):
     PRN.StringForPrinting = i_str
     PRN.PrintStringWithFont()
     PRN.WaitForPrinting()
+    PRN.StringForPrinting = ''
 
 
 @logging_decorator
