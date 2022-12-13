@@ -1,16 +1,13 @@
 import logging
-import os
 import win32com.client
 import json
-from sys import argv, exit, path
-from typing import List, Callable, Any
+from sys import argv
+from typing import List, Callable, Any, Tuple
 import ctypes
 import datetime
-import functools
-import time
+import re
+import os
 # os.chdir('d:\\kassa\\script_py\\shtrih\\')
-from SBP_OOP import SBP
-from pinpad_OOP import PinPad
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -20,7 +17,19 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'open_box': 6002,
                         'z_otchet': 6000}
 
+
 CUTTER = '~S'
+
+
+current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+logging.basicConfig(
+    filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
+    filemode='a',
+    level=logging.DEBUG,
+    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+    datefmt='%H:%M:%S')
+
+logging.debug('start')
 
 
 class Shtrih(object):
@@ -33,56 +42,303 @@ class Shtrih(object):
         конструктор класса, инициализируется
         :param i_path: str путь где лежит json с параметрами
         :param i_file_name: str имя json с параметрами
-        drv - объект драйвера штриха
-        cashincome - сумма внесения налички
-        number_receipt - номер чека
-        tax_type - тип налогообложения
-        tag1021 - ФИО кассира
-        tag1203 - ИНН кассира
-        email - почта или телефон покупателя(если скажет)
-        items - состав чека
-        km - коды маркировки честного знака, которые есть в чеке
-        sbp - флаг есть оплата по СБП
-        initial_sale_number - номер изначальной продажи, это для возвратов по СБП
-        initial_sale_date - дата изначальной продажи, это для возвратов по СБП
-        sum_cash - сумма налички
-        sum_cashless - сумма безнал
-        sum_sbp - сумма по сбп
-        summ4 - одно из служебных полей с деньгами
-        summ14 - сумма подарочного сертификата
-        summ15 - сумма рассрочки
-        summ16 - сумма обмена
-        text_basement - какой-то задел на будущее, для печати в конце чека что ли
-        operationtype - тип операции, продажа, возврат, Х отчет и тому подобное
+        prn - объект драйвера штриха
+ 
         """
         file_json_name = i_path + '\\' + i_file_name + '.json'
         with open(file_json_name, 'r') as json_file:
-            composition_receipt = json.load(json_file)
-        self.prn = win32com.client.Dispatch('Addin.DRvFR')
-        self.cashincome = composition_receipt.get('cashincome', 0)
-        self.number_receipt = composition_receipt.get('number_receipt', 'x_otchet')
-        self.tax_type = composition_receipt.get('tax-type', 1)
-        self.tag1021 = composition_receipt.get('tag1021', '')
-        self.tag1203 = composition_receipt.get('tag1203', '')
-        self.email = composition_receipt.get('email', '')
-        self.items = composition_receipt.get('items', [])
-        self.km = composition_receipt.get('km', [])
-        self.sbp = composition_receipt.get('SBP', 0)
-        self.initial_sale_number = composition_receipt.get('initial_sale_number', '')
-        self.initial_sale_date = composition_receipt.get('initial_sale_date', '')
-        self.sum_cash = composition_receipt.get('sum-cash', 0.00)
-        self.sum_cashless = composition_receipt.get('sum-cashless', 0.00)
-        self.sum_sbp = composition_receipt.get('summ3', 0.00)
-        self.summ4 = composition_receipt.get('summ4', 0.00)
-        self.summ14 = composition_receipt.get('summ14', 0.00)
-        self.summ15 = composition_receipt.get('summ15', 0.00)
-        self.summ16 = composition_receipt.get('summ16', 0.00)
-        self.text_basement = composition_receipt.get('text_basement', [])
-        self.operationtype = composition_receipt.get('operationtype', 'x_otchet')
+            self.cash_receipt = json.load(json_file)
+        self.drv = win32com.client.Dispatch('Addin.DRvFR')
 
+
+    def shtrih_operation_fn(self):
+        """
+        метод печати позиций чека
+
+        """
+        # уточняем по какому ФФД работает касса 1.05 или 1.2
+        for item in self.cash_receipt['items']:
+            if item['quantity'] != 0:
+                self.print_str(i_str='_' * 30, i_font=2)
+                if (DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 0 or
+                        DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 128):
+                    self.drv.CheckType = 1
+                else:
+                    self.drv.CheckType = 2
+                paymentitemsign = item['paymentitemsign']
+                if self.drv.WorkModeEx == 0 and paymentitemsign == 33:
+                    paymentitemsign = 1
+                self.drv.PaymentItemSign = paymentitemsign
+                self.drv.Quantity = item['quantity']
+                self.drv.Price = item['price']
+                self.drv.Summ1 = item['quantity'] * item['price']
+                self.drv.Summ1Enabled = True
+                self.drv.Tax1 = item['taxtype']
+                self.drv.Department = 1
+                self.drv.PaymentTypeSign = item['paymenttypesign']
+                # если строка начинается символами //, то она передаётся на сервер ОФД но не печатается на
+                # кассе.
+                self.drv.StringForPrinting = item['name']
+                error_code = self.drv.FNOperation()
+                if len(item['qr']) > 30:
+                    self.drv.DivisionalQuantity = False
+                    self.drv.BarCode = preparation_km(item['qr'])
+                    self.drv.FNSendItemBarcode()
+                self.drv.WaitForPrinting()
+                if item.get('fullprice', None) is not None:
+                    self.print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
+                if item.get('discount', None) is not None:
+                    self.print_str(i_str='Скидка = ' + str(item.get('discount', '0')), i_font=1)
+                if item.get('bonuswritedown', None) is not None:
+                    self.print_str(i_str='Бонусов списано = ' + str(item.get('bonuswritedown', '0')), i_font=1)
+                if item.get('bonusaccrual', None) is not None:
+                    self.print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
+                self.print_str(i_str='_' * 20, i_font=2)
+        self.print_str(i_str='_' * 20, i_font=2)
+        print('FNOperation= {0}'.format(error_code))
+        return error_code
+
+    def shtrih_close_check(self) -> Tuple:
+        """
+        функция печати конца чека, закрытие и все такое
+        :param comp_rec:
+        :return: int, str код ошибки, описание ошибки
+        """
+        self.drv.Summ1 = self.cash_receipt['sum-cash']
+        self.drv.Summ2 = self.cash_receipt['sum-cashless']
+        self.drv.Summ3 = self.cash_receipt['summ3']
+        self.drv.Summ4 = self.cash_receipt['summ4']
+        self.drv.Summ14 = self.cash_receipt['summ14']
+        self.drv.Summ15 = self.cash_receipt['summ15']
+        self.drv.Summ16 = self.cash_receipt['summ16']
+        self.drv.TaxType = self.cash_receipt['tax-type']
+        self.print_str(i_str='Итоговая скидка = ' + str(self.cash_receipt.get('total-discount', '0')), i_font=6)
+        self.send_tag_1021_1203()
+        self.drv.FNCloseCheckEx()
+        error_descr = self.drv.ResultCodeDescription
+        error_code = self.drv.ResultCode
+        self.drv.WaitForPrinting()
+        ecr_code, ecr_decr = self.get_ecr_status()
+        # error_code, error_descr, ecr_code, ecr_decr = 142, 'Нулевой итог чека', 8, 'Открытый документ: продажа'
+        return error_code, error_descr, ecr_code, ecr_decr
+
+    def send_tag_1021_1203(self) -> None:
+        """
+        функция отправки тэгов 1021 и 1203
+        ФИО кассира и ИНН кассира
+        :param comp_rec: dict словарь нашего чека
+        :return:
+        """
+        self.drv.TagNumber = 1021
+        self.drv.TagType = 7
+        self.drv.TagValueStr = self.cash_receipt['tag1021']
+        self.drv.FNSendTag()
+        self.drv.TagNumber = 1203
+        self.drv.TagType = 7
+        self.drv.TagValueStr = self.cash_receipt['tag1203']
+        self.drv.FNSendTag()
+
+    def get_ecr_status(self):
+        """
+        функция запрoса режима кассы
+        :return: int, str
+        """
+        self.drv.Password = 30
+        self.drv.GetECRStatus()
+        # print(self.drv.ECRMode, self.drv.ECRModeDescription)
+        return self.drv.ECRMode, self.drv.ECRModeDescription
+
+    def open_box(self):
+        self.drv.OpenDrawer()
 
     def x_otchet(self):
-        self.prn.PrintReportWithoutCleaning()
+        self.drv.PrintReportWithoutCleaning()
+
+    def close_session(self):
+        """
+        функция закрытия смены
+        :param comp_rec: dict
+        """
+        self.drv.Password = 30
+        self.send_tag_1021_1203()
+        self.drv.PrintReportWithCleaning()
+        self.drv.WaitForPrinting()
+        return self.drv.ECRMode, self.drv.ECRModeDescription
+
+    def shtrih_operation_cashincime(self):
+        """
+        функция внесения наличных в кассу
+        на случай 1-го возврата в смене
+        """
+        self.drv.Summ1 = self.cash_receipt.get('cashincome', 0)
+        self.drv.CashIncome()
+
+    def sendcustomeremail(self):
+        """
+        функция отправки чека по почте или смс
+        ОФД сам решает
+        """
+        self.drv.Password = 1
+        self.drv.CustomerEmail = self.cash_receipt["email"]
+        self.drv.FNSendCustomerEmail()
+        return self.drv.ResultCode
+
+    def shtrih_operation_attic(self):
+        """
+        функция оформления начала чека,
+        задаем тип чека,
+        открываем сам документ в объекте
+        0 ЭТО ПРОДАЖА
+        2 ЭТО ВОЗВРАТ
+        128 ЧЕК КОРРЕКЦИИ ПРОДАЖА
+        130 ЭТО ЧЕК КОРРЕКЦИИ ВОЗВРАТ'
+        """
+        self.drv.CheckType = DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype'])
+        self.drv.Password = 1
+        self.drv.OpenCheck()
+        self.drv.UseReceiptRibbon = "TRUE"
+
+    def print_QR(self, item: str = 'nothing'):
+        """
+        метод печати QRкода на чеке, вызов будет
+        после
+        """
+        self.drv.Password = 30
+        self.drv.BarCode = item
+        self.drv.BarcodeType = 3
+        self.drv.BarcodeStartBlockNumber = 0
+        self.drv.BarcodeParameter1 = 0
+        self.drv.BarcodeParameter3 = 6
+        self.drv.BarcodeParameter5 = 3
+        self.drv.LoadAndPrint2DBarcode()
+        self.drv.WaitForPrinting()
+        self.drv.StringQuantity = 10
+        self.drv.FeedDocument()
+        self.drv.CutType = 2
+        self.drv.CutCheck()
+
+    def print_pinpad(self, i_str: str, sum_operation: str):
+        """
+        функция печати ответа от пинпада сбербанка
+        :param i_str: str строка печати
+        sum_operation: str сумма операции
+        count_cutter: int количество команд отрезки,
+        отрезать надо только на 1
+        """
+        i_text = i_str.split('\n')
+        count_cutter = 0
+        for i_line in i_text:
+            line = i_line.strip('\r')
+            if (line.find(CUTTER) != -1 and
+                    count_cutter == 0):
+                count_cutter += 1
+                self.drv.StringQuantity = 7
+                self.drv.FeedDocument()
+                self.drv.CutType = 2
+                self.drv.CutCheck()
+            else:
+                if line.find(CUTTER) != -1:
+                    # сам символ отрезки печатать не надо
+                    pass
+                else:
+                    if line.find(sum_operation) != -1:
+                        if line.strip().startswith(sum_operation) is True:
+                            self.print_str(i_str=line, i_font=2)
+                        else:
+                            self.print_str(i_str='Сумма (Руб):', i_font=5)
+                            self.print_str(i_str=sum_operation, i_font=2)
+
+                    else:
+                        self.print_str(i_str=line, i_font=5)
+
+    def print_advertisement(self):
+        """
+        функция печати рекламного текста в начале чека
+        """
+        for item in self.cash_receipt['text-attic-before-bc']:
+            self.print_str(i_str=item[0], i_font=item[1])
+
+    def print_barcode(self):
+        """
+        функция печати штрихкода на чеке,
+        обычно это для рекламы
+        """
+        for item in self.cash_receipt['barcode']:
+            self.drv.BarCode = item
+            self.drv.PrintBarCode()
+            self.drv.WaitForPrinting()
+            self.drv.StringQuantity = 2
+            self.drv.FeedDocument()
+
+    def get_info_about_FR(self):
+        """
+        функция запроса итогов фискализации
+        она ничего не возвращиет, но послее нее у объекта PRN
+        появляются дополнительные свойства
+        """
+        self.drv.Password = 30
+        self.drv.Connect()
+        self.drv.FNGetFiscalizationResult()
+
+    def check_connect_fr(self):
+        """
+        функция проверки связи с фискальмым регистратором
+        """
+        self.drv.Password = 30
+        self.drv.Connect()
+        return self.drv.ResultCode, self.drv.ResultCodeDescription
+
+    def open_session(self):
+        """
+        функция открытия смены на кассе
+        :param comp_rec: dict
+        """
+        self.drv.Password = 30
+        self.drv.FnBeginOpenSession()
+        self.drv.WaitForPrinting()
+        self.send_tag_1021_1203()
+        self.drv.FnOpenSession()
+        self.drv.WaitForPrinting()
+        return self.drv.ECRMode, self.drv.ECRModeDescription
+
+    def kill_document(self):
+        """
+        функция прибития застрявшего документа
+        :param comp_rec:  dict
+        """
+        self.drv.Password = 30
+        self.drv.SysAdminCancelCheck()
+        self.drv.ContinuePrint()
+        self.drv.WaitForPrinting()
+        error_print_check_code = self.drv.ResultCode
+        error_decription = self.drv.ResultCodeDescription
+        return error_print_check_code, error_decription, self.drv.ECRMode, self.drv.ECRModeDescription
+
+    def check_km(self):
+        """
+        функция проверки кодов маркировки в честном знаке
+        :param comp_rec: dict словарь с нашим чеком
+        PRN.ItemStatus = 1 при продаже
+        PRN.ItemStatus = 3 при возврате
+        """
+        for qr in self.cash_receipt['km']:
+            """
+            поиск шиблона между 91 и 92 с помощью регулярного выражения
+            и замена потом этого шаблона на него же но с символами разрыва
+            перед 91 и 92
+            """
+            self.drv.BarCode = preparation_km(qr)
+            if (DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 0 or
+                    DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 128):
+                self.drv.ItemStatus = 1
+            else:
+                self.drv.ItemStatus = 3
+            self.drv.CheckItemMode = 0
+            self.drv.DivisionalQuantity = False
+            self.drv.FNCheckItemBarcode2()
+            if self.drv.KMServerCheckingStatus() != 15:
+                self.drv.FNAcceptMarkingCode()
+            return self.drv.KMServerCheckingStatus()
 
     def about_me(self):
         pass
@@ -93,10 +349,10 @@ class Shtrih(object):
         :param i_str: str
         :param i_font: int номер шрифта печати
         """
-        self.prn.FontType = i_font
-        self.prn.StringForPrinting = i_str
-        self.prn.PrintStringWithFont()
-        self.prn.WaitForPrinting()
+        self.drv.FontType = i_font
+        self.drv.StringForPrinting = i_str
+        self.drv.PrintStringWithFont()
+        self.drv.WaitForPrinting()
 
 
     def print_pinpad(self, i_str: str, sum_operation: str):
@@ -115,10 +371,10 @@ class Shtrih(object):
             if (line.find(CUTTER) != -1 and
                     count_cutter == 0):
                 count_cutter += 1
-                self.prn.StringQuantity = 5
-                self.prn.FeedDocument()
-                self.prn.CutType = 2
-                self.prn.CutCheck()
+                self.drv.StringQuantity = 5
+                self.drv.FeedDocument()
+                self.drv.CutType = 2
+                self.drv.CutCheck()
             else:
                 if line.find(CUTTER) != -1:
                     # сам символ отрезки печатать не надо
@@ -135,16 +391,147 @@ class Shtrih(object):
                         self.print_str(i_str=line, i_font=5)
 
 
-def read_composition_receipt(file_json_name: str) -> dict:
-    """
-    функция чтения json файла чека
-    :param file_json_name: str имя файла
-    :return: dict состав чека
-    """
-    with open(file_json_name, 'r') as json_file:
-        composition_receipt = json.load(json_file)
-    return composition_receipt
+    def i_dont_know(self):
+        """
+        функция-заглушка для обработки
+        неизвестных мне режимов,
+        всего режимов ECR 16, мне известно решение в 4 из них
+        что надо делать в остальных вообще без понятия
+        :return:
+        """
+        Mbox('я не знаю что делать', f'неизвестный режим: {self.get_ecr_status()}', 4096 + 16)
 
+
+def format_string(elem: str) -> str:
+    """
+    функция выравнивания строки
+    добавляем в середину строки пробелы
+    :param elem: str строка
+    :return: выходить будем с одной строкой
+    """
+    len_string = 33
+    pattern = elem.rpartition(' ')
+    i = 0
+    while len(pattern[0]) + len(' ' * i) + len(pattern[2]) < len_string:
+        i += 1
+    o_str = f'{pattern[0]} {" " * i} {pattern[2]}'
+    return o_str
+
+def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
+    """
+    печать операции PAY СБП в человекопонятном виде
+    на кассовом аппарате
+    печатать будем
+    дату,
+    время,
+    tid,
+    mid
+    покупатель,
+    ID операции
+    rrn
+    код авторизации
+    Сумма
+    :param operation_dict: dict словарь с ответом от СБП
+    :return: итоговая строка для печати на кассовом аппарате
+    """
+    i_list = []
+    i_str = f'{datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").date()} {datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").time()}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП операция {operation_dict["order_operation_params"][0]["operation_type"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП терминал {operation_dict["tid"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП мерчант {operation_dict["mid"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП Покупатель {operation_dict["sbp_operation_params"]["sbp_masked_payer_id"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП ID операции:'
+    i_list.append(format_string(i_str))
+    i_str = f'{operation_dict["order_operation_params"][0]["operation_id"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП номер ссылки {operation_dict["order_operation_params"][0]["rrn"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП код авторизации {operation_dict["order_operation_params"][0]["auth_code"]}'
+    i_list.append(format_string(i_str))
+    i_str = f' Сумма: '
+    i_list.append(format_string(i_str))
+    i_str = f'   {operation_dict["order_operation_params"][0]["operation_sum"] // 100}.00'
+    i_list.append(i_str)
+
+    o_str = '\n'.join(i_list) + '\n'*2 + '~S' + '\n'*2 + '\n'.join(i_list)
+    return o_str
+
+def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
+    """
+    печать операции REFUND СБП в человекопонятном виде
+    на кассовом аппарате
+    печатать будем
+    дату,
+    время,
+    tid,
+    mid
+    покупатель,
+    ID операции
+    rrn
+    код авторизации
+    Сумма
+    :param operation_dict: dict словарь с ответом от СБП
+    :return: итоговая строка для печати на кассовом аппарате
+    """
+    i_list = []
+    i_str = f'{datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").date()} {datetime.datetime.strptime(operation_dict["rq_tm"], "%Y-%m-%dT%H:%M:%SZ").time()}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП операция {operation_dict["operation_type"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП терминал {operation_dict["tid"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП ID операции:'
+    i_list.append(format_string(i_str))
+    i_str = f'{operation_dict["operation_id"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП номер ссылки {operation_dict["rrn"]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СБП код авторизации {operation_dict["auth_code"]}'
+    i_list.append(format_string(i_str))
+    i_str = f' Сумма: '
+    i_list.append(format_string(i_str))
+    i_str = f'   {operation_dict["operation_sum"] // 100}.00'
+    i_list.append(i_str)
+    o_str = '\n'.join(i_list) + '\n'*2 + '~S' + '\n'.join(i_list)
+    return o_str
+
+
+def Mbox(title, text, style):
+    """
+        ##  Styles:
+        ##  0 : OK
+        ##  1 : OK | Cancel
+        ##  2 : Abort | Retry | Ignore
+        ##  3 : Yes | No | Cancel
+        ##  4 : Yes | No
+        ##  5 : Retry | Cancel
+        ##  6 : Cancel | Try Again | Continue
+
+    """
+    return ctypes.windll.user32.MessageBoxW(0, text, title, style)
+
+
+def preparation_km(in_km: str) -> str:
+    """
+    функция подготовки кода маркировки к отправке в честный знак
+    вставляем символы разрыва перед 91 и 92
+    :param in_km: str
+    :return: str
+    """
+    pattern = r'91\S+92'
+    s_break = '\x1D'
+    list_break_pattern = re.findall(pattern, in_km[30:])
+    if len(list_break_pattern) > 0:
+        repl = (s_break + list_break_pattern[0]).replace('92', s_break + '92')
+        out_km = in_km[:30] + re.sub(pattern, repl, in_km[30:])
+    else:
+        out_km = in_km[:]
+    return out_km
 
 def main():
     # argv[1] =  'd:\\files'
@@ -152,13 +539,14 @@ def main():
     # PRN = win32com.client.Dispatch('Addin.DRvFR')
     current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
-    log_file = 'd:\\files\\pinpad_' + i_shtrih.operationtype + '_' + current_time + ".log"
-    logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
-    logging.debug(current_time + ' ' + i_shtrih.operationtype)
-    sber_pinpad = PinPad(operation_name=i_shtrih.operationtype, oper_sum=i_shtrih.sum_cashless)
-
-    sber_pinpad.pinpad_operation()
-    i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
+    i_shtrih.shtrih_operation_fn()
+    # log_file = 'd:\\files\\pinpad_' + i_shtrih.operationtype + '_' + current_time + ".log"
+    # logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
+    # logging.debug(current_time + ' ' + i_shtrih.operationtype)
+    # sber_pinpad = PinPad(operation_name=i_shtrih.operationtype, oper_sum=i_shtrih.sum_cashless)
+    #
+    # sber_pinpad.pinpad_operation()
+    # i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
 
 
 

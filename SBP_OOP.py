@@ -7,6 +7,10 @@ from requests_pkcs12 import post
 from enum import Enum
 import logging
 import http.client
+import PySimpleGUI as sg
+import time
+import ctypes
+
 
 
 httpclient_logger = logging.getLogger("http.client")
@@ -56,6 +60,8 @@ class SBP(object):
         self.member_id = conf_token('memberid', default=None)
         self.sert_pass = conf_token('sert_pass', default=None)
         self.sert_name = conf_token('sert_name', default=None)
+        self.sum = 0
+        self.order = None
 
     def token(self, scope: Scope) -> str:
         """
@@ -91,6 +97,9 @@ class SBP(object):
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
+        logging.debug('запрос токена headers: ' + str(headers))
+        logging.debug('запрос токена data: ' + str(data))
+        logging.debug('получаем токен= ' + str(r.text))
         return r.json()['access_token']
 
     def create_order(self, my_order: dict = {}) -> dict:
@@ -107,6 +116,7 @@ class SBP(object):
                             format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
                             datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
+        self.sum = int(my_order.get("summ3", 0)) * 100
         headers = {
             "accept": "application/json",
             "content-type": 'application/json',
@@ -121,7 +131,7 @@ class SBP(object):
             "order_create_date": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
             # "order_params_type": my_order.get("items", []),
             "id_qr": self.tid,
-            "order_sum": int(my_order.get("summ3", 0)) * 100,
+            "order_sum": self.sum,
             "currency": '643',
             "description": '',
             "sbp_member_id": '100000000111',
@@ -137,6 +147,7 @@ class SBP(object):
             pkcs12_password=self.sert_pass
         )
         logging.debug('answer= ' + str(r.text))
+        self.order = r.json()
         return r.json()
 
     def status_order(self, order_id: str = '', partner_order_number: str = '') -> dict:
@@ -407,6 +418,65 @@ class SBP(object):
             '96': 'Общая ошибка'
         }
         return error_dict.get(error_number, 'Общая ошибка')
+
+    def waiting_payment(self, cash_receipt: dict = None):
+        if cash_receipt is None:
+            logging.debug('выход по ошибке словарь чека пустой')
+            return self.error_code(error_number='96')
+        latenсy = 100  # длина прогресс бара
+        progressbar = [
+            [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
+        ]
+        outputwin = [
+            [sg.Output(size=(100, 10))]
+        ]
+        layout = [
+            [sg.Frame('Progress', layout=progressbar)],
+            [sg.Frame('Output', layout=outputwin)],
+            [sg.Button('Cancel')]
+        ]
+        window = sg.Window('Связь с банком', layout, finalize=True)
+        progress_bar = window['progressbar']
+        i = 0
+        i_title = 'нет ошибки'
+        i_text_error = 'нет текста ошибки'
+        data_status = {}
+        while True:  # запускаем показ прогрессбара типа связь с банком
+            event, values = window.read(timeout=10)
+            if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
+                i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
+                break
+            else:
+                data_status = self.status_order(
+                    order_id=self.order['order_id'],
+                    partner_order_number=cash_receipt['number_receipt'])
+                print('Запрос состояния заказа {3}, сумма {0} руб. Попытка запроса № {1}. Статус заказа {2}'.
+                      format(str(cash_receipt['summ3']),
+                             i + 1, data_status['order_state'],
+                             cash_receipt['number_receipt']))
+                logging.debug(data_status)
+                if data_status['order_state'] == 'PAID':
+                    # если оплатили, то начинаем печатать ответ сервера
+                    # sbp_text = print_operation_SBP_PAY(data_status)
+                    # o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
+                    logging.debug(data_status)
+                    # logging.debug('печать чека СБП: {}'.format(sbp_text))
+                    i_exit = 0  # ошибка выхода 0 - нет ошибок
+                    break
+                if data_status['order_state'] == 'DECLINED':
+                    logging.debug(data_status)
+                    error_code = data_status.get('order_operation_params', None)[0].get('response_code', 'код ошибки')
+                    i_title = 'Ошибка {}'.format(error_code)
+                    i_text_error = self.error_code(error_number=error_code)
+                    logging.debug(i_title + ' ' + ' ' + i_text_error)
+                    ctypes.windll.user32.MessageBoxW(0, i_text_error + '\nделайте новый чек', i_title, 4096 + 16)
+                    i_exit = int(error_code)  # ошибка выхода
+                    break
+                time.sleep(1)
+                progress_bar.UpdateBar(i + 1)
+            i += 1
+        window.close()
+        return i_exit, data_status
 
 
 def print_registry_on_fr(registry_dict: dict = {}) -> list:
