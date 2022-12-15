@@ -7,7 +7,8 @@ import ctypes
 import datetime
 import re
 import os
-# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -17,9 +18,7 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'open_box': 6002,
                         'z_otchet': 6000}
 
-
 CUTTER = '~S'
-
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
@@ -49,7 +48,7 @@ class Shtrih(object):
         with open(file_json_name, 'r') as json_file:
             self.cash_receipt = json.load(json_file)
         self.drv = win32com.client.Dispatch('Addin.DRvFR')
-
+        logging.debug('создали объект чека' + str(self.cash_receipt))
 
     def shtrih_operation_fn(self):
         """
@@ -57,6 +56,8 @@ class Shtrih(object):
 
         """
         # уточняем по какому ФФД работает касса 1.05 или 1.2
+        error_code = 1000
+        error_code_desc = 'ошибка начала'
         for item in self.cash_receipt['items']:
             if item['quantity'] != 0:
                 self.print_str(i_str='_' * 30, i_font=2)
@@ -79,7 +80,9 @@ class Shtrih(object):
                 # если строка начинается символами //, то она передаётся на сервер ОФД но не печатается на
                 # кассе.
                 self.drv.StringForPrinting = item['name']
-                error_code = self.drv.FNOperation()
+                self.drv.FNOperation()
+                error_code = self.drv.ResultCode
+                error_code_desc = self.drv.ResultCodeDescription
                 if len(item['qr']) > 30:
                     self.drv.DivisionalQuantity = False
                     self.drv.BarCode = preparation_km(item['qr'])
@@ -95,7 +98,7 @@ class Shtrih(object):
                     self.print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
                 self.print_str(i_str='_' * 20, i_font=2)
         self.print_str(i_str='_' * 20, i_font=2)
-        print('FNOperation= {0}'.format(error_code))
+        logging.debug('FNOperation= {0}, описание ошибки: {1}'.format(error_code, error_code_desc))
         return error_code
 
     def shtrih_close_check(self) -> Tuple:
@@ -115,12 +118,11 @@ class Shtrih(object):
         self.print_str(i_str='Итоговая скидка = ' + str(self.cash_receipt.get('total-discount', '0')), i_font=6)
         self.send_tag_1021_1203()
         self.drv.FNCloseCheckEx()
-        error_descr = self.drv.ResultCodeDescription
         error_code = self.drv.ResultCode
-        self.drv.WaitForPrinting()
-        ecr_code, ecr_decr = self.get_ecr_status()
-        # error_code, error_descr, ecr_code, ecr_decr = 142, 'Нулевой итог чека', 8, 'Открытый документ: продажа'
-        return error_code, error_descr, ecr_code, ecr_decr
+        error_descr = self.drv.ResultCodeDescription
+        logging.debug(str(error_code) + '-' + error_descr)
+        return error_code, error_descr
+
 
     def send_tag_1021_1203(self) -> None:
         """
@@ -145,7 +147,6 @@ class Shtrih(object):
         """
         self.drv.Password = 30
         self.drv.GetECRStatus()
-        # print(self.drv.ECRMode, self.drv.ECRModeDescription)
         return self.drv.ECRMode, self.drv.ECRModeDescription
 
     def open_box(self):
@@ -251,11 +252,11 @@ class Shtrih(object):
                     else:
                         self.print_str(i_str=line, i_font=5)
 
-    def print_advertisement(self):
+    def print_advertisement(self, list_advertisement):
         """
         функция печати рекламного текста в начале чека
         """
-        for item in self.cash_receipt['text-attic-before-bc']:
+        for item in list_advertisement:
             self.print_str(i_str=item[0], i_font=item[1])
 
     def print_barcode(self):
@@ -308,11 +309,12 @@ class Shtrih(object):
         """
         self.drv.Password = 30
         self.drv.SysAdminCancelCheck()
+
+    def continuation_printing(self):
+        self.drv.Password = 30
         self.drv.ContinuePrint()
-        self.drv.WaitForPrinting()
-        error_print_check_code = self.drv.ResultCode
-        error_decription = self.drv.ResultCodeDescription
-        return error_print_check_code, error_decription, self.drv.ECRMode, self.drv.ECRModeDescription
+        # self.drv.WaitForPrinting()
+        return self.drv.ECRMode, self.drv.ECRModeDescription, self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription,
 
     def check_km(self):
         """
@@ -354,7 +356,6 @@ class Shtrih(object):
         self.drv.PrintStringWithFont()
         self.drv.WaitForPrinting()
 
-
     def print_pinpad(self, i_str: str, sum_operation: str):
         """
         функция печати ответа от пинпада сбербанка
@@ -390,7 +391,6 @@ class Shtrih(object):
                     else:
                         self.print_str(i_str=line, i_font=5)
 
-
     def i_dont_know(self):
         """
         функция-заглушка для обработки
@@ -400,6 +400,54 @@ class Shtrih(object):
         :return:
         """
         Mbox('я не знаю что делать', f'неизвестный режим: {self.get_ecr_status()}', 4096 + 16)
+
+    def error_analysis_soft(self):
+        """
+        метод обработки ошибок связанных с данными
+        :return:
+        """
+        logging.debug('Ошибка' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
+        if self.drv.ResultCode != 0:
+            Mbox('Ошибка' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096)
+            yes_no = ctypes.windll.user32.MessageBoxW(0, 'аннулировать документ?', self.drv.ResultCodeDescription + '\nчек не пробивается', 4 + 4096 + 16)
+            if yes_no == 6:
+                logging.debug('аннулирован документ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
+                self.kill_document()
+        return self.drv.ResultCode
+
+    def error_analysis_hard(self):
+        """
+        метод обработки ошибок связаных с бумагой
+        :return:
+        """
+        self.drv.WaitForPrinting()
+        self.drv.GetECRStatus()
+        count = 0
+        if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
+            return 0
+        if self.drv.ECRMode == 8:
+            while True:
+                count += 1
+                if self.drv.ECRAdvancedMode == 0:
+                    self.kill_document()
+                    self.drv.GetECRStatus()
+                else:
+                    Mbox('Ошибка: {0}'.format(self.drv.ECRAdvancedMode), self.drv.ECRAdvancedModeDescription, 4096 + 16)
+                    logging.debug('Ошибка: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                if self.drv.ECRAdvancedMode == 2 or self.drv.ECRAdvancedMode == 1:
+                    Mbox('нет бумаги', 'поменяйте вы уже бумагу наконец', 4096 + 16)
+                if self.drv.ECRAdvancedMode == 3:
+                    self.continuation_printing()
+                    logging.debug('Раз до сюда дошли - ошибок нет, статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                    break
+                self.drv.WaitForPrinting()
+                self.drv.GetECRStatus()
+                if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
+                    return 0
+        else:
+            Mbox('Ошибка: {0}'.format(self.drv.ECRMode), self.drv.ECRDescription, 4096 + 16)
+            logging.debug('Ошибка: {0}'.format(self.drv.ECRMode), self.drv.ECRDescription)
+        return self.drv.ECRAdvancedMode
 
 
 def format_string(elem: str) -> str:
@@ -416,6 +464,7 @@ def format_string(elem: str) -> str:
         i += 1
     o_str = f'{pattern[0]} {" " * i} {pattern[2]}'
     return o_str
+
 
 def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
     """
@@ -458,8 +507,9 @@ def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
     i_str = f'   {operation_dict["order_operation_params"][0]["operation_sum"] // 100}.00'
     i_list.append(i_str)
 
-    o_str = '\n'.join(i_list) + '\n'*2 + '~S' + '\n'*2 + '\n'.join(i_list)
+    o_str = '\n'.join(i_list) + '\n' * 2 + '~S' + '\n' * 2 + '\n'.join(i_list)
     return o_str
+
 
 def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
     """
@@ -497,7 +547,7 @@ def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
     i_list.append(format_string(i_str))
     i_str = f'   {operation_dict["operation_sum"] // 100}.00'
     i_list.append(i_str)
-    o_str = '\n'.join(i_list) + '\n'*2 + '~S' + '\n'.join(i_list)
+    o_str = '\n'.join(i_list) + '\n' * 2 + '~S' + '\n'.join(i_list)
     return o_str
 
 
@@ -533,6 +583,7 @@ def preparation_km(in_km: str) -> str:
         out_km = in_km[:]
     return out_km
 
+
 def main():
     # argv[1] =  'd:\\files'
     # argv[2] = '273926_01_sale'
@@ -547,7 +598,6 @@ def main():
     #
     # sber_pinpad.pinpad_operation()
     # i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
-
 
 
 if __name__ == '__main__':

@@ -8,11 +8,11 @@ from enum import Enum
 import logging
 import http.client
 import PySimpleGUI as sg
-import time
 import ctypes
+import os
 
-
-
+# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+TIMEOUT_BANK = 10
 httpclient_logger = logging.getLogger("http.client")
 
 def httpclient_logging_patch(level=logging.DEBUG):
@@ -24,6 +24,13 @@ def httpclient_logging_patch(level=logging.DEBUG):
     http.client.print = httpclient_log
     # enable debugging
     http.client.HTTPConnection.debuglevel = 1
+
+# logging.basicConfig(
+#     filename='D:\\files\\' + argv[2] + "_" + current_time + '_.log',
+#     filemode='a',
+#     level=logging.DEBUG,
+#     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+#     datefmt='%H:%M:%S')
 
 
 class Scope(Enum):
@@ -110,11 +117,11 @@ class SBP(object):
         :return: dict словарь QR кодом, и прочей инфой
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log',
-                            level=logging.DEBUG,
-                            filemode='a',
-                            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-                            datefmt='%H:%M:%S')
+        # logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log',
+        #                     level=logging.DEBUG,
+        #                     filemode='a',
+        #                     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+        #                     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
         self.sum = int(my_order.get("summ3", 0)) * 100
         headers = {
@@ -186,12 +193,12 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(
-            filename="d:\\files\\revoke_" + rq_uid + '.log',
-            level=logging.DEBUG,
-            filemode='a',
-            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-            datefmt='%H:%M:%S')
+        # logging.basicConfig(
+        #     filename="d:\\files\\revoke_" + rq_uid + '.log',
+        #     level=logging.DEBUG,
+        #     filemode='a',
+        #     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+        #     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/revocation'
         headers = {
             "accept": '*/*',
@@ -224,12 +231,12 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(
-            filename="d:\\files\\cancel_" + rq_uid + '.log',
-            level=logging.DEBUG,
-            filemode='a',
-            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-            datefmt='%H:%M:%S')
+        # logging.basicConfig(
+        #     filename="d:\\files\\cancel_" + rq_uid + '.log',
+        #     level=logging.DEBUG,
+        #     filemode='a',
+        #     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+        #     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/cancel'
         headers = {
             "Accept": "application/json",
@@ -279,12 +286,12 @@ class SBP(object):
         start_date = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
         end_date = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        logging.basicConfig(
-            filename="d:\\files\\registry" + rq_uid + '.log',
-            level=logging.DEBUG,
-            filemode='a',
-            format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-            datefmt='%H:%M:%S')
+        # logging.basicConfig(
+        #     filename="d:\\files\\registry" + rq_uid + '.log',
+        #     level=logging.DEBUG,
+        #     filemode='a',
+        #     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+        #     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/registry'
         headers = {
             "Authorization": f"Bearer {self.token(Scope.registry)}",
@@ -415,7 +422,9 @@ class SBP(object):
             '93': 'Неверная/недопустимая транзакция',
             '94': 'Неверная/недопустимая транзакция',
             '95': 'Операция не одобрена',
-            '96': 'Общая ошибка'
+            '96': 'Общая ошибка',
+            # ниже ошибки это я сам добавил
+            '97': 'Заказ аннулирован'
         }
         return error_dict.get(error_number, 'Общая ошибка')
 
@@ -438,18 +447,28 @@ class SBP(object):
         window = sg.Window('Связь с банком', layout, finalize=True)
         progress_bar = window['progressbar']
         i = 0
-        i_title = 'нет ошибки'
-        i_text_error = 'нет текста ошибки'
+        # i_title = 'нет ошибки'
+        # i_text_error = 'нет текста ошибки'
         data_status = {}
         while True:  # запускаем показ прогрессбара типа связь с банком
-            event, values = window.read(timeout=10)
+            event, values = window.read(timeout=1000)
+            if i > TIMEOUT_BANK:
+                i_exit = 2000
+                i_title = 'Время вышло'
+                i_text_error = 'Истекло время ожидания оплаты' + '\nделайте новый чек'
+                ctypes.windll.user32.MessageBoxW(0, i_text_error, i_title, 4096 + 16)
+                break
             if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
                 i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
                 break
             else:
-                data_status = self.status_order(
-                    order_id=self.order['order_id'],
-                    partner_order_number=cash_receipt['number_receipt'])
+                # здесь посылаем запрос в сбербанк о статусе заказа
+                try:
+                    data_status = self.status_order(
+                        order_id=self.order['order_id'],
+                        partner_order_number=cash_receipt['number_receipt'])
+                except Exception as exc:
+                    print(exc)
                 print('Запрос состояния заказа {3}, сумма {0} руб. Попытка запроса № {1}. Статус заказа {2}'.
                       format(str(cash_receipt['summ3']),
                              i + 1, data_status['order_state'],
@@ -467,12 +486,20 @@ class SBP(object):
                     logging.debug(data_status)
                     error_code = data_status.get('order_operation_params', None)[0].get('response_code', 'код ошибки')
                     i_title = 'Ошибка {}'.format(error_code)
+                    i_text_error = self.error_code(error_number=error_code) + '\nделайте новый чек'
+                    ctypes.windll.user32.MessageBoxW(0, i_text_error + '\nделайте новый чек', i_title, 4096 + 16)
+                    logging.debug(i_title + ' ' + ' ' + i_text_error)
+                    i_exit = int(error_code)  # ошибка выхода
+                    break
+                if data_status['order_state'] == 'REVOKED':
+                    logging.debug(data_status)
+                    error_code = '97'
+                    i_title = 'Ошибка {}'.format(error_code)
                     i_text_error = self.error_code(error_number=error_code)
                     logging.debug(i_title + ' ' + ' ' + i_text_error)
                     ctypes.windll.user32.MessageBoxW(0, i_text_error + '\nделайте новый чек', i_title, 4096 + 16)
                     i_exit = int(error_code)  # ошибка выхода
                     break
-                time.sleep(1)
                 progress_bar.UpdateBar(i + 1)
             i += 1
         window.close()
