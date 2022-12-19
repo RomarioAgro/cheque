@@ -3,7 +3,7 @@ import os
 import win32com.client
 import datetime
 from sys import exit
-# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 DICT_OPERATION_CHECK = {'sale': 4000,
                         'return_sale': 4002,
@@ -49,8 +49,8 @@ class PinPad(object):
         self.operation_name = operation_name
         self.operation_sum = oper_sum * 100
         current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-        log_file = 'd:\\files\\pinpad_' + self.operation_name + ' ' + current_time + ".log"
-        logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
+        # log_file = 'd:\\files\\pinpad_' + self.operation_name + ' ' + current_time + ".log"
+        # logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
         logging.debug(current_time + ' start operation ' + self.operation_name)
         pinpad = win32com.client.Dispatch('SBRFSRV.Server')
         pinpad.Clear()

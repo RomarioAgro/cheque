@@ -12,7 +12,7 @@ import ctypes
 import os
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
-TIMEOUT_BANK = 10
+TIMEOUT_BANK = 60
 httpclient_logger = logging.getLogger("http.client")
 
 def httpclient_logging_patch(level=logging.DEBUG):

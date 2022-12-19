@@ -2,7 +2,7 @@ import logging
 import win32com.client
 import json
 from sys import argv
-from typing import List, Callable, Any, Tuple
+from typing import Tuple
 import ctypes
 import datetime
 import re
@@ -148,6 +148,43 @@ class Shtrih(object):
         self.drv.Password = 30
         self.drv.GetECRStatus()
         return self.drv.ECRMode, self.drv.ECRModeDescription
+
+    def preparation_for_work(self):
+        """
+        функция подготовки кассы к работе
+        проверка связи, состояния, если состояние
+        не рабочее, то попытки его исправить
+
+        """
+        # проверка связи с кассой
+
+        logging.debug('создали объект печати чека')
+        dict_of_command_ecr_mode = {
+            4: self.open_session,
+            3: self.close_session,
+            8: self.error_analysis_hard
+        }
+        connect_error, connect_error_description = self.check_connect_fr()
+        logging.debug('проверка связи с кассой {0} - {1}'.format(connect_error, connect_error_description))
+        if connect_error != 0:
+            Mbox('ошибка', 'ошибка: {}'.format(connect_error_description), 4096 + 16)
+            exit(connect_error)
+        # проверка режима работы кассы
+        # режим 2 - Открытая смена, 24 часа не кончились
+        while True:
+            ecr_mode, ecr_mode_description = self.get_ecr_status()
+            logging.debug('проверка режима кассы {0} - {1}'.format(ecr_mode, ecr_mode_description))
+            if ecr_mode == 2:
+                break
+            else:
+                logging.debug('режим не рабочий {0}, запускаем {1}'.format(ecr_mode, dict_of_command_ecr_mode))
+                dict_of_command_ecr_mode.get(ecr_mode, self.i_dont_know)()
+
+        # внесение наличных в кассу, если это у нас первый возврат в смене
+        if self.cash_receipt.get('cashincome', 0) > 0:
+            logging.debug('внесение наличных в кассу, если это у нас первый возврат в смене')
+            self.shtrih_operation_cashincime()
+            logging.debug('cashincome')
 
     def open_box(self):
         self.drv.OpenDrawer()
