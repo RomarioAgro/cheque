@@ -610,7 +610,8 @@ def preparation_km(in_km: str) -> str:
     :param in_km: str
     :return: str
     """
-    pattern = r'91\S+92'
+    logging.debug('зашли в подготовку км')
+    pattern = r'91\S+?92'
     s_break = '\x1D'
     list_break_pattern = re.findall(pattern, in_km[30:])
     if len(list_break_pattern) > 0:
@@ -618,6 +619,7 @@ def preparation_km(in_km: str) -> str:
         out_km = in_km[:30] + re.sub(pattern, repl, in_km[30:])
     else:
         out_km = in_km[:]
+    logging.debug('вышли из подготовки км ' + out_km)
     return out_km
 
 
