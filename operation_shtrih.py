@@ -127,8 +127,8 @@ def main():
         str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
         i_shtrih.print_pinpad(str_registry_SBP, CUTTER)
     # печать отчета эквайринга
-    sber_pinpad = PinPad(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
-    sber_pinpad.pinpad_operation()
+    sber_pinpad = PinPad()
+    sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
     i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':

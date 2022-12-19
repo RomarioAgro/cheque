@@ -120,6 +120,7 @@ def main() -> int:
                                      oper_sum=o_shtrih.cash_receipt['sum-cashless'])
         pin_error = sber_pinpad.error
         pinpad_text = sber_pinpad.text
+        return pin_error
     else:
         pin_error = 0
         pinpad_text = None
