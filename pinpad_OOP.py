@@ -31,6 +31,7 @@ class PinPad(object):
         self.operation_sum = 0
         self.error = 0
         self.text = None
+        self.drv_pp = win32com.client.Dispatch('SBRFSRV.Server')
 
     def pinpad_operation(self, operation_name: str = 'x_otchet', oper_sum: int = 0):
         """
@@ -52,11 +53,11 @@ class PinPad(object):
         # log_file = 'd:\\files\\pinpad_' + self.operation_name + ' ' + current_time + ".log"
         # logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
         logging.debug(current_time + ' start operation ' + self.operation_name)
-        pinpad = win32com.client.Dispatch('SBRFSRV.Server')
-        pinpad.Clear()
-        pinpad.SParam("Amount", self.operation_sum)
-        self.error = pinpad.NFun(self.operation_code)
-        self.text = pinpad.GParamString("Cheque1251")
+        # pinpad = win32com.client.Dispatch('SBRFSRV.Server')
+        self.drv_pp.Clear()
+        self.drv_pp.SParam("Amount", self.operation_sum)
+        self.error = self.drv_pp.NFun(self.operation_code)
+        self.text = self.drv_pp.GParamString("Cheque1251")
         current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
         logging.debug(current_time + ' end operation ' + self.operation_name + ' error ' + str(self.error) + ' \n' + self.text)
 

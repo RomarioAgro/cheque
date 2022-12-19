@@ -1,6 +1,5 @@
 import logging
 import os
-import win32com.client
 from sys import argv, exit
 import ctypes
 import datetime
@@ -114,17 +113,17 @@ def main() -> int:
             exit(99)
 
     # операция по пинпаду
+    error_print_check_code = 0
     if o_shtrih.cash_receipt.get('PinPad', 0) == 1:
         sber_pinpad = PinPad()
         sber_pinpad.pinpad_operation(operation_name=o_shtrih.cash_receipt['operationtype'],
                                      oper_sum=o_shtrih.cash_receipt['sum-cashless'])
         pin_error = sber_pinpad.error
         pinpad_text = sber_pinpad.text
-        return pin_error
+        error_print_check_code = pin_error
     else:
         pin_error = 0
         pinpad_text = None
-    error_print_check_code = 0
     if pin_error == 0:
         # проверка связи с ккм
         # проверка статуса кассы
