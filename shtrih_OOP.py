@@ -375,9 +375,9 @@ class Shtrih(object):
             self.drv.CheckItemMode = 0
             self.drv.DivisionalQuantity = False
             self.drv.FNCheckItemBarcode2()
-            if self.drv.KMServerCheckingStatus() != 15:
+            if self.drv.KMServerCheckingStatus != 15:
                 self.drv.FNAcceptMarkingCode()
-            return self.drv.KMServerCheckingStatus()
+            return self.drv.KMServerCheckingStatus
 
     def about_me(self):
         pass
