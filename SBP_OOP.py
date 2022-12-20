@@ -432,7 +432,7 @@ class SBP(object):
         if cash_receipt is None:
             logging.debug('выход по ошибке словарь чека пустой')
             return self.error_code(error_number='96')
-        latenсy = 100  # длина прогресс бара
+        latenсy = TIMEOUT_BANK  # длина прогресс бара
         progressbar = [
             [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
         ]
