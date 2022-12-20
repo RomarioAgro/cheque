@@ -128,9 +128,10 @@ def main() -> int:
         # проверка связи с ккм
         # проверка статуса кассы
         o_shtrih.get_info_about_FR()
-        if (o_shtrih.drv.WorkModeEx == 16 and
-            len(o_shtrih.cash_receipt['km'])) > 0:
-            o_shtrih.check_km()
+        #TODO разобраться нужно ли это здесь
+        # if (o_shtrih.drv.WorkModeEx == 16 and
+        #     len(o_shtrih.cash_receipt['km'])) > 0:
+        #     o_shtrih.check_km()
         # печать слипа терминала
         if pinpad_text:
             o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
@@ -155,29 +156,21 @@ def main() -> int:
         while True:
             # начало чека
             o_shtrih.shtrih_operation_attic()
-            # печать артикулов
-            o_shtrih.shtrih_operation_fn()
             # отправка чека по смс или почте
             if o_shtrih.cash_receipt.get('email', '') != '':
                 o_shtrih.sendcustomeremail()
+            # печать артикулов
+            o_shtrih.shtrih_operation_fn()
             # закрытие чека
             o_shtrih.shtrih_close_check()
             # если у нас печать неудачно закончилась, то надо что-то с этим делать
             # проверка на ошибки данных
-            if o_shtrih.drv.ResultCode != 0:
-                error_print_check_code = o_shtrih.drv.ResultCode
-                ctypes.windll.user32.MessageBoxW(0,
-                                                 'печать чека закончилась с ошибкой:\n{0}\nдокумент будет аннулирован'.format(
-                                                     o_shtrih.drv.ResultCodeDescription), 'аннулировать документ',
-                                                 4096 + 16)
-                o_shtrih.kill_document()
-                exit(error_print_check_code)
-            else:
-                error_print_check_code = o_shtrih.error_analysis_hard()
+            o_shtrih.error_analysis_soft()
+            error_print_check_code = o_shtrih.error_analysis_hard()
             # проверка на ошибки железа и бумаги
             if error_print_check_code == 0:
                 o_shtrih.open_box()
-            return error_print_check_code
+                return error_print_check_code
     return error_print_check_code
 
 

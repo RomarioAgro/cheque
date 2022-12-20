@@ -96,8 +96,6 @@ class Shtrih(object):
                     self.print_str(i_str='Бонусов списано = ' + str(item.get('bonuswritedown', '0')), i_font=1)
                 if item.get('bonusaccrual', None) is not None:
                     self.print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
-                self.print_str(i_str='_' * 20, i_font=2)
-        self.print_str(i_str='_' * 20, i_font=2)
         logging.debug('FNOperation= {0}, описание ошибки: {1}'.format(error_code, error_code_desc))
         return error_code
 
@@ -115,9 +113,10 @@ class Shtrih(object):
         self.drv.Summ15 = self.cash_receipt['summ15']
         self.drv.Summ16 = self.cash_receipt['summ16']
         self.drv.TaxType = self.cash_receipt['tax-type']
-        self.print_str(i_str='Итоговая скидка = ' + str(self.cash_receipt.get('total-discount', '0')), i_font=6)
+        self.drv.StringForPrinting = 'Итоговая скидка = ' + str(self.cash_receipt.get('total-discount', '0'))
         self.send_tag_1021_1203()
         self.drv.FNCloseCheckEx()
+        self.drv.WaitForPrinting()
         error_code = self.drv.ResultCode
         error_descr = self.drv.ResultCodeDescription
         logging.debug(str(error_code) + '-' + error_descr)
@@ -377,7 +376,7 @@ class Shtrih(object):
             self.drv.FNCheckItemBarcode2()
             if self.drv.KMServerCheckingStatus != 15:
                 self.drv.FNAcceptMarkingCode()
-            return self.drv.KMServerCheckingStatus
+            # return self.drv.KMServerCheckingStatus
 
     def about_me(self):
         pass
@@ -443,14 +442,28 @@ class Shtrih(object):
         метод обработки ошибок связанных с данными
         :return:
         """
-        logging.debug('Ошибка' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
-        if self.drv.ResultCode != 0:
-            Mbox('Ошибка' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096)
-            yes_no = ctypes.windll.user32.MessageBoxW(0, 'аннулировать документ?', self.drv.ResultCodeDescription + '\nчек не пробивается', 4 + 4096 + 16)
-            if yes_no == 6:
-                logging.debug('аннулирован документ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
-                self.kill_document()
-        return self.drv.ResultCode
+        not_connection = [x for x in range(-1, -7, -1)]
+        while True:
+            logging.debug('Ошибка' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
+            if self.drv.ResultCode != 0:
+                Mbox('Ошибка' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
+                yes_no = ctypes.windll.user32.MessageBoxW(0, 'проверить связь?', 'ghjdthbnm cdzpm', 4 + 4096 + 16)
+                if yes_no == 6:
+                    self.continuation_printing()
+                # else:
+                #     self.continuation_printing()
+                # yes_no = ctypes.windll.user32.MessageBoxW(0, 'аннулировать документ?', self.drv.ResultCodeDescription + '\nчек не пробивается', 4 + 4096 + 16)
+                # if yes_no == 6:
+                #     logging.debug('аннулирован документ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
+                #     self.kill_document()
+                #     return yes_no
+                # else:
+                #     self.continuation_printing()
+            if self.drv.ResultCode in not_connection:
+                Mbox('Ошибка связи', 'у вас проблема со связью с кассовым аппаратом\nзаймитесь ее решением', 4096 + 16)
+            else:
+                self.continuation_printing()
+                return self.drv.ResultCode
 
     def error_analysis_hard(self):
         """
@@ -468,6 +481,8 @@ class Shtrih(object):
                 if self.drv.ECRAdvancedMode == 0:
                     self.kill_document()
                     self.drv.GetECRStatus()
+                    logging.debug('документ аннулирован')
+                    return -2
                 else:
                     Mbox('Ошибка: {0}'.format(self.drv.ECRAdvancedMode), self.drv.ECRAdvancedModeDescription, 4096 + 16)
                     logging.debug('Ошибка: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
