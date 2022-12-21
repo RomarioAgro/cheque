@@ -4,9 +4,9 @@ import json
 from sys import argv
 from typing import Tuple
 import ctypes
-import datetime
 import re
 import os
+import datetime
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
@@ -21,6 +21,7 @@ DICT_OPERATION_CHECK = {'sale': 0,
 CUTTER = '~S'
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+
 logging.basicConfig(
     filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
     filemode='a',
@@ -45,8 +46,11 @@ class Shtrih(object):
  
         """
         file_json_name = i_path + '\\' + i_file_name + '.json'
-        with open(file_json_name, 'r') as json_file:
-            self.cash_receipt = json.load(json_file)
+        if os.path.exists(file_json_name):
+            with open(file_json_name, 'r') as json_file:
+                self.cash_receipt = json.load(json_file)
+        else:
+            self.cash_receipt = None
         self.drv = win32com.client.Dispatch('Addin.DRvFR')
         logging.debug('создали объект чека' + str(self.cash_receipt))
 
@@ -115,12 +119,38 @@ class Shtrih(object):
         self.drv.TaxType = self.cash_receipt['tax-type']
         self.drv.StringForPrinting = 'Итоговая скидка = ' + str(self.cash_receipt.get('total-discount', '0'))
         self.send_tag_1021_1203()
+        list_correction = [128, 130]
+        if DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) in list_correction:
+            self.send_tag_correction()
         self.drv.FNCloseCheckEx()
         self.drv.WaitForPrinting()
         error_code = self.drv.ResultCode
         error_descr = self.drv.ResultCodeDescription
         logging.debug(str(error_code) + '-' + error_descr)
         return error_code, error_descr
+
+    def send_tag_correction(self):
+        """
+        метод отправки тегов чека коррекции
+        самостоятельно коррекция или нет
+        номер неверного ФП если есть
+        """
+        # это отправка не верного ФП
+        self.drv.TagNumber = 1192
+        self.drv.TagType = 7
+        self.drv.TagValueStr = self.cash_receipt['wrong_FP']
+        self.drv.FNSendTag()
+        # тип коррекции самостоятельно - 0
+        self.drv.TagNumber = 1173
+        self.drv.TagType = 0
+        self.drv.TagValueInt = 0
+        self.drv.FNSendTag()
+        # отправка не даты коррекции, а дата когда не был пробит чек
+        #или когда была ошибочная продажа
+        self.drv.TagNumber = 1178
+        self.drv.TagType = 6
+        self.drv.TagValueDateTime = datetime.datetime.strptime(self.cash_receipt['correction_date'], '%d.%m.%y').strftime('%Y.%m.%d')
+        self.drv.FNSendTag()
 
 
     def send_tag_1021_1203(self) -> None:
@@ -392,40 +422,6 @@ class Shtrih(object):
         self.drv.PrintStringWithFont()
         self.drv.WaitForPrinting()
 
-    def print_pinpad(self, i_str: str, sum_operation: str):
-        """
-        функция печати ответа от пинпада сбербанка
-        :param i_str: str строка печати
-        :param sum_operation:str сумма операции, она будет печататься жирным шрифтом
-        поэтому при печати отчетов, использовать символ отрезки
-        count_cutter: int количество команд отрезки,
-        отрезать надо только на 1
-        """
-        i_text = i_str.split('\n')
-        count_cutter = 0
-        for i_line in i_text:
-            line = i_line.strip('\r')
-            if (line.find(CUTTER) != -1 and
-                    count_cutter == 0):
-                count_cutter += 1
-                self.drv.StringQuantity = 5
-                self.drv.FeedDocument()
-                self.drv.CutType = 2
-                self.drv.CutCheck()
-            else:
-                if line.find(CUTTER) != -1:
-                    # сам символ отрезки печатать не надо
-                    pass
-                else:
-                    if line.find(sum_operation) != -1:
-                        if line.strip().startswith(sum_operation) is True:
-                            self.print_str(i_str=line, i_font=2)
-                        else:
-                            self.print_str(i_str='Сумма (Руб):', i_font=5)
-                            self.print_str(i_str=sum_operation, i_font=2)
-
-                    else:
-                        self.print_str(i_str=line, i_font=5)
 
     def i_dont_know(self):
         """
@@ -559,7 +555,7 @@ def print_operation_SBP_PAY(operation_dict: dict = {}) -> str:
     i_str = f'   {operation_dict["order_operation_params"][0]["operation_sum"] // 100}.00'
     i_list.append(i_str)
 
-    o_str = '\n'.join(i_list) + '\n' * 2 + '~S' + '\n' * 2 + '\n'.join(i_list)
+    o_str = '\n'.join(i_list) + ' \n' * 2 + '~S' + ' \n' * 2 + '\n'.join(i_list)
     return o_str
 
 
@@ -599,7 +595,7 @@ def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
     i_list.append(format_string(i_str))
     i_str = f'   {operation_dict["operation_sum"] // 100}.00'
     i_list.append(i_str)
-    o_str = '\n'.join(i_list) + '\n' * 2 + '~S' + '\n'.join(i_list)
+    o_str = '\n'.join(i_list) + ' \n' * 2 + '~S' + '\n'.join(i_list)
     return o_str
 
 

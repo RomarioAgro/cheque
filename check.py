@@ -1,7 +1,6 @@
 import logging
 import os
 from sys import argv, exit
-import ctypes
 import datetime
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
@@ -114,7 +113,7 @@ def main() -> int:
 
     # операция по пинпаду
     error_print_check_code = 0
-    if o_shtrih.cash_receipt.get('PinPad', 0) == 1:
+    if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
         sber_pinpad = PinPad()
         sber_pinpad.pinpad_operation(operation_name=o_shtrih.cash_receipt['operationtype'],
                                      oper_sum=o_shtrih.cash_receipt['sum-cashless'])
