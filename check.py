@@ -15,7 +15,6 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'correct_return_sale': 130}
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-log_file = 'd:\\files\\' + argv[2] + "_" + current_time + ".log"
 logging.basicConfig(
     filename='D:\\files\\' + argv[2] + "_" + current_time + '_.log',
     filemode='a',

@@ -138,18 +138,27 @@ class Shtrih(object):
         # это отправка не верного ФП
         self.drv.TagNumber = 1192
         self.drv.TagType = 7
-        self.drv.TagValueStr = self.cash_receipt['wrong_FP']
+        self.drv.TagValueStr = self.cash_receipt.get('wrong_FP', '')
         self.drv.FNSendTag()
         # тип коррекции самостоятельно - 0
         self.drv.TagNumber = 1173
         self.drv.TagType = 0
-        self.drv.TagValueInt = 0
+        self.drv.TagValueInt = self.cash_receipt.get('footing_correction', 0)
         self.drv.FNSendTag()
+        if self.cash_receipt.get('footing_correction', 0) != 0:
+            self.drv.TagNumber = 1179
+            self.drv.TagType = 7
+            self.drv.TagValueStr = '654'
+            self.drv.FNSendTag()
+
         # отправка не даты коррекции, а дата когда не был пробит чек
         #или когда была ошибочная продажа
         self.drv.TagNumber = 1178
         self.drv.TagType = 6
-        self.drv.TagValueDateTime = datetime.datetime.strptime(self.cash_receipt['correction_date'], '%d.%m.%y').strftime('%Y.%m.%d')
+        corr_date = self.cash_receipt.get('correction_date', '')
+        if corr_date == '':
+            corr_date = datetime.datetime.today().strftime('%d.%m.%y')
+        self.drv.TagValueDateTime = datetime.datetime.strptime(corr_date, '%d.%m.%y').strftime('%Y.%m.%d')
         self.drv.FNSendTag()
 
 
