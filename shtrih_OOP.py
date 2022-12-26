@@ -199,7 +199,7 @@ class Shtrih(object):
         logging.debug('создали объект печати чека')
         dict_of_command_ecr_mode = {
             4: self.open_session,
-            3: self.close_session,
+            3: self.z_otchet,
             8: self.error_analysis_hard
         }
         connect_error, connect_error_description = self.check_connect_fr()
@@ -230,10 +230,9 @@ class Shtrih(object):
     def x_otchet(self):
         self.drv.PrintReportWithoutCleaning()
 
-    def close_session(self):
+    def z_otchet(self):
         """
-        функция закрытия смены
-        :param comp_rec: dict
+        метод закрытия смены
         """
         self.drv.Password = 30
         self.send_tag_1021_1203()
@@ -356,6 +355,7 @@ class Shtrih(object):
         self.drv.Connect()
         self.drv.FNGetFiscalizationResult()
 
+
     def check_connect_fr(self):
         """
         функция проверки связи с фискальмым регистратором
@@ -415,10 +415,68 @@ class Shtrih(object):
             self.drv.FNCheckItemBarcode2()
             if self.drv.KMServerCheckingStatus != 15:
                 self.drv.FNAcceptMarkingCode()
-            # return self.drv.KMServerCheckingStatus
 
     def about_me(self):
-        pass
+        list_about_fr = []
+        self.drv.FNGetExpirationTime()
+        self.drv.ReadSerialNumber()
+        v_date = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
+        list_about_fr.append(v_date + '_' + self.drv.SerialNumber)
+        list_about_fr.append('SROK ' + v_date)
+        list_about_fr.append('ZN ' + self.drv.SerialNumber)
+        self.drv.FNGetFiscalizationResult()
+        list_about_fr.append('RN ' + self.drv.KKTRegistrationNumber)
+        self.drv.FNGetSerial()
+        list_about_fr.append('ZN ' + self.drv.SerialNumber)
+        self.drv.FNGetInfoExchangeStatus()
+        if self.drv.MessageCount > 0:
+            list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
+            list_about_fr.append('DATENOTSEND ' + datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y"))
+        self.drv.ReadFeatureLicenses()
+        if self.drv.License == '':
+            list_about_fr.append('LIC NONE')
+        else:
+            list_about_fr.append('LIC ' + self.drv.License)
+        self.drv.FNGetFiscalizationResult()
+        if self.drv.WorkModeEx == 16:
+            list_about_fr.append('FFD 1.2')
+        else:
+            list_about_fr.append('FFD 1.05')
+        list_about_fr.append('INN ' + self.drv.INN)
+        self.drv.TableNumber = 18
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ReadTable()
+        list_about_fr.append('ORG ' + self.drv.ValueOfFieldString)
+        self.drv.TableNumber = 18
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 9
+        self.drv.ReadTable()
+        list_about_fr.append('ADR ' + self.drv.ValueOfFieldString)
+        self.drv.GetECRStatus()
+        list_about_fr.append('DATEFIRMWARE ' + datetime.datetime.strftime(self.drv.ECRSoftDate, "%d.%m.%Y"))
+        self.drv.GetDeviceMetrics()
+        list_about_fr.append('MODEL ' + self.drv.UDescription)
+        list_about_fr.append('DRIVER VERSION ' + self.drv.DriverVersion)
+        self.drv.Connect()
+        if self.drv.ConnectionType == 6:
+            list_about_fr.append('CONNECTION TYPE TCP-Socket')
+        else:
+            list_about_fr.append('CONNECTION TYPE LOCAL')
+        list_about_fr.append('IP ADRESS ' + self.drv.IPAddress)
+        self.drv.GetFieldStruct()
+        self.drv.TableNumber = 16
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 1
+        self.drv.ReadTable()
+        list_about_fr.append('STATIC IP ' + self.drv.ValueOfFieldString)
+        self.drv.TableNumber = 16
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 2
+        self.drv.ReadTable()
+        list_about_fr.append('DHCP STATUS ' + self.drv.ValueOfFieldString)
+        return list_about_fr
+
 
     def print_str(self, i_str: str, i_font: int = 5):
         """
@@ -452,18 +510,9 @@ class Shtrih(object):
             logging.debug('Ошибка' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
             if self.drv.ResultCode != 0:
                 Mbox('Ошибка' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
-                yes_no = ctypes.windll.user32.MessageBoxW(0, 'проверить связь?', 'ghjdthbnm cdzpm', 4 + 4096 + 16)
+                yes_no = ctypes.windll.user32.MessageBoxW(0, 'проверить связь?', 'проверьте связь', 4 + 4096 + 16)
                 if yes_no == 6:
                     self.continuation_printing()
-                # else:
-                #     self.continuation_printing()
-                # yes_no = ctypes.windll.user32.MessageBoxW(0, 'аннулировать документ?', self.drv.ResultCodeDescription + '\nчек не пробивается', 4 + 4096 + 16)
-                # if yes_no == 6:
-                #     logging.debug('аннулирован документ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
-                #     self.kill_document()
-                #     return yes_no
-                # else:
-                #     self.continuation_printing()
             if self.drv.ResultCode in not_connection:
                 Mbox('Ошибка связи', 'у вас проблема со связью с кассовым аппаратом\nзаймитесь ее решением', 4096 + 16)
             else:
