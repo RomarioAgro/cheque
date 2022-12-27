@@ -235,8 +235,9 @@ class Shtrih(object):
         метод закрытия смены
         """
         self.drv.Password = 30
+        self.drv.FNBeginCloseSession()
         self.send_tag_1021_1203()
-        self.drv.PrintReportWithCleaning()
+        self.drv.FNCloseSession()
         self.drv.WaitForPrinting()
         return self.drv.ECRMode, self.drv.ECRModeDescription
 

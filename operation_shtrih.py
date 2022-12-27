@@ -47,7 +47,7 @@ def save_about_fr(i_list=None):
 def main():
     comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     logging.debug(comp_rec['operationtype'])
-    i_shtrih = Shtrih()
+    i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     if comp_rec['operationtype'] == 'open_box':
         i_shtrih.open_box()
         exit(0)
@@ -66,7 +66,23 @@ def main():
     if comp_rec['operationtype'] == 'x_otchet':
         i_shtrih.x_otchet()
     if comp_rec['operationtype'] == 'z_otchet':
-        i_shtrih.z_otchet()
+        # i_shtrih.z_otchet()
+        # сохраняем фио кассира в таблице драйвера кассы
+        i_shtrih.drv.TableNumber = 2
+        i_shtrih.drv.RowNumber = 30
+        i_shtrih.drv.FieldNumber = 2
+        i_shtrih.drv.ValueOfFieldString = i_shtrih.cash_receipt.get('tag1021', 'кассир')
+        i_shtrih.drv.WriteTable()
+        # сохраняем настройку драйвера печатать реквизиты пользователя
+        i_shtrih.drv.RowNumber = 1
+        i_shtrih.drv.FieldNumber = 12
+        i_shtrih.drv.ValueOfFieldInteger = 63
+        i_shtrih.drv.GetFieldStruct()
+        i_shtrih.drv.WriteTable()
+        # правим время
+        i_shtrih.drv.Time = datetime.datetime.now().time().strftime("%H:%M:%S")
+        i_shtrih.drv.SetTime()
+        i_shtrih.drv.RebootKKT()
     logging.debug(i_shtrih.error_analysis_soft())
     list_aboutfr = i_shtrih.about_me()
     save_about_fr(list_aboutfr)
