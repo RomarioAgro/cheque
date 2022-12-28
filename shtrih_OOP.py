@@ -143,12 +143,12 @@ class Shtrih(object):
         # тип коррекции самостоятельно - 0
         self.drv.TagNumber = 1173
         self.drv.TagType = 0
-        self.drv.TagValueInt = self.cash_receipt.get('footing_correction', 0)
+        self.drv.TagValueInt = self.cash_receipt.get('type_correction', 0)
         self.drv.FNSendTag()
-        if self.cash_receipt.get('footing_correction', 0) != 0:
+        if self.cash_receipt.get('type_correction', 0) != 0:
             self.drv.TagNumber = 1179
             self.drv.TagType = 7
-            self.drv.TagValueStr = '654'
+            self.drv.TagValueStr = self.cash_receipt.get('footing_correction', 0)
             self.drv.FNSendTag()
 
         # отправка не даты коррекции, а дата когда не был пробит чек
