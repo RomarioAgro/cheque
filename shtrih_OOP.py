@@ -450,6 +450,16 @@ class Shtrih(object):
             list_about_fr.append('FFD 1.2')
         else:
             list_about_fr.append('FFD 1.05')
+        self.drv.TableNumber = 18
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 10
+        self.drv.ReadTable()
+        list_about_fr.append('OFD ' + self.drv.ValueOfFieldString)
+        self.drv.TableNumber = 18
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 14
+        self.drv.ReadTable()
+        list_about_fr.append('MESTO ' + self.drv.ValueOfFieldString)
         list_about_fr.append('INN ' + self.drv.INN)
         self.drv.TableNumber = 18
         self.drv.RowNumber = 1

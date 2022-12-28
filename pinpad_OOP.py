@@ -49,17 +49,12 @@ class PinPad(object):
         self.operation_code = DICT_OPERATION_CHECK.get(operation_name, 7004)
         self.operation_name = operation_name
         self.operation_sum = oper_sum * 100
-        current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-        # log_file = 'd:\\files\\pinpad_' + self.operation_name + ' ' + current_time + ".log"
-        # logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
-        logging.debug(current_time + ' start operation ' + self.operation_name)
-        # pinpad = win32com.client.Dispatch('SBRFSRV.Server')
+        logging.debug('start operation ' + self.operation_name)
         self.drv_pp.Clear()
         self.drv_pp.SParam("Amount", self.operation_sum)
         self.error = self.drv_pp.NFun(self.operation_code)
         self.text = self.drv_pp.GParamString("Cheque1251")
-        current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-        logging.debug(current_time + ' end operation ' + self.operation_name + ' error ' + str(self.error) + ' \n')
+        logging.debug('end operation ' + self.operation_name + ' error ' + str(self.error) + ' \n')
         logging.debug(self.text.replace('\r', ''))
 
 
