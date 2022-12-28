@@ -59,7 +59,8 @@ class PinPad(object):
         self.error = self.drv_pp.NFun(self.operation_code)
         self.text = self.drv_pp.GParamString("Cheque1251")
         current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-        logging.debug(current_time + ' end operation ' + self.operation_name + ' error ' + str(self.error) + ' \n' + self.text)
+        logging.debug(current_time + ' end operation ' + self.operation_name + ' error ' + str(self.error) + ' \n')
+        logging.debug(self.text.replace('\r', ''))
 
 
 def main():
