@@ -62,11 +62,12 @@ def main():
         sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
         sber_pinpad.text = sber_pinpad.text.replace(CUTTER, '')
         i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
+        i_shtrih.cut_print(cut_type=2, feed=5)
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
         i_shtrih.x_otchet()
     if comp_rec['operationtype'] == 'z_otchet':
-        # i_shtrih.z_otchet()
+        i_shtrih.z_otchet()
         # сохраняем фио кассира в таблице драйвера кассы
         i_shtrih.drv.TableNumber = 2
         i_shtrih.drv.RowNumber = 30

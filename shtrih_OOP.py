@@ -478,6 +478,20 @@ class Shtrih(object):
         list_about_fr.append('DHCP STATUS ' + self.drv.ValueOfFieldString)
         return list_about_fr
 
+    def cut_print(self, cut_type: int = 2, feed: int = 10):
+        """
+        метод отрезки документа
+        :param cut_type: int тип отрезки 2 не полная 1 полная
+        :param feed: int промотать
+        :return:
+        """
+        self.drv.WaitForPrinting()
+        self.drv.StringQuantity = feed
+        self.drv.FeedDocument()
+        self.drv.CutType = cut_type
+        self.drv.CutCheck()
+
+
 
     def print_str(self, i_str: str, i_font: int = 5):
         """
