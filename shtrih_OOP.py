@@ -2,7 +2,7 @@ import logging
 import win32com.client
 import json
 from sys import argv
-from typing import Tuple
+from typing import Tuple, List
 import ctypes
 import re
 import os
@@ -417,9 +417,16 @@ class Shtrih(object):
             if self.drv.KMServerCheckingStatus != 15:
                 self.drv.FNAcceptMarkingCode()
 
-    def about_me(self):
+    def about_me(self) -> List:
+        """
+        метод опроса кассы на предмет всяких данных
+        потом сохраняем в текстовый файл
+        :return:
+        """
         list_about_fr = []
         self.drv.FNGetExpirationTime()
+        if self.drv.ResultCode != 0:
+            return list_about_fr
         self.drv.ReadSerialNumber()
         v_date = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
         list_about_fr.append(v_date + '_' + self.drv.SerialNumber)

@@ -33,8 +33,17 @@ def read_composition_receipt(file_json_name: str) -> dict:
         composition_receipt = json.load(json_file)
     return composition_receipt
 
-def save_about_fr(i_list=None):
+def save_about_fr(i_list=None) -> None:
+    """
+    функция сохранения данных кассы в txt файл
+    результат не особо критичен, поэтому если данных нет
+    то у нас просто выход из скрипта и все
+    :param i_list: список строк с данными кассы
+    :return:
+    """
     if i_list == None:
+        exit(0)
+    if len(i_list) == 0:
         exit(0)
     f_name = socket.gethostname() + '_' + getpass.getuser() + '_' + i_list[0] + '.txt'
     f_path = 'e:\\inbox\\attention\\'
@@ -48,6 +57,10 @@ def main():
     comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     logging.debug(comp_rec['operationtype'])
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
+    if comp_rec['operationtype'] == 'about':
+        list_aboutfr = i_shtrih.about_me()
+        save_about_fr(list_aboutfr)
+        exit(0)
     if comp_rec['operationtype'] == 'open_box':
         i_shtrih.open_box()
         exit(0)
