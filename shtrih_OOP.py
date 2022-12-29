@@ -539,16 +539,21 @@ class Shtrih(object):
         """
         not_connection = [x for x in range(-1, -7, -1)]
         while True:
-            logging.debug('Ошибка' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
+            logging.debug('Ошибка ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
+            Mbox('Ошибка ' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
+            self.continuation_printing()
+            logging.debug('продолжили печать просто по циклу')
             if self.drv.ResultCode != 0:
-                Mbox('Ошибка' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
+                # Mbox('Ошибка ' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
                 yes_no = ctypes.windll.user32.MessageBoxW(0, 'проверить связь?', 'проверьте связь', 4 + 4096 + 16)
                 if yes_no == 6:
                     self.continuation_printing()
+                    logging.debug('продолжили печать после проверки связи')
             if self.drv.ResultCode in not_connection:
                 Mbox('Ошибка связи', 'у вас проблема со связью с кассовым аппаратом\nзаймитесь ее решением', 4096 + 16)
             else:
                 self.continuation_printing()
+                logging.debug('продолжили печать просто по циклу')
                 return self.drv.ResultCode
 
     def error_analysis_hard(self):
