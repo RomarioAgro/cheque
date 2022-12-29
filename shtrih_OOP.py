@@ -228,7 +228,9 @@ class Shtrih(object):
         self.drv.OpenDrawer()
 
     def x_otchet(self):
+        self.drv.Password = 30
         self.drv.PrintReportWithoutCleaning()
+        self.drv.WaitForPrinting()
 
     def z_otchet(self):
         """
@@ -540,9 +542,10 @@ class Shtrih(object):
         not_connection = [x for x in range(-1, -7, -1)]
         while True:
             logging.debug('Ошибка ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
-            Mbox('Ошибка ' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
-            self.continuation_printing()
-            logging.debug('продолжили печать просто по циклу')
+            # if self.drv.ResultCode !=0:
+            #     Mbox('Ошибка ' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
+            #     self.continuation_printing()
+            #     logging.debug('продолжили печать просто по циклу')
             if self.drv.ResultCode != 0:
                 # Mbox('Ошибка ' + str(self.drv.ResultCode), self.drv.ResultCodeDescription, 4096 + 16)
                 yes_no = ctypes.windll.user32.MessageBoxW(0, 'проверить связь?', 'проверьте связь', 4 + 4096 + 16)
