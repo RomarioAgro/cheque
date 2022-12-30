@@ -75,6 +75,13 @@ def return_sale_pinpad():
     pass
 
 def save_FiscalSign(i_path: str = '', i_file: str = '', i_fp: str = ''):
+    """
+    функция сохранения ФП в файл
+    :param i_path: путь до файла
+    :param i_file: сам файл
+    :param i_fp: фискальный признак который хотим сохранить
+    :return:
+    """
     f_name = i_path + '\\' + i_file + '.txt'
     with open(f_name, 'w') as i_file:
         i_file.write(i_fp)
