@@ -16,7 +16,7 @@ DICT_OPERATION_CHECK = {'sale': 0,
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
-    filename='D:\\files\\' + argv[2] + "_" + current_time + '_.log',
+    filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
     filemode='a',
     level=logging.DEBUG,
     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
@@ -74,6 +74,10 @@ def return_sale_sbp(o_shtrih, sbp_qr) ->str:
 def return_sale_pinpad():
     pass
 
+def save_FiscalSign(i_path: str = '', i_file: str = '', i_fp: str = ''):
+    f_name = i_path + '\\' + i_file + '.fp'
+    with open(f_name, 'w') as i_file:
+        i_file.write(i_fp)
 
 def main() -> int:
     """
@@ -127,10 +131,6 @@ def main() -> int:
         # проверка связи с ккм
         # проверка статуса кассы
         o_shtrih.get_info_about_FR()
-        #TODO разобраться нужно ли это здесь
-        # if (o_shtrih.drv.WorkModeEx == 16 and
-        #     len(o_shtrih.cash_receipt['km'])) > 0:
-        #     o_shtrih.check_km()
         # печать слипа терминала
         if pinpad_text:
             o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
@@ -169,6 +169,7 @@ def main() -> int:
             # проверка на ошибки железа и бумаги
             if error_print_check_code == 0:
                 o_shtrih.open_box()
+                save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
                 return error_print_check_code
     return error_print_check_code
 

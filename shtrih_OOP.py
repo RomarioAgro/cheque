@@ -127,6 +127,10 @@ class Shtrih(object):
         error_code = self.drv.ResultCode
         error_descr = self.drv.ResultCodeDescription
         logging.debug(str(error_code) + '-' + error_descr)
+        fd = self.drv.DocumentNumber
+        fp = self.drv.FiscalSign
+        fp_str = self.drv.FiscalSignAsString
+        logging.debug('ФД: {0}, ФП: {1},  ФП строка: {2}'.format(fd, fp, fp_str))
         return error_code, error_descr
 
     def send_tag_correction(self):
@@ -568,8 +572,14 @@ class Shtrih(object):
         self.drv.GetECRStatus()
         count = 0
         if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
+            logging.debug('ошибок нет, статус: ' + str(
+                self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
             return 0
         if self.drv.ECRMode == 8:
+            logging.debug('Статус: ' + str(
+                self.drv.ECRMode) + '*' + self.drv.ECRModeDescription)
+            logging.debug('Статус расширенный: ' + str(
+                self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
             while True:
                 count += 1
                 if self.drv.ECRAdvancedMode == 0:
@@ -589,6 +599,8 @@ class Shtrih(object):
                 self.drv.WaitForPrinting()
                 self.drv.GetECRStatus()
                 if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
+                    logging.debug('ошибок нет, статус: ' + str(
+                        self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
                     return 0
         else:
             Mbox('Ошибка: {0}'.format(self.drv.ECRMode), self.drv.ECRDescription, 4096 + 16)
