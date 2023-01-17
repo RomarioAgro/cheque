@@ -309,29 +309,30 @@ class Shtrih(object):
         """
         i_text = i_str.split('\n')
         count_cutter = 0
-        for i_line in i_text:
-            line = i_line.strip('\r')
-            if (line.find(CUTTER) != -1 and
-                    count_cutter == 0):
-                count_cutter += 1
-                self.drv.StringQuantity = 7
-                self.drv.FeedDocument()
-                self.drv.CutType = 2
-                self.drv.CutCheck()
-            else:
-                if line.find(CUTTER) != -1:
-                    # сам символ отрезки печатать не надо
-                    pass
+        for key, i_line in enumerate(i_text):
+            if key != 3:
+                line = i_line.strip('\r')
+                if (line.find(CUTTER) != -1 and
+                        count_cutter == 0):
+                    count_cutter += 1
+                    self.drv.StringQuantity = 7
+                    self.drv.FeedDocument()
+                    self.drv.CutType = 2
+                    self.drv.CutCheck()
                 else:
-                    if line.find(sum_operation) != -1:
-                        if line.strip().startswith(sum_operation) is True:
-                            self.print_str(i_str=line, i_font=2)
-                        else:
-                            self.print_str(i_str='Сумма (Руб):', i_font=5)
-                            self.print_str(i_str=sum_operation, i_font=2)
-
+                    if line.find(CUTTER) != -1:
+                        # сам символ отрезки печатать не надо
+                        pass
                     else:
-                        self.print_str(i_str=line, i_font=5)
+                        if line.find(sum_operation) != -1:
+                            if line.strip().startswith(sum_operation) is True:
+                                self.print_str(i_str=line, i_font=2)
+                            else:
+                                self.print_str(i_str='Сумма (Руб):', i_font=5)
+                                self.print_str(i_str=sum_operation, i_font=2)
+
+                        else:
+                            self.print_str(i_str=line, i_font=5)
 
     def print_advertisement(self, list_advertisement):
         """
@@ -544,6 +545,7 @@ class Shtrih(object):
         :return:
         """
         not_connection = [x for x in range(-1, -7, -1)]
+        self.drv.Connect()
         while True:
             logging.debug('Ошибка ' + str(self.drv.ResultCode) + '*' + self.drv.ResultCodeDescription)
             # if self.drv.ResultCode !=0:
