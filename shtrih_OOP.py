@@ -306,12 +306,16 @@ class Shtrih(object):
         sum_operation: str сумма операции
         count_cutter: int количество команд отрезки,
         отрезать надо только на 1
+        т. 89197197695
+        т.8(800)350-01-23
         """
+        phone_number_pattern = r'т.((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
         i_text = i_str.split('\n')
         count_cutter = 0
-        for key, i_line in enumerate(i_text):
-            if key != 3:
-                line = i_line.strip('\r')
+        for i_line in i_text:
+            line = i_line.strip('\r')
+            is_phone_number = re.search(phone_number_pattern, line.strip())
+            if is_phone_number is None:
                 if (line.find(CUTTER) != -1 and
                         count_cutter == 0):
                     count_cutter += 1
@@ -333,6 +337,8 @@ class Shtrih(object):
 
                         else:
                             self.print_str(i_str=line, i_font=5)
+            else:
+                logging.debug('при печати чека вырезан номер телефона ' + line)
 
     def print_advertisement(self, list_advertisement):
         """
@@ -747,19 +753,8 @@ def preparation_km(in_km: str) -> str:
 
 
 def main():
-    # argv[1] =  'd:\\files'
-    # argv[2] = '273926_01_sale'
-    # PRN = win32com.client.Dispatch('Addin.DRvFR')
-    current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     i_shtrih.shtrih_operation_fn()
-    # log_file = 'd:\\files\\pinpad_' + i_shtrih.operationtype + '_' + current_time + ".log"
-    # logging.basicConfig(filename=log_file, filemode='a', level=logging.DEBUG)
-    # logging.debug(current_time + ' ' + i_shtrih.operationtype)
-    # sber_pinpad = PinPad(operation_name=i_shtrih.operationtype, oper_sum=i_shtrih.sum_cashless)
-    #
-    # sber_pinpad.pinpad_operation()
-    # i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
 
 
 if __name__ == '__main__':
