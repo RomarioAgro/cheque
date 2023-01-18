@@ -309,7 +309,7 @@ class Shtrih(object):
         т. 89197197695
         т.8(800)350-01-23
         """
-        phone_number_pattern = r'т.((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
+        phone_number_pattern = r'т..((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
         i_text = i_str.split('\n')
         count_cutter = 0
         for i_line in i_text:
