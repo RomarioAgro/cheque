@@ -153,6 +153,11 @@ def main() -> int:
         # печать рекламы после баркода
         if o_shtrih.cash_receipt.get('text-attic-after-bc', None) is not None:
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-after-bc', None))
+        # печать примечаний
+        if o_shtrih.cash_receipt.get('text-basement', None) is not None:
+            lll = o_shtrih.cash_receipt.get('text-basement', None)
+            o_shtrih.print_basement(lll)
+        # печать примечаний
         # печать номера чека
         o_shtrih.print_str(' ' * 3 + str(o_shtrih.cash_receipt['number_receipt']), 3)
         # печать бонусов

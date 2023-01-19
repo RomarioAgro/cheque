@@ -347,6 +347,16 @@ class Shtrih(object):
         for item in list_advertisement:
             self.print_str(i_str=item[0], i_font=item[1])
 
+    def print_basement(self, list_basement):
+        """
+        функция печати примечаний
+        """
+        for item in list_basement:
+            self.drv.WrapStrings = True
+            self.drv.StringForPrinting = item
+            self.drv.PrintString()
+
+
     def print_barcode(self):
         """
         функция печати штрихкода на чеке,
