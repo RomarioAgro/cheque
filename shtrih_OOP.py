@@ -458,7 +458,7 @@ class Shtrih(object):
         self.drv.FNGetFiscalizationResult()
         list_about_fr.append('RN ' + self.drv.KKTRegistrationNumber)
         self.drv.FNGetSerial()
-        list_about_fr.append('ZN ' + self.drv.SerialNumber)
+        list_about_fr.append('FN ' + self.drv.SerialNumber)
         self.drv.FNGetInfoExchangeStatus()
         if self.drv.MessageCount > 0:
             list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
@@ -511,11 +511,21 @@ class Shtrih(object):
         self.drv.FieldNumber = 1
         self.drv.ReadTable()
         list_about_fr.append('STATIC IP ' + self.drv.ValueOfFieldString)
+        self.drv.GetFieldStruct()
         self.drv.TableNumber = 16
         self.drv.RowNumber = 1
         self.drv.FieldNumber = 2
         self.drv.ReadTable()
         list_about_fr.append('DHCP STATUS ' + self.drv.ValueOfFieldString)
+        self.drv.GetFieldStruct()
+        self.drv.TableNumber = 10
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ReadTable()
+        if self.drv.ValueOfFieldInteger == 1:
+            list_about_fr.append('ШИРИНА ЛЕНТЫ УЗКАЯ')
+        else:
+            list_about_fr.append('ШИРИНА ЛЕНТЫ ШИРОКАЯ')
         return list_about_fr
 
     def cut_print(self, cut_type: int = 2, feed: int = 10):
