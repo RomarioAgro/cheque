@@ -82,9 +82,7 @@ def main():
     if comp_rec['operationtype'] == 'x_otchet':
         i_shtrih.x_otchet()
     if comp_rec['operationtype'] == 'z_otchet':
-        i_shtrih.error_analysis_hard()
         i_shtrih.z_otchet()
-        i_shtrih.error_analysis_hard()
         # сохраняем фио кассира в таблице драйвера кассы
         i_shtrih.drv.TableNumber = 2
         i_shtrih.drv.RowNumber = 30
