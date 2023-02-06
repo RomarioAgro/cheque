@@ -5,6 +5,7 @@ import getpass
 import json
 from sys import argv, exit
 import datetime
+import sqlite3
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
@@ -13,7 +14,7 @@ from shtrih_OOP import Shtrih
 
 CUTTER = '~S'
 
-
+DB_SHTRIH = 'd:\\kassa\\db_receipt\\'
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
     filename='D:\\files\\' + argv[2] + "_" + current_time + '.log',
@@ -21,6 +22,20 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
     datefmt='%H:%M:%S')
+
+
+class PaymentProcessor:
+    def __init__(self, db_file):
+        self.conn = sqlite3.connect(db_file)
+
+    def read_table(self, table_name):
+        cursor = self.conn.cursor()
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = cursor.fetchall()
+        return rows
+
+    def close_connection(self):
+        self.conn.close()
 
 
 def read_composition_receipt(file_json_name: str) -> dict:
@@ -32,6 +47,7 @@ def read_composition_receipt(file_json_name: str) -> dict:
     with open(file_json_name, 'r') as json_file:
         composition_receipt = json.load(json_file)
     return composition_receipt
+
 
 def save_about_fr(i_list=None) -> None:
     """
@@ -52,11 +68,33 @@ def save_about_fr(i_list=None) -> None:
             if count > 0:
                 o_file.write(elem + '\n')
 
+def repeat_rec(shtrih: object, i_data: dict = {}):
+    """
+    функция поиска документов чека
+    :param shtrih:
+    :return:
+    """
+    shtrih.drv.FNGetSerial()
+    db_path = f'{DB_SHTRIH}FS{shtrih.drv.SerialNumber}.db'
+    processor = PaymentProcessor(db_path)
+    rows = processor.read_table("receipts")
+    for row in rows:
+        if row[3] == i_data["number_receipt"]:
+            break
+    if i_data.get("sum-cashless", 0) > 0:
+        str_pin_pad = rows[row[0]-2][2]
+        summ = str(i_data.get("sum-cashless", 0))
+        shtrih.print_pinpad(str_pin_pad, summ)
+    shtrih.shtrih_repeat_receipt(row[1])
 
 def main():
     comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     logging.debug(comp_rec['operationtype'])
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
+    if comp_rec['operationtype'] == 'repeat':
+        repeat_rec(i_shtrih, i_data=comp_rec)
+        exit(0)
+
     if comp_rec['operationtype'] == 'about':
         list_aboutfr = i_shtrih.about_me()
         save_about_fr(list_aboutfr)
