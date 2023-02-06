@@ -118,7 +118,7 @@ def main() -> int:
             # при пробитии чеков коррекции не надо деньги трогать
             pass
         else:
-            # если мы не знаем что это то выходим
+            # если мы не знаем что это, то выходим
             logging.debug('неизвестная операция, выход')
             exit(99)
 
@@ -139,6 +139,10 @@ def main() -> int:
         # проверка статуса кассы
         o_shtrih.get_info_about_FR()
         # печать слипа терминала
+        if o_shtrih.cash_receipt.get('tag1008', None):
+            o_shtrih.print_off()
+        else:
+            o_shtrih.print_on()
         if pinpad_text:
             o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
         # печать ответа от сервера СБП
@@ -183,6 +187,7 @@ def main() -> int:
                 o_shtrih.open_box()
                 save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
                 return error_print_check_code
+    o_shtrih.print_on()
     return error_print_check_code
 
 
