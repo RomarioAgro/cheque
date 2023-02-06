@@ -54,6 +54,15 @@ class Shtrih(object):
         self.drv = win32com.client.Dispatch('Addin.DRvFR')
         logging.debug('создали объект чека' + str(self.cash_receipt))
 
+    def shtrih_repeat_receipt(self, fd):
+        """
+        метод печати копии документа из локальной базы данных
+        :param fd: int фискальный номер документа
+        :return:
+        """
+        self.drv.DocumentNumber = fd
+        self.drv.DBPrintDocument()
+
     def shtrih_operation_fn(self):
         """
         метод печати позиций чека
@@ -122,6 +131,12 @@ class Shtrih(object):
         list_correction = [128, 130]
         if DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) in list_correction:
             self.send_tag_correction()
+        if self.cash_receipt.get('tag1008', None):
+            self.drv.TagNumber = 1008
+            self.drv.TagType = 7
+            self.drv.TagValueStr = self.cash_receipt['tag1008']
+            self.drv.FNSendTag()
+
         self.drv.FNCloseCheckEx()
         self.drv.WaitForPrinting()
         error_code = self.drv.ResultCode
@@ -132,6 +147,28 @@ class Shtrih(object):
         fp_str = self.drv.FiscalSignAsString
         logging.debug('ФД: {0}, ФП: {1},  ФП строка: {2}'.format(fd, fp, fp_str))
         return error_code, error_descr
+
+    def print_on(self):
+        """
+        метод включения печати документов
+        :return: None
+        """
+        self.drv.TableNumber = 17
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ValueOfFieldInteger = 0
+        self.drv.WriteTable()
+
+    def print_off(self):
+        """
+        метод выключения печати документов
+        :return:
+        """
+        self.drv.TableNumber = 17
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ValueOfFieldInteger = 2
+        self.drv.WriteTable()
 
     def send_tag_correction(self):
         """
@@ -164,7 +201,6 @@ class Shtrih(object):
             corr_date = datetime.datetime.today().strftime('%d.%m.%y')
         self.drv.TagValueDateTime = datetime.datetime.strptime(corr_date, '%d.%m.%y').strftime('%Y.%m.%d')
         self.drv.FNSendTag()
-
 
     def send_tag_1021_1203(self) -> None:
         """
@@ -356,7 +392,6 @@ class Shtrih(object):
             self.drv.StringForPrinting = item
             self.drv.PrintString()
 
-
     def print_barcode(self):
         """
         функция печати штрихкода на чеке,
@@ -378,7 +413,6 @@ class Shtrih(object):
         self.drv.Password = 30
         self.drv.Connect()
         self.drv.FNGetFiscalizationResult()
-
 
     def check_connect_fr(self):
         """
@@ -541,8 +575,6 @@ class Shtrih(object):
         self.drv.CutType = cut_type
         self.drv.CutCheck()
 
-
-
     def print_str(self, i_str: str, i_font: int = 5):
         """
         печать одиночной строки
@@ -553,7 +585,6 @@ class Shtrih(object):
         self.drv.StringForPrinting = i_str
         self.drv.PrintStringWithFont()
         self.drv.WaitForPrinting()
-
 
     def i_dont_know(self):
         """
