@@ -193,12 +193,6 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        # logging.basicConfig(
-        #     filename="d:\\files\\revoke_" + rq_uid + '.log',
-        #     level=logging.DEBUG,
-        #     filemode='a',
-        #     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-        #     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/revocation'
         headers = {
             "accept": '*/*',
@@ -231,12 +225,6 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        # logging.basicConfig(
-        #     filename="d:\\files\\cancel_" + rq_uid + '.log',
-        #     level=logging.DEBUG,
-        #     filemode='a',
-        #     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-        #     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/cancel'
         headers = {
             "Accept": "application/json",
@@ -255,7 +243,6 @@ class SBP(object):
             "tid": self.tid,
             "cancel_operation_sum": order_refund['cancel_sum'],
             "operation_currency": '643',
-            # "sbp_payer_id": order_refund['sbppayerid'],
             "operation_description": ''
 
         }
@@ -286,12 +273,6 @@ class SBP(object):
         start_date = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
         end_date = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        # logging.basicConfig(
-        #     filename="d:\\files\\registry" + rq_uid + '.log',
-        #     level=logging.DEBUG,
-        #     filemode='a',
-        #     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-        #     datefmt='%H:%M:%S')
         url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/registry'
         headers = {
             "Authorization": f"Bearer {self.token(Scope.registry)}",
@@ -545,47 +526,6 @@ def main():
         "description": 'test'
     }
     sbp_qr = SBP()
-    # запрос на создание заказа
-    # order_uid = str(uuid.uuid4()).replace('-', '')
-    # print('заказ ордера')
-    # order_info = sbp_qr.create_order(rq_uid=order_uid, my_order=my_order)
-    # # запрос на узнать статус заказа
-    # status_uid = str(uuid.uuid4()).replace('-', '')
-    # order_id = order_info['order_id']
-    # input('пауза для оплаты')
-    # print('статус ордера')
-    # sbp_qr.status_order(rq_uid=status_uid,  order_id=order_id, partner_order_number=my_order["order_number"])
-
-    # print('отмена заказа')
-    # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
-    # print(cancel_answer)
-
-    # запрос на отмену не оплаченного заказа
-    # time.sleep(2)
-    # print('отменяем заказ')
-    # revoke_uid = str(uuid.uuid4()).replace('-', '')
-    # sbp_qr.revoke(rq_uid=revoke_uid, order_id=order_id)
-    # status_uid = str(uuid.uuid4()).replace('-', '')
-    # print('статус ордера')
-    # sbp_qr.status_order(rq_uid=status_uid, order_id=order_id, partner_order_number=my_order["order_number"])
-    # print('запрос реестра')
-    # registry_uid = str(uuid.uuid4()).replace('-', '')
-
-    # t_delta_start = datetime.timedelta(days=0)
-    # t_delta_end = datetime.timedelta(days=0)
-    # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
-    # # date_s = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT%H:%M:%SZ')
-    # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
-    # # date_e = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-    # registry = sbp_qr.registry(delta_start=0, delta_end=0)
-    # print(f'реестр заказов: {registry}')
-    # print_registry_on_fr(registry_dict=registry)
-
-    # order_refund = sbp_qr.search_operation(registry_dict=registry, check_number='273912/01')
-    # print('отмена заказа')
-    # cancel_answer = sbp_qr.cancel(order_refund=order_refund)
-    # print(cancel_answer)
     order_id = '174bf07b7a31426baa4cbb6c38a8a582'
     print('начало')
     sbp_qr.revoke(order_id=order_id)
