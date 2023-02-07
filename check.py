@@ -187,7 +187,7 @@ def main() -> int:
                 o_shtrih.open_box()
                 save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
                 return error_print_check_code
-    o_shtrih.print_on()
+
     return error_print_check_code
 
 

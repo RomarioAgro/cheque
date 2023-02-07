@@ -91,6 +91,7 @@ def main():
     comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     logging.debug(comp_rec['operationtype'])
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
+    i_shtrih.print_on()
     if comp_rec['operationtype'] == 'repeat':
         repeat_rec(i_shtrih, i_data=comp_rec)
         exit(0)
