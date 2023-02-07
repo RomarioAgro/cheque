@@ -120,6 +120,9 @@ def main():
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
         i_shtrih.x_otchet()
+        logging.debug(i_shtrih.error_analysis_soft())
+        list_aboutfr = i_shtrih.about_me()
+        save_about_fr(list_aboutfr)
     if comp_rec['operationtype'] == 'z_otchet':
         i_shtrih.z_otchet()
         # сохраняем фио кассира в таблице драйвера кассы
@@ -137,10 +140,10 @@ def main():
         # правим время
         i_shtrih.drv.Time = datetime.datetime.now().time().strftime("%H:%M:%S")
         i_shtrih.drv.SetTime()
+        logging.debug(i_shtrih.error_analysis_soft())
+        list_aboutfr = i_shtrih.about_me()
+        save_about_fr(list_aboutfr)
         i_shtrih.drv.RebootKKT()
-    logging.debug(i_shtrih.error_analysis_soft())
-    list_aboutfr = i_shtrih.about_me()
-    save_about_fr(list_aboutfr)
 
 
 
