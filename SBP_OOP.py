@@ -88,7 +88,7 @@ class SBP(object):
         rq_uid = str(uuid.uuid4()).replace('-', '')
         headers = {
             "accept": "application/json",
-            "content-type": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
             "Authorization": "Basic " + str_encoded,
             "rquid": rq_uid,
             "x-ibm-client-id": self.client_id
