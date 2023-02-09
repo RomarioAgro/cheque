@@ -95,6 +95,7 @@ def main() -> int:
     logging.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
     o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     o_shtrih.preparation_for_work()
+    o_shtrih.print_on()
     # операци по СБП, оплата или возврат
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1:
