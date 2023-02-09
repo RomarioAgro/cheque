@@ -96,6 +96,11 @@ def main() -> int:
     o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     o_shtrih.preparation_for_work()
     o_shtrih.print_on()
+    i_cutter = o_shtrih.cash_receipt.get('cutter', '~S')
+    if i_cutter == '~S':
+        o_shtrih.cutter_on()
+    else:
+        o_shtrih.cutter_off()
     # операци по СБП, оплата или возврат
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1:

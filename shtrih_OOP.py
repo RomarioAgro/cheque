@@ -622,6 +622,28 @@ class Shtrih(object):
                 logging.debug('продолжили печать просто по циклу')
                 return self.drv.ResultCode
 
+    def cutter_off(self):
+        """
+        метод отключения отрезки
+        :return:
+        """
+        self.drv.TableNumber = 1
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ValueOfFieldInteger = 0
+        self.drv.WriteTable()
+
+    def cutter_on(self):
+        """
+        метод включения не полной отрезки
+        :return:
+        """
+        self.drv.TableNumber = 1
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ValueOfFieldInteger = 1
+        self.drv.WriteTable()
+
     def error_analysis_hard(self):
         """
         метод обработки ошибок связаных с бумагой
