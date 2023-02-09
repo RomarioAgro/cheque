@@ -335,7 +335,7 @@ class Shtrih(object):
         self.drv.CutType = 2
         self.drv.CutCheck()
 
-    def print_pinpad(self, i_str: str, sum_operation: str):
+    def print_pinpad(self, i_str: str, sum_operation: str = '999999'):
         """
         функция печати ответа от пинпада сбербанка
         :param i_str: str строка печати
@@ -348,12 +348,12 @@ class Shtrih(object):
         phone_number_pattern = r'т..((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
         i_text = i_str.split('\n')
         count_cutter = 0
+        cut_yes_no = self.cash_receipt.get('cutter', CUTTER)
         for i_line in i_text:
             line = i_line.strip('\r')
             is_phone_number = re.search(phone_number_pattern, line.strip())
             if is_phone_number is None:
-                if (line.find(CUTTER) != -1 and
-                        count_cutter == 0):
+                if cut_yes_no == CUTTER and line.find(CUTTER) != -1 and count_cutter == 0:
                     count_cutter += 1
                     self.drv.StringQuantity = 7
                     self.drv.FeedDocument()

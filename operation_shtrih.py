@@ -109,14 +109,12 @@ def main():
     if comp_rec.get('SBP', 0) == 1:
         i_sbp = SBP()
         str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
-        i_shtrih.print_pinpad(str_registry_SBP, CUTTER)
+        i_shtrih.print_pinpad(str_registry_SBP)
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:
         sber_pinpad = PinPad()
         sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
-        # sber_pinpad.text = sber_pinpad.text.replace(CUTTER, '')
-        i_shtrih.print_pinpad(sber_pinpad.text, CUTTER)
-        # i_shtrih.cut_print(cut_type=2, feed=5)
+        i_shtrih.print_pinpad(sber_pinpad.text)
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
         i_shtrih.x_otchet()
