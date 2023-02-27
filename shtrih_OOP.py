@@ -100,6 +100,11 @@ class Shtrih(object):
                     self.drv.DivisionalQuantity = False
                     self.drv.BarCode = preparation_km(item['qr'])
                     self.drv.FNSendItemBarcode()
+                if len(item['qr_water']) > 30:
+                    self.drv.DivisionalQuantity = False
+                    self.drv.BarCode = preparation_km_water(item['qr_water'])
+                    self.drv.FNSendItemBarcode()
+
                 self.drv.WaitForPrinting()
                 if item.get('fullprice', None) is not None:
                     self.print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
@@ -456,23 +461,25 @@ class Shtrih(object):
         PRN.ItemStatus = 1 при продаже
         PRN.ItemStatus = 3 при возврате
         """
-        for qr in self.cash_receipt['km']:
-            """
-            поиск шиблона между 91 и 92 с помощью регулярного выражения
-            и замена потом этого шаблона на него же но с символами разрыва
-            перед 91 и 92
-            """
-            self.drv.BarCode = preparation_km(qr)
-            if (DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 0 or
-                    DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 128):
-                self.drv.ItemStatus = 1
-            else:
-                self.drv.ItemStatus = 3
-            self.drv.CheckItemMode = 0
-            self.drv.DivisionalQuantity = False
-            self.drv.FNCheckItemBarcode2()
-            if self.drv.KMServerCheckingStatus != 15:
-                self.drv.FNAcceptMarkingCode()
+        logging.debug('произошло обращение к методу check_km')
+        Mbox('я не знаю что делать', f'сообщите дежурному о проблеме: произошло обращение к методу check_km', 4096 + 16)
+        # for qr in self.cash_receipt['km']:
+        #     """
+        #     поиск шиблона между 91 и 92 с помощью регулярного выражения
+        #     и замена потом этого шаблона на него же но с символами разрыва
+        #     перед 91 и 92
+        #     """
+        #     self.drv.BarCode = preparation_km(qr)
+        #     if (DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 0 or
+        #             DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 128):
+        #         self.drv.ItemStatus = 1
+        #     else:
+        #         self.drv.ItemStatus = 3
+        #     self.drv.CheckItemMode = 0
+        #     self.drv.DivisionalQuantity = False
+        #     self.drv.FNCheckItemBarcode2()
+        #     if self.drv.KMServerCheckingStatus != 15:
+        #         self.drv.FNAcceptMarkingCode()
 
     def about_me(self) -> List:
         """
@@ -819,6 +826,28 @@ def preparation_km(in_km: str) -> str:
     if len(list_break_pattern) > 0:
         repl = (s_break + list_break_pattern[0]).replace('92', s_break + '92')
         out_km = in_km[:30] + re.sub(pattern, repl, in_km[30:])
+    else:
+        out_km = in_km[:]
+    logging.debug('вышли из подготовки км ' + out_km)
+    return out_km
+
+def preparation_km_water(in_km: str) -> str:
+    """
+    функция подготовки кода маркировки воды к отправке в честный знак
+    у воды коды немного отличаются
+    вставляем символ разрыва перед 93
+    :param in_km: str
+    :return: str
+    """
+    logging.debug('зашли в подготовку км воды')
+    pattern = r'21\S+?93'
+    pattern_93 = r'93(?=[^93]*$)'
+    s_break = '\x1D'
+    aaa = in_km[16:]
+    list_break_pattern = re.findall(pattern, in_km[16:])
+    if len(list_break_pattern) > 0:
+        repl = re.sub(pattern_93, s_break + '93', list_break_pattern[0])
+        out_km = in_km[:16] + re.sub(pattern, repl, in_km[16:])
     else:
         out_km = in_km[:]
     logging.debug('вышли из подготовки км ' + out_km)
