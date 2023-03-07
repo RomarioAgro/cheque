@@ -157,6 +157,7 @@ def main() -> int:
         # печать рекламы
         if o_shtrih.cash_receipt.get('text-attic-before-bc', None) is not None:
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
+            o_shtrih.cut_print()
         # печать баркода
         if o_shtrih.cash_receipt.get('barcode', None) is not None:
             o_shtrih.print_barcode()
