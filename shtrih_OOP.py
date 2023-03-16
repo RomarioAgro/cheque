@@ -7,6 +7,10 @@ import ctypes
 import re
 import os
 import datetime
+import socket
+import getpass
+
+from telegram_send_code.tg_send_OOP import TgSender
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
@@ -500,10 +504,6 @@ class Shtrih(object):
         list_about_fr.append('RN ' + self.drv.KKTRegistrationNumber)
         self.drv.FNGetSerial()
         list_about_fr.append('FN ' + self.drv.SerialNumber)
-        self.drv.FNGetInfoExchangeStatus()
-        if self.drv.MessageCount > 0:
-            list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
-            list_about_fr.append('DATENOTSEND ' + datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y"))
         self.drv.ReadFeatureLicenses()
         if self.drv.License == '':
             list_about_fr.append('LIC NONE')
@@ -567,6 +567,18 @@ class Shtrih(object):
             list_about_fr.append('ШИРИНА ЛЕНТЫ УЗКАЯ')
         else:
             list_about_fr.append('ШИРИНА ЛЕНТЫ ШИРОКАЯ')
+        self.drv.FNGetInfoExchangeStatus()
+        if self.drv.MessageCount > 0:
+            list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
+            datenotsend = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
+            list_about_fr.append('DATENOTSEND ' + datenotsend)
+            f_name = socket.gethostname() + getpass.getuser()[-1:]
+            my_dict = {
+                'shop': f_name,
+                'text': 'не отправленных документов {0}, с даты {1}'.format(self.drv.MessageCount, datenotsend)
+            }
+            my_bot = TgSender(message=my_dict)
+            my_bot.send_message()
         return list_about_fr
 
     def cut_print(self, cut_type: int = 2, feed: int = 10):
