@@ -1,7 +1,5 @@
-import requests
 from decouple import config as conf_token
 import datetime
-from requests_pkcs12 import post, get
 import requests
 import logging
 import http.client
@@ -9,14 +7,7 @@ import PySimpleGUI as sg
 import ctypes
 import os
 from sys import argv
-from cryptography.hazmat.primitives.serialization import pkcs12
-import ssl
-import cryptography
-from enum import Enum
-import base64
-import uuid
-import json
-from typing import Dict
+from typing import Dict, Tuple
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from hlynov_sql import DocumentsDB
 
@@ -143,9 +134,7 @@ class HlynovSBP(object):
     def status_order(self, order_id: str = '') -> Dict:
         """
         метод проверки статуса оплаты
-        rq_uid: str уникальный uuid генерирую сам
-        order_id: str id заказа присваивает сбебанк при создании заказа оплаты
-        partner_order_number: str номер чека в CRM системе торговой точки(у нас сбис)
+        order_id: str id заказа присваивает банк при создании заказа оплаты
         :return: dict ответ сервера со статусом, ошибками и прочим
         """
         url = self.url + '/qr/state/' + order_id
@@ -154,10 +143,16 @@ class HlynovSBP(object):
         logging.debug('answer= ' + str(r.text))
         return r.json()
 
-    def waiting_payment(self, cash_receipt: dict = None):
+    def waiting_payment(self, cash_receipt: dict = None) -> Tuple:
+        """
+        метод ожидания оплаты по сбп выводим окошечко в котором прогресс бар тикает
+        :param cash_receipt: dict словарь с чеком
+        :return:
+        """
+        data_status = {}
         if cash_receipt is None:
             logging.debug('выход по ошибке словарь чека пустой')
-            return self.error_code(error_number='96')
+            return self.error_code(error_number='96'), data_status
         latenсy = TIMEOUT_BANK  # длина прогресс бара
         progressbar = [
             [sg.ProgressBar(latenсy, orientation='h', size=(60, 30), key='progressbar')]
@@ -175,7 +170,6 @@ class HlynovSBP(object):
         i = 0
         # i_title = 'нет ошибки'
         # i_text_error = 'нет текста ошибки'
-        data_status = {}
         while True:  # запускаем показ прогрессбара типа связь с банком
             event, values = window.read(timeout=1000)
             if i > TIMEOUT_BANK:
@@ -309,7 +303,11 @@ class HlynovSBP(object):
         }
         return error_dict.get(error_number, 'Общая ошибка')
 
-    def get_cash_qr(self):
+    def get_cash_qr(self) -> None:
+        """
+        в документации написано что это метод возврата списка qrcId, однако приходит пустота
+        :return:
+        """
         url = self.url + '/cash-qr/list/' + self.extEntityId
         params = {
             'merchantId': self.merchantId,
