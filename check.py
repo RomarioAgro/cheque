@@ -6,7 +6,8 @@ import datetime
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
 from pinpad_OOP import PinPad
-
+from hlynov_bank import HlynovSBP
+from SBP_OOP import SBP
 
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -128,10 +129,8 @@ def main() -> int:
         logging.debug('зашли в СБП')
         try:
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
-                from SBP_OOP import SBP
                 sbp_qr = SBP()
             else:
-                from hlynov_bank import HlynovSBP
                 sbp_qr = HlynovSBP()
         except Exception as exc:
             Mbox('ошибка модуля СБП', str(exc), 4096 + 16)
