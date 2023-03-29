@@ -239,11 +239,11 @@ class HlynovSBP(object):
             data_status['order_operation_params'][0].update(new_data)
             new_data = {"operation_sum": cash_receipt['summ3'] * 100}
             data_status['order_operation_params'][0].update(new_data)
-        logging.debug('окончательный статус = {0}'.format(data_status))
-        path_sql = conf_token('hlynov_sql_path', None)
-        hlynov_sql = DocumentsDB(path_sql)
-        hlynov_sql.add_document(date=datetime.datetime.now().strftime('%Y-%m-%d'),
-                                sbis_id=cash_receipt['number_receipt'], qrc_id=data_status['qrCode']['qrcId'])
+            path_sql = conf_token('hlynov_sql_path', None)
+            hlynov_sql = DocumentsDB(path_sql)
+            hlynov_sql.add_document(date=datetime.datetime.now().strftime('%Y-%m-%d'),
+                                    sbis_id=cash_receipt['number_receipt'], qrc_id=data_status['qrCode']['qrcId'])
+        logging.debug('окончательный статус = {0}, ответ сервера = {1}'.format(i_exit, data_status))
         return i_exit, data_status
 
     def get_auth(self):
