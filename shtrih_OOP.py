@@ -10,7 +10,7 @@ import datetime
 import socket
 import getpass
 
-from telegram_send_code.tg_send_OOP import TgSender
+
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
@@ -572,11 +572,12 @@ class Shtrih(object):
             list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
             datenotsend = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
             list_about_fr.append('DATENOTSEND ' + datenotsend)
-            f_name = socket.gethostname() + getpass.getuser()[-1:]
+            f_name = socket.gethostname() + '_' + getpass.getuser()
             my_dict = {
                 'shop': f_name,
                 'text': 'не отправленных документов {0}, с даты {1}'.format(self.drv.MessageCount, datenotsend)
             }
+            from telegram_send_code.tg_send_OOP import TgSender
             my_bot = TgSender(message=my_dict)
             my_bot.send_message()
         return list_about_fr
@@ -797,9 +798,9 @@ def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
     i_list.append(format_string(i_str))
     i_str = f'{operation_dict["operation_id"]}'
     i_list.append(format_string(i_str))
-    i_str = f'СБП номер ссылки {operation_dict["rrn"]}'
+    i_str = f'СБП номер ссылки {operation_dict.get("rrn", "UNKNOWN")}'
     i_list.append(format_string(i_str))
-    i_str = f'СБП код авторизации {operation_dict["auth_code"]}'
+    i_str = f'СБП код авторизации {operation_dict.get("auth_code", "UNKNOWN")}'
     i_list.append(format_string(i_str))
     i_str = f' Сумма: '
     i_list.append(format_string(i_str))
