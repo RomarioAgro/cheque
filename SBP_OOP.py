@@ -454,7 +454,7 @@ class SBP(object):
                       format(str(cash_receipt['summ3']),
                              i + 1, data_status['order_state'],
                              cash_receipt['number_receipt']))
-                logging.debug(data_status)
+                logging.debug('data_status= {0}'.format(data_status))
                 if data_status['order_state'] == 'PAID':
                     # если оплатили, то начинаем печатать ответ сервера
                     # sbp_text = print_operation_SBP_PAY(data_status)
