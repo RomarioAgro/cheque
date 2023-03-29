@@ -1,25 +1,26 @@
 import requests
 from decouple import config as conf_token
 import datetime
-import base64
-import uuid
-import datetime
-import json
 from requests_pkcs12 import post, get
-from enum import Enum
+import requests
 import logging
 import http.client
 import PySimpleGUI as sg
 import ctypes
 import os
 from sys import argv
-from hlynov_sql import DocumentsDB
 from cryptography.hazmat.primitives.serialization import pkcs12
 import ssl
 import cryptography
+from enum import Enum
+import base64
+import uuid
+import json
 from typing import Dict
-
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
+from hlynov_sql import DocumentsDB
+
+
 TIMEOUT_BANK = 60
 httpclient_logger = logging.getLogger("http.client")
 
@@ -46,7 +47,7 @@ logging.basicConfig(
     datefmt='%H:%M:%S')
 
 
-class HlynovSBP:
+class HlynovSBP(object):
 
     def __init__(self):
         """
@@ -148,7 +149,8 @@ class HlynovSBP:
         :return: dict ответ сервера со статусом, ошибками и прочим
         """
         url = self.url + '/qr/state/' + order_id
-        r = get(url=url, cert=('hlynov_cert.crt', 'hlynov_key.key'), verify='ca.pem')
+        requests.packages.urllib3.disable_warnings()
+        r = requests.get(url=url, cert=('hlynov_cert.crt', 'hlynov_key.key'), verify='ca.pem')
         logging.debug('answer= ' + str(r.text))
         return r.json()
 
@@ -186,11 +188,13 @@ class HlynovSBP:
                 i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
                 break
             else:
-                # здесь посылаем запрос в сбербанк о статусе заказа
+                # здесь посылаем запрос в хлынов о статусе заказа
+
                 try:
                     data_status = self.status_order(order_id=self.order['order_id'])
                 except Exception as exc:
                     print(exc)
+                    logging.debug('ошибка запроса статуса оплаты сбп хлынов{0}'.format(exc))
                 print('Запрос состояния заказа {3}, сумма {0} руб. Попытка запроса № {1}. Статус заказа {2}'.
                       format(str(cash_receipt['summ3']),
                              i + 1, data_status['payStatus']['status'],
