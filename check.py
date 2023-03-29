@@ -5,8 +5,8 @@ import datetime
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
-from SBP_OOP import SBP
 from pinpad_OOP import PinPad
+
 
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -70,6 +70,27 @@ def return_sale_sbp(o_shtrih, sbp_qr) ->str:
     logging.debug(data_status)
     return sbp_text_local
 
+def return_sale_sbp_hlynov(o_shtrih, sbp_qr) ->str:
+    """
+    функция обработки возврата по СБП
+    :param o_shtrih:
+    :param sbp_qr:
+    :return:
+    """
+    order_refund = {
+        "cancel_sum": int(o_shtrih.cash_receipt.get('summ3', 0) * 100),
+        "sbis_id": o_shtrih.cash_receipt['initial_sale_number'],
+        "date_sale": o_shtrih.cash_receipt['initial_sale_date']
+    }
+    # делаем возврат
+    data_status = sbp_qr.cancel(order_refund=order_refund)
+    # печатаем ответ сервера СБП
+    sbp_text_local = print_operation_SBP_REFUND(data_status)
+    logging.debug(sbp_text_local)
+    logging.debug(order_refund)
+    logging.debug(data_status)
+    return sbp_text_local
+
 
 def return_sale_pinpad():
     pass
@@ -106,7 +127,12 @@ def main() -> int:
     if o_shtrih.cash_receipt.get('SBP', 0) == 1:
         logging.debug('зашли в СБП')
         try:
-            sbp_qr = SBP()
+            if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
+                from SBP_OOP import SBP
+                sbp_qr = SBP()
+            else:
+                from hlynov_bank import HlynovSBP
+                sbp_qr = HlynovSBP()
         except Exception as exc:
             Mbox('ошибка модуля СБП', str(exc), 4096 + 16)
             logging.debug(exc)
@@ -116,7 +142,10 @@ def main() -> int:
             # начинаем оплату по сбп
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
-            sbp_text = return_sale_sbp(o_shtrih, sbp_qr)
+            if sbp_qr.__class__.__name__ == 'HlynovSBP':
+                sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
+            else:
+                sbp_text = return_sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
             # при пробитии чеков коррекции не надо деньги трогать
             pass
@@ -149,26 +178,27 @@ def main() -> int:
             o_shtrih.print_off()
         else:
             o_shtrih.print_on()
-        if pinpad_text:
-            o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
-        # печать ответа от сервера СБП
-        if sbp_text:
-            o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
         # печать рекламы
         if o_shtrih.cash_receipt.get('text-attic-before-bc', None) is not None:
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
-            o_shtrih.cut_print()
+            # o_shtrih.cut_print()
         # печать баркода
         if o_shtrih.cash_receipt.get('barcode', None) is not None:
             o_shtrih.print_barcode()
         # печать рекламы после баркода
         if o_shtrih.cash_receipt.get('text-attic-after-bc', None) is not None:
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-after-bc', None))
+            o_shtrih.cut_print()
         # печать примечаний
         if o_shtrih.cash_receipt.get('text-basement', None) is not None:
             lll = o_shtrih.cash_receipt.get('text-basement', None)
             o_shtrih.print_basement(lll)
         # печать примечаний
+        if pinpad_text:
+            o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
+        # печать ответа от сервера СБП
+        if sbp_text:
+            o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
         # печать номера чека
         o_shtrih.print_str(' ' * 3 + str(o_shtrih.cash_receipt['number_receipt']), 3)
         # печать бонусов
