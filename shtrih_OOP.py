@@ -577,9 +577,12 @@ class Shtrih(object):
                 'shop': f_name,
                 'text': 'не отправленных документов {0}, с даты {1}'.format(self.drv.MessageCount, datenotsend)
             }
-            # from telegram_send_code.tg_send_OOP import TgSender
-            # my_bot = TgSender(message=my_dict)
-            # my_bot.send_message()
+            try:
+                from telegram_send_code.tg_send_OOP import TgSender
+                my_bot = TgSender(message=my_dict)
+                my_bot.send_message()
+            except Exception as exc:
+                logging.debug('проблема с ботом телеграм {0}'.format(exc))
         return list_about_fr
 
     def cut_print(self, cut_type: int = 2, feed: int = 10):
