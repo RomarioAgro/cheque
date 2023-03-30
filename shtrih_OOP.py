@@ -403,15 +403,20 @@ class Shtrih(object):
 
     def print_barcode(self):
         """
-        функция печати штрихкода на чеке,
+        функция печати QR на чеке,
         обычно это для рекламы
         """
         for item in self.cash_receipt['barcode']:
+            self.drv.Password = 30
             self.drv.BarCode = item
-            self.drv.PrintBarCode()
+            self.drv.BarcodeType = 3
+            self.drv.BarcodeStartBlockNumber = 0
+            self.drv.BarcodeParameter1 = 0
+            self.drv.BarcodeParameter3 = 4
+            self.drv.BarcodeParameter5 = 3
+            self.drv.LoadAndPrint2DBarcode()
             self.drv.WaitForPrinting()
-            self.drv.StringQuantity = 2
-            self.drv.FeedDocument()
+            self.drv.StringQuantity = 10
 
     def get_info_about_FR(self):
         """
@@ -568,11 +573,11 @@ class Shtrih(object):
         else:
             list_about_fr.append('ШИРИНА ЛЕНТЫ ШИРОКАЯ')
         self.drv.FNGetInfoExchangeStatus()
-        if self.drv.MessageCount > 0:
+        if self.drv.MessageCount > 2:
             list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
             datenotsend = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
             list_about_fr.append('DATENOTSEND ' + datenotsend)
-            f_name = socket.gethostname() + '_' + getpass.getuser()
+            f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
             my_dict = {
                 'shop': f_name,
                 'text': 'не отправленных документов {0}, с даты {1}'.format(self.drv.MessageCount, datenotsend)
