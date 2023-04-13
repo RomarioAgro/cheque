@@ -576,7 +576,7 @@ class Shtrih(object):
         today = datetime.datetime.today().date()
         datenotsend_date = self.drv.Date.date()
         delta = today - datenotsend_date
-        if delta.days > 0:
+        if delta.days > 0 and delta.days < 1000:
             list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
             datenotsend = datetime.datetime.strftime(datenotsend_date, "%d.%m.%Y")
             list_about_fr.append('DATENOTSEND ' + datenotsend)
