@@ -172,11 +172,6 @@ def main() -> int:
         # проверка связи с ккм
         # проверка статуса кассы
         o_shtrih.get_info_about_FR()
-        # печать слипа терминала
-        if o_shtrih.cash_receipt.get('tag1008', None):
-            o_shtrih.print_off()
-        else:
-            o_shtrih.print_on()
         # печать рекламы
         if o_shtrih.cash_receipt.get('text-attic-before-bc', None) is not None:
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
@@ -193,6 +188,8 @@ def main() -> int:
             lll = o_shtrih.cash_receipt.get('text-basement', None)
             o_shtrih.print_basement(lll)
         # печать примечаний
+        # печать слипа терминала
+
         if pinpad_text:
             o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
         # печать ответа от сервера СБП
@@ -205,6 +202,11 @@ def main() -> int:
             for item in o_shtrih.cash_receipt['bonusi']:
                 o_shtrih.print_str(item, 3)
         while True:
+            # отключение печати
+            if o_shtrih.cash_receipt.get('tag1008', None):
+                o_shtrih.print_off()
+            else:
+                o_shtrih.print_on()
             # начало чека
             o_shtrih.shtrih_operation_attic()
             # отправка чека по смс или почте
