@@ -9,7 +9,7 @@ import os
 import datetime
 import socket
 import getpass
-
+from telegram_send_code.tg_send_OOP import TgSender
 
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
@@ -576,7 +576,7 @@ class Shtrih(object):
         today = datetime.datetime.today().date()
         datenotsend_date = self.drv.Date.date()
         delta = today - datenotsend_date
-        if delta.days > 0 and delta.days < 1000:
+        if delta.days > 0 and self.drv.MessageCount > 0:
             list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
             datenotsend = datetime.datetime.strftime(datenotsend_date, "%d.%m.%Y")
             list_about_fr.append('DATENOTSEND ' + datenotsend)
@@ -586,7 +586,6 @@ class Shtrih(object):
                 'text': 'не отправленных документов {0}, с даты {1}'.format(self.drv.MessageCount, datenotsend)
             }
             try:
-                from telegram_send_code.tg_send_OOP import TgSender
                 my_bot = TgSender(message=my_dict)
                 my_bot.send_message()
             except Exception as exc:
