@@ -573,9 +573,12 @@ class Shtrih(object):
         else:
             list_about_fr.append('ШИРИНА ЛЕНТЫ ШИРОКАЯ')
         self.drv.FNGetInfoExchangeStatus()
-        if self.drv.MessageCount > 2:
+        today = datetime.datetime.today().date()
+        datenotsend_date = self.drv.Date.date()
+        delta = today - datenotsend_date
+        if delta.days > 0:
             list_about_fr.append('ALYARM NOTSEND ' + str(self.drv.MessageCount))
-            datenotsend = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
+            datenotsend = datetime.datetime.strftime(datenotsend_date, "%d.%m.%Y")
             list_about_fr.append('DATENOTSEND ' + datenotsend)
             f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
             my_dict = {
