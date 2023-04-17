@@ -107,10 +107,16 @@ def main():
         exit(0)
     # печать отчета СБП
     if comp_rec.get('SBP', 0) == 1:
+        str_registry_SBP = 'по СБП нет данных'
         if comp_rec.get('SBP-type', 'sber') == 'sber':
             i_sbp = SBP()
-            str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
+            try:
+                str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
+            except Exception as exc:
+                logging.debug(exc)
+                str_registry_SBP += '\n' + str(exc)
             i_shtrih.print_pinpad(str_registry_SBP)
+
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:
         sber_pinpad = PinPad()
