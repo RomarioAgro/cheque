@@ -131,6 +131,15 @@ class HlynovSBP(object):
         data_status.update(new_data)
         return data_status
 
+    def revoke(self, order_id: str = '') -> None:
+        """
+        добавил этот метод потому что у сбера он есть
+        а у хлынова нет, но в основной печати чека есть обращение к сберовскому методу
+        :param order_id:
+        :return:
+        """
+        pass
+
     def status_order(self, order_id: str = '') -> Dict:
         """
         метод проверки статуса оплаты
