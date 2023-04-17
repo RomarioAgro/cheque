@@ -81,7 +81,7 @@ def main():
     faktura = Faktura()
     # faktura.create_order()
     # faktura.get_param()
-    # t = 0
+    t = 0
     faktura.regystry(delta_start=t, delta_end=t)
 
 

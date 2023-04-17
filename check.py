@@ -3,17 +3,6 @@ import os
 from sys import argv, exit
 import datetime
 
-os.chdir('d:\\kassa\\script_py\\shtrih\\')
-from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
-from pinpad_OOP import PinPad
-from hlynov_bank import HlynovSBP
-from SBP_OOP import SBP
-
-# словарь операций чека
-DICT_OPERATION_CHECK = {'sale': 0,
-                        'return_sale': 2,
-                        'correct_sale': 128,
-                        'correct_return_sale': 130}
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
@@ -24,6 +13,35 @@ logging.basicConfig(
     datefmt='%H:%M:%S')
 
 logging.debug('start')
+
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
+try:
+    from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
+except Exception as exs:
+    logging.debug(exs)
+    exit(9998)
+try:
+    from pinpad_OOP import PinPad
+except Exception as exs:
+    logging.debug(exs)
+    exit(9997)
+try:
+    from hlynov_bank import HlynovSBP
+except Exception as exs:
+    logging.debug(exs)
+    exit(9996)
+try:
+    from SBP_OOP import SBP
+except Exception as exs:
+    logging.debug(exs)
+    exit(9995)
+
+# словарь операций чека
+DICT_OPERATION_CHECK = {'sale': 0,
+                        'return_sale': 2,
+                        'correct_sale': 128,
+                        'correct_return_sale': 130}
+
 
 
 def sale_sbp(o_shtrih, sbp_qr) -> str:
