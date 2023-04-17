@@ -438,8 +438,10 @@ class SBP(object):
                 i_title = 'Время вышло'
                 i_text_error = 'Истекло время ожидания оплаты' + '\nделайте новый чек'
                 ctypes.windll.user32.MessageBoxW(0, i_text_error, i_title, 4096 + 16)
+                logging.debug('событие = {0}'.format(i_text_error))
                 break
             if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
+                logging.debug('событие = {0}'.format(event))
                 i_exit = 2000  # по-умолчанию ошибка выход 2000 - отказ от оплаты
                 break
             else:
