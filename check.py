@@ -117,6 +117,10 @@ def main() -> int:
     logging.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
     o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     o_shtrih.preparation_for_work()
+    status_code, status_description = o_shtrih.error_analysis_hard()
+    if status_code != 0:
+        Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
+        return status_code
     o_shtrih.print_on()
     i_cutter = o_shtrih.cash_receipt.get('cutter', '~S')
     if i_cutter == '~S':
@@ -157,79 +161,82 @@ def main() -> int:
             exit(99)
 
     # операция по пинпаду
-    error_print_check_code = 0
     if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
+        logging.debug('зашли в пинпад')
         sber_pinpad = PinPad()
         sber_pinpad.pinpad_operation(operation_name=o_shtrih.cash_receipt['operationtype'],
                                      oper_sum=o_shtrih.cash_receipt['sum-cashless'])
         pin_error = sber_pinpad.error
         pinpad_text = sber_pinpad.text
-        error_print_check_code = pin_error
+        logging.debug('результат оплаты по пинпаду {0} {1}'.format(pin_error, pinpad_text))
     else:
+        logging.debug('оплаты по пинпад нет')
         pin_error = 0
         pinpad_text = None
     if pin_error == 0:
-        # проверка связи с ккм
-        # проверка статуса кассы
+        # запрос итогов фискализации, ничего не возвращает,
+        # но после запроса у объекта o_shtrih появляются дополнительные свойства
         o_shtrih.get_info_about_FR()
         # печать рекламы
-        if o_shtrih.cash_receipt.get('text-attic-before-bc', None) is not None:
+        if o_shtrih.cash_receipt.get('text-attic-before-bc', None):
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
             # o_shtrih.cut_print()
         # печать баркода
-        if o_shtrih.cash_receipt.get('barcode', None) is not None:
+        if o_shtrih.cash_receipt.get('barcode', None):
             o_shtrih.print_barcode()
         # печать рекламы после баркода
-        if o_shtrih.cash_receipt.get('text-attic-after-bc', None) is not None:
+        if o_shtrih.cash_receipt.get('text-attic-after-bc', None):
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-after-bc', None))
             o_shtrih.cut_print()
         # печать примечаний
-        if o_shtrih.cash_receipt.get('text-basement', None) is not None:
+        if o_shtrih.cash_receipt.get('text-basement', None):
             lll = o_shtrih.cash_receipt.get('text-basement', None)
             o_shtrih.print_basement(lll)
         # печать примечаний
         # печать слипа терминала
-
         if pinpad_text:
             o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
         # печать ответа от сервера СБП
         if sbp_text:
             o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
-        # печать номера чека
-        o_shtrih.print_str(' ' * 3 + str(o_shtrih.cash_receipt['number_receipt']), 3)
-        # печать бонусов
-        if o_shtrih.cash_receipt.get('bonusi', None) is not None:
-            for item in o_shtrih.cash_receipt['bonusi']:
-                o_shtrih.print_str(item, 3)
-        while True:
-            # отключение печати
-            if o_shtrih.cash_receipt.get('tag1008', None):
-                o_shtrih.print_off()
+        # отключение печати
+        if o_shtrih.cash_receipt.get('tag1008', None):
+            o_shtrih.print_off()
+        else:
+            o_shtrih.print_on()
+        status_code = 1
+        while status_code != 0:
+            status_code, status_description = o_shtrih.error_analysis_hard()
+            if status_code != 0:
+                Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
             else:
-                o_shtrih.print_on()
-            # начало чека
-            o_shtrih.shtrih_operation_attic()
-            # отправка чека по смс или почте
-            if o_shtrih.cash_receipt.get('email', '') != '':
-                o_shtrih.sendcustomeremail()
-            # печать артикулов
-            o_shtrih.shtrih_operation_fn()
-            # закрытие чека
-            o_shtrih.shtrih_close_check()
+                #печать номера чека
+                o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 3)
+                # печать бонусов
+                if o_shtrih.cash_receipt.get('bonusi', None):
+                    for item in o_shtrih.cash_receipt['bonusi']:
+                        o_shtrih.print_str(item, 3)
+                # начало чека, в кассе создается объект "ЧЕК"
+                o_shtrih.shtrih_operation_attic()
+                # отправка чека по смс или почте
+                if o_shtrih.cash_receipt.get('email', '') != '':
+                    o_shtrih.sendcustomeremail()
+                o_shtrih.shtrih_operation_fn()
+                # закрытие чека
+                status_code, error_close_receipt_description = o_shtrih.shtrih_close_check()
+                if status_code != 0:
+                    Mbox('ошибка {0}'.format(status_code), error_close_receipt_description, 4096 + 16)
             # если у нас печать неудачно закончилась, то надо что-то с этим делать
-            # проверка на ошибки данных
-            o_shtrih.error_analysis_soft()
-            error_print_check_code = o_shtrih.error_analysis_hard()
             # проверка на ошибки железа и бумаги
-            if error_print_check_code == 0:
+            status_code, status_description = o_shtrih.error_analysis_hard()
+            if status_code == 0:
                 o_shtrih.open_box()
                 save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
-                return error_print_check_code
-
-    return error_print_check_code
+                return status_code
+    else:
+        return pin_error
 
 
 if __name__ == '__main__':
     code_error_main = main()
     exit(code_error_main)
-    # print(f'код ошибки последней операции: {code_error_main}')

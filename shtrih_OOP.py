@@ -119,7 +119,7 @@ class Shtrih(object):
                 if item.get('bonusaccrual', None) is not None:
                     self.print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
         logging.debug('FNOperation= {0}, описание ошибки: {1}'.format(error_code, error_code_desc))
-        return error_code
+        return error_code, error_code_desc
 
     def shtrih_close_check(self) -> Tuple:
         """
@@ -145,16 +145,15 @@ class Shtrih(object):
             self.drv.TagType = 7
             self.drv.TagValueStr = self.cash_receipt['tag1008']
             self.drv.FNSendTag()
-
         self.drv.FNCloseCheckEx()
         self.drv.WaitForPrinting()
         error_code = self.drv.ResultCode
         error_descr = self.drv.ResultCodeDescription
-        logging.debug(str(error_code) + '-' + error_descr)
+        logging.debug('код ошибки= {0} - описание ошибки= {1}'.format(error_code, error_descr))
         fd = self.drv.DocumentNumber
         fp = self.drv.FiscalSign
         fp_str = self.drv.FiscalSignAsString
-        logging.debug('ФД: {0}, ФП: {1},  ФП строка: {2}'.format(fd, fp, fp_str))
+        logging.debug('чек закрылся ФД: {0}, ФП: {1},  ФП строка: {2}'.format(fd, fp, fp_str))
         return error_code, error_descr
 
     def print_on(self):
@@ -460,7 +459,7 @@ class Shtrih(object):
     def continuation_printing(self):
         self.drv.Password = 30
         self.drv.ContinuePrint()
-        # self.drv.WaitForPrinting()
+        self.drv.WaitForPrinting()
         return self.drv.ECRMode, self.drv.ECRModeDescription, self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription,
 
     def check_km(self):
@@ -676,47 +675,40 @@ class Shtrih(object):
 
     def error_analysis_hard(self):
         """
-        метод обработки ошибок связаных с бумагой
+        метод обработки ошибок связаных с печатью
         :return:
         """
-        self.drv.WaitForPrinting()
-        self.drv.GetECRStatus()
         count = 0
-        if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
-            logging.debug('ошибок нет, статус: ' + str(
-                self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
-            return 0
-        if self.drv.ECRMode == 8:
-            logging.debug('Статус: ' + str(
-                self.drv.ECRMode) + '*' + self.drv.ECRModeDescription)
-            logging.debug('Статус расширенный: ' + str(
-                self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
-            while True:
-                count += 1
+        while True:
+            self.drv.WaitForPrinting()
+            self.drv.GetECRStatus()
+            # 0 - Принтер в рабочем режиме
+            # 2 - Открытая смена, 24 часа не кончились
+            if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
                 if self.drv.ECRAdvancedMode == 0:
-                    self.kill_document()
-                    self.drv.GetECRStatus()
-                    logging.debug('документ аннулирован')
-                    return -2
-                else:
-                    Mbox('Ошибка: {0}'.format(self.drv.ECRAdvancedMode), self.drv.ECRAdvancedModeDescription, 4096 + 16)
-                    logging.debug('Ошибка: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
-                if self.drv.ECRAdvancedMode == 2 or self.drv.ECRAdvancedMode == 1:
-                    Mbox('нет бумаги', 'поменяйте вы уже бумагу наконец', 4096 + 16)
-                if self.drv.ECRAdvancedMode == 3:
-                    self.continuation_printing()
-                    logging.debug('Раз до сюда дошли - ошибок нет, статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
-                    break
-                self.drv.WaitForPrinting()
-                self.drv.GetECRStatus()
-                if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
+                    # 0 - Бумага есть – ККТ не в фазе печати операции – может принимать от хоста
+                    # команды, связанные с печатью на том ленте, датчик которой сообщает о
+                    # наличии бумаги.
                     logging.debug('ошибок нет, статус: ' + str(
                         self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
-                    return 0
-        else:
-            Mbox('Ошибка: {0}'.format(self.drv.ECRMode), self.drv.ECRDescription, 4096 + 16)
-            logging.debug('Ошибка: {0}'.format(self.drv.ECRMode), self.drv.ECRDescription)
-        return self.drv.ECRAdvancedMode
+                    return self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription
+            else:
+                Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+                if self.drv.ECRMode == 8:
+                    # 8 - Открытый документ
+                    logging.debug('Статус: ' + str(
+                        self.drv.ECRMode) + '*' + self.drv.ECRModeDescription)
+                    logging.debug('Статус расширенный: ' + str(
+                        self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                    if self.drv.ECRAdvancedMode == 3:
+                        self.continuation_printing()
+                        logging.debug('Раз до сюда дошли - ошибок нет, статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+            count += 1
+            if count > 5:
+                Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+            if count > 15:
+                Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRModeDescription), 4096 + 16)
+                exit(1)
 
 
 def format_string(elem: str) -> str:
