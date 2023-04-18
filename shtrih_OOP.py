@@ -1,15 +1,28 @@
 import logging
+import datetime
+from sys import argv
+
+current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+logging.basicConfig(
+    filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
+    filemode='a',
+    level=logging.DEBUG,
+    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+    datefmt='%H:%M:%S')
+
 import win32com.client
 import json
-from sys import argv
 from typing import Tuple, List
 import ctypes
 import re
 import os
-import datetime
 import socket
 import getpass
-from telegram_send_code.tg_send_OOP import TgSender
+try:
+    from telegram_send_code.tg_send_OOP import TgSender
+except Exception as exc:
+    logging.debug(exc)
+    exit(9994)
 
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
@@ -24,14 +37,6 @@ DICT_OPERATION_CHECK = {'sale': 0,
 
 CUTTER = '~S'
 
-current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-
-logging.basicConfig(
-    filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
 
 logging.debug('start')
 
@@ -673,6 +678,26 @@ class Shtrih(object):
         self.drv.ValueOfFieldInteger = 1
         self.drv.WriteTable()
 
+    def send_mess_to_tg(self, error_code, error_descripton) -> None:
+        """
+        метод отправки ошибок в бота телеграм
+        :param error_code: код ошибки кассы
+        :param error_descripton: описание ошибки кассы
+        :return:
+        """
+        err_mess = 'Ошибка {0}, описание ошибки {1}'.format(error_code, error_descripton)
+        f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
+        my_dict = {
+            'shop': f_name,
+            'text': err_mess,
+            'number': self.cash_receipt.get("number_receipt", 'нет номера')
+        }
+        try:
+            my_bot = TgSender(message=my_dict)
+            my_bot.send_message()
+        except Exception as exc:
+            logging.debug('проблема с ботом телеграм {0}'.format(exc))
+
     def error_analysis_hard(self):
         """
         метод обработки ошибок связаных с печатью
@@ -693,7 +718,9 @@ class Shtrih(object):
                         self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
                     return self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription
             else:
-                Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+                err_mess = 'Ошибка {0}'.format(self.drv.ECRMode)
+                Mbox(err_mess, '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRMode, self.drv.ECRModeDescription)
                 if self.drv.ECRMode == 8:
                     # 8 - Открытый документ
                     logging.debug('Статус: ' + str(
@@ -706,8 +733,12 @@ class Shtrih(object):
             count += 1
             if count > 5:
                 Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRMode,
+                                     self.drv.ECRModeDescription + '_она уже нажала OK {0} раз'.format(count))
             if count > 15:
                 Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRMode,
+                                     self.drv.ECRModeDescription + '_она уже нажала OK {0} раз'.format(count))
                 exit(1)
 
 
