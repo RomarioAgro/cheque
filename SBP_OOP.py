@@ -81,7 +81,7 @@ class SBP(object):
         :param scope: str область видимости токена
         :return: str сам токен авторизации
         """
-        url = 'https://api.sberbank.ru:8443/prod/tokens/v2/oauth'
+        url = 'https://mc.api.sberbank.ru:443/prod/tokens/v2/oauth'
         str_for_encoding = self.client_id + ':' + self.client_secret
         # сначала мы собираем строку из id и secret, кодируем ее в base64 потом переводим обратно в текст
         str_encoded = base64.b64encode(str_for_encoding.encode('utf-8')).decode('utf-8')
@@ -101,6 +101,7 @@ class SBP(object):
             url=url,
             data=data,
             headers=headers,
+            verify='russian-trusted-cacert.pem',
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
@@ -122,7 +123,7 @@ class SBP(object):
         #                     filemode='a',
         #                     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
         #                     datefmt='%H:%M:%S')
-        url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/creation'
+        url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/creation'
         self.sum = int(my_order.get("summ3", 0)) * 100
         headers = {
             "accept": "application/json",
@@ -150,6 +151,7 @@ class SBP(object):
             url=url,
             data=j_data,
             headers=headers,
+            verify='russian-trusted-cacert.pem',
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
@@ -166,7 +168,7 @@ class SBP(object):
         :return: dict ответ сервера со статусом, ошибками и прочим
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/status'
+        url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/status'
         headers = {
             "accept": "application/json",
             "content-type": 'application/json',
@@ -183,7 +185,13 @@ class SBP(object):
         logging.debug('HEADERS ' + str(headers))
         logging.debug('DATA ' + str(param))
         j_data = json.dumps(param)
-        r = post(url=url, data=j_data, headers=headers, pkcs12_filename=self.sert_name, pkcs12_password=self.sert_pass)
+        r = post(
+            url=url,
+            data=j_data,
+            headers=headers,
+            verify='russian-trusted-cacert.pem',
+            pkcs12_filename=self.sert_name,
+            pkcs12_password=self.sert_pass)
         logging.debug('answer= ' + str(r.text))
         return r.json()
 
@@ -193,7 +201,7 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/revocation'
+        url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/revocation'
         headers = {
             "accept": '*/*',
             "content-type": 'application/json',
@@ -212,6 +220,7 @@ class SBP(object):
             url=url,
             data=j_data,
             headers=headers,
+            verify='russian-trusted-cacert.pem',
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
@@ -225,7 +234,7 @@ class SBP(object):
         :return:
         """
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/cancel'
+        url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/cancel'
         headers = {
             "Accept": "application/json",
             "Content-Type": 'application/json',
@@ -254,6 +263,7 @@ class SBP(object):
             url=url,
             data=j_data,
             headers=headers,
+            verify='russian-trusted-cacert.pem',
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
@@ -273,7 +283,7 @@ class SBP(object):
         start_date = (datetime.datetime.now() - t_delta_start).strftime('%Y-%m-%dT00:00:01Z')
         end_date = (datetime.datetime.now() - t_delta_end).strftime('%Y-%m-%dT23:59:59Z')
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        url = 'https://api.sberbank.ru:8443/prod/qr/order/v3/registry'
+        url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/registry'
         headers = {
             "Authorization": f"Bearer {self.token(Scope.registry)}",
             "Accept": "*/*",
@@ -298,6 +308,7 @@ class SBP(object):
             url=url,
             data=j_data,
             headers=headers,
+            verify='russian-trusted-cacert.pem',
             pkcs12_filename=self.sert_name,
             pkcs12_password=self.sert_pass
         )
