@@ -81,6 +81,7 @@ class SBP(object):
         :param scope: str область видимости токена
         :return: str сам токен авторизации
         """
+        logging.debug('зашли в метод получения токена')
         url = 'https://mc.api.sberbank.ru:443/prod/tokens/v2/oauth'
         str_for_encoding = self.client_id + ':' + self.client_secret
         # сначала мы собираем строку из id и secret, кодируем ее в base64 потом переводим обратно в текст
@@ -117,12 +118,8 @@ class SBP(object):
         :param rq_uid: str UUID запроса генерирую сам
         :return: dict словарь QR кодом, и прочей инфой
         """
+        logging.debug('зашли в формирование заказа')
         rq_uid = str(uuid.uuid4()).replace('-', '')
-        # logging.basicConfig(filename="d:\\files\\create_" + rq_uid + '.log',
-        #                     level=logging.DEBUG,
-        #                     filemode='a',
-        #                     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-        #                     datefmt='%H:%M:%S')
         url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/creation'
         self.sum = int(my_order.get("summ3", 0)) * 100
         headers = {
@@ -167,6 +164,7 @@ class SBP(object):
         partner_order_number: str номер чека в CRM системе торговой точки(у нас сбис)
         :return: dict ответ сервера со статусом, ошибками и прочим
         """
+        logging.debug('зашли в метод статуса заказа')
         rq_uid = str(uuid.uuid4()).replace('-', '')
         url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/status'
         headers = {

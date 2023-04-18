@@ -161,11 +161,14 @@ def main() -> int:
 
         if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
             # начинаем оплату по сбп
+            logging.debug('начинаем оплату по СБП Сбербанк')
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'HlynovSBP':
+                logging.debug('начинаем возврат по СБП Хлынов')
                 sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
             else:
+                logging.debug('начинаем возврат по СБП Сбербанк')
                 sbp_text = return_sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
             # при пробитии чеков коррекции не надо деньги трогать
