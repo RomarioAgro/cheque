@@ -266,6 +266,7 @@ class Shtrih(object):
             ecr_mode, ecr_mode_description = self.get_ecr_status()
             logging.debug('проверка режима кассы {0} - {1}'.format(ecr_mode, ecr_mode_description))
             if ecr_mode == 2:
+                logging.debug('режим рабочий {0} - {1}, выходим'.format(ecr_mode, ecr_mode_description))
                 break
             else:
                 logging.debug('режим не рабочий {0}, запускаем {1}'.format(ecr_mode, dict_of_command_ecr_mode))
@@ -704,11 +705,13 @@ class Shtrih(object):
         :return:
         """
         count = 0
+        logging.debug('зашли в метод проверки ошибок')
         while True:
             self.drv.WaitForPrinting()
             self.drv.GetECRStatus()
             # 0 - Принтер в рабочем режиме
             # 2 - Открытая смена, 24 часа не кончились
+            logging.debug('провели запрос GetECRStatus(), попытка {0}'.format(count))
             if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
                 if self.drv.ECRAdvancedMode == 0:
                     # 0 - Бумага есть – ККТ не в фазе печати операции – может принимать от хоста
