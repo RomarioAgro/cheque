@@ -725,6 +725,8 @@ class Shtrih(object):
                     # наличии бумаги.
                     logging.debug('ошибок нет, статус: ' + str(
                         self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                    if count > 0:
+                        self.send_mess_to_tg(count, 'она справилась с {0} попытки'.format(count))
                     return self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription
                 else:
                     Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
