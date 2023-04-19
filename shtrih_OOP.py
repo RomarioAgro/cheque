@@ -18,6 +18,9 @@ import re
 import os
 import socket
 import getpass
+import time
+
+
 try:
     from telegram_send_code.tg_send_OOP import TgSender
 except Exception as exc:
@@ -707,10 +710,13 @@ class Shtrih(object):
         count = 0
         logging.debug('зашли в метод проверки ошибок')
         while True:
+            if count > 0:
+                time.sleep(1)
             self.drv.WaitForPrinting()
             self.drv.GetECRStatus()
             # 0 - Принтер в рабочем режиме
             # 2 - Открытая смена, 24 часа не кончились
+            # 8 - Открытый документ
             logging.debug('провели запрос GetECRStatus(), попытка {0}'.format(count))
             if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
                 if self.drv.ECRAdvancedMode == 0:
@@ -720,10 +726,13 @@ class Shtrih(object):
                     logging.debug('ошибок нет, статус: ' + str(
                         self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
                     return self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription
+                else:
+                    Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+                    logging.debug('статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
             else:
-                err_mess = 'Ошибка {0}'.format(self.drv.ECRMode)
-                Mbox(err_mess, '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRMode, self.drv.ECRModeDescription)
+                err_mess = 'Ошибка {0}'.format(self.drv.ECRAdvancedMode)
+                Mbox(err_mess, '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription)
                 if self.drv.ECRMode == 8:
                     # 8 - Открытый документ
                     logging.debug('Статус: ' + str(
@@ -735,13 +744,13 @@ class Shtrih(object):
                         logging.debug('Раз до сюда дошли - ошибок нет, статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
             count += 1
             if count > 5:
-                Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRMode,
+                Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode,
                                      self.drv.ECRModeDescription + '_она уже нажала OK {0} раз'.format(count))
             if count > 15:
-                Mbox('Ошибка {0}'.format(self.drv.ECRMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRMode,
-                                     self.drv.ECRModeDescription + '_она уже нажала OK {0} раз'.format(count))
+                Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode,
+                                     self.drv.ECRAdvancedModeDescription + '_она уже нажала OK {0} раз'.format(count))
                 exit(1)
 
 
