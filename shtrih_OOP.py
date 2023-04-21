@@ -717,42 +717,44 @@ class Shtrih(object):
             # 0 - Принтер в рабочем режиме
             # 2 - Открытая смена, 24 часа не кончились
             # 8 - Открытый документ
-            logging.debug('провели запрос GetECRStatus(), попытка {0}'.format(count))
-            if self.drv.ECRMode == 0 or self.drv.ECRMode == 2:
+            ecr_status = {
+                'ecr_status_code': self.drv.ECRMode,
+                'ecr_status_desc': self.drv.ECRModeDescription,
+                'esr_adv_code': self.drv.ECRAdvancedMode,
+                'ecr_adv_desc': self.drv.ECRAdvancedModeDescription,
+                'ecr_8status': self.drv.ECRMode8Status
+            }
+            logging.debug('провели запрос GetECRStatus(), попытка {0}{1}'.format(count, ecr_status))
+            if self.drv.ECRMode == 2:
                 if self.drv.ECRAdvancedMode == 0:
                     # 0 - Бумага есть – ККТ не в фазе печати операции – может принимать от хоста
                     # команды, связанные с печатью на том ленте, датчик которой сообщает о
                     # наличии бумаги.
-                    logging.debug('ошибок нет, статус: ' + str(
-                        self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
-                    if count > 0:
+                    logging.debug('ошибок нет, статус: {0}'.format(ecr_status))
+                    if count > 1:
                         self.send_mess_to_tg(count, 'она справилась с {0} попытки'.format(count))
                     return self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription
                 else:
                     Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
-                    logging.debug('статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                    logging.debug('статус: {0}'.format(ecr_status))
             else:
                 err_mess = 'Ошибка {0}'.format(self.drv.ECRAdvancedMode)
                 Mbox(err_mess, '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription)
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode, ecr_status)
                 if self.drv.ECRMode == 8:
                     # 8 - Открытый документ
-                    logging.debug('Статус: ' + str(
-                        self.drv.ECRMode) + '*' + self.drv.ECRModeDescription)
-                    logging.debug('Статус расширенный: ' + str(
-                        self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                    logging.debug('статус: {0}'.format(ecr_status))
                     if self.drv.ECRAdvancedMode == 3:
                         self.continuation_printing()
-                        logging.debug('Раз до сюда дошли - ошибок нет, статус: ' + str(self.drv.ECRAdvancedMode) + '*' + self.drv.ECRAdvancedModeDescription)
+                        logging.debug('статус: {0}'.format(ecr_status))
+
             count += 1
             if count > 5:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRAdvancedMode,
-                                     self.drv.ECRModeDescription + '_она уже нажала OK {0} раз'.format(count))
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
             if count > 15:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRAdvancedMode,
-                                     self.drv.ECRAdvancedModeDescription + '_она уже нажала OK {0} раз'.format(count))
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
                 exit(1)
 
 
