@@ -728,19 +728,19 @@ class Shtrih(object):
             if self.drv.ECRMode == 2:
                 if self.drv.ECRAdvancedMode == 0:
                     # 0 - Бумага есть – ККТ не в фазе печати операции – может принимать от хоста
-                    # команды, связанные с печатью на том ленте, датчик которой сообщает о
+                    # команды, связанные с печатью на той ленте, датчик которой сообщает о
                     # наличии бумаги.
                     logging.debug('ошибок нет, статус: {0}'.format(ecr_status))
-                    if count > 1:
+                    if count > 2:
                         self.send_mess_to_tg(count, 'она справилась с {0} попытки'.format(count))
                     return self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription
                 else:
-                    Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRModeDescription), 4096 + 16)
+                    Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(ecr_status), 4096 + 16)
                     logging.debug('статус: {0}'.format(ecr_status))
             else:
-                err_mess = 'Ошибка {0}'.format(self.drv.ECRAdvancedMode)
-                Mbox(err_mess, '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRAdvancedMode, ecr_status)
+                Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(ecr_status), 4096 + 16)
+                if count > 10:
+                    self.send_mess_to_tg(self.drv.ECRAdvancedMode, ecr_status)
                 if self.drv.ECRMode == 8:
                     # 8 - Открытый документ
                     logging.debug('статус: {0}'.format(ecr_status))
@@ -751,7 +751,7 @@ class Shtrih(object):
             count += 1
             if count > 5:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
+                # self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
             if count > 15:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
                 self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
