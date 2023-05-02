@@ -140,11 +140,24 @@ def main() -> int:
         Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
         return status_code
     o_shtrih.print_on()
+    # запрос итогов фискализации, ничего не возвращает,
+    # но после запроса у объекта o_shtrih появляются дополнительные свойства
+    o_shtrih.get_info_about_FR()
+    # в том числе и заводской номер
+    o_shtrih.drv.ReadSerialNumber()
     i_cutter = o_shtrih.cash_receipt.get('cutter', '~S')
-    if i_cutter == '~S':
-        o_shtrih.cutter_on()
-    else:
+    # if i_cutter == '~S':
+    #     o_shtrih.cutter_on()
+    # else:
+    #     o_shtrih.cutter_off()
+    # список заводских номеров касс в которых отключена отрезка
+    fr_no_cut = o_shtrih.cash_receipt.get('no_cut', [])
+    if o_shtrih.drv.SerialNumber in fr_no_cut:
+        cutter_on = False
         o_shtrih.cutter_off()
+    else:
+        o_shtrih.cutter_on()
+        cutter_on = True
     # операци по СБП, оплата или возврат
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1:
@@ -195,9 +208,6 @@ def main() -> int:
         pin_error = 0
         pinpad_text = None
     if pin_error == 0:
-        # запрос итогов фискализации, ничего не возвращает,
-        # но после запроса у объекта o_shtrih появляются дополнительные свойства
-        o_shtrih.get_info_about_FR()
         # печать рекламы
         if o_shtrih.cash_receipt.get('text-attic-before-bc', None):
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
@@ -242,11 +252,20 @@ def main() -> int:
                 # отправка чека по смс или почте
                 if o_shtrih.cash_receipt.get('email', '') != '':
                     o_shtrih.sendcustomeremail()
-                o_shtrih.shtrih_operation_fn()
-                # закрытие чека
-                status_code, error_close_receipt_description = o_shtrih.shtrih_close_check()
+                # при операциях ФН вообще нет никакой печати и отрезки, но почему-то иногда операции ФН кончаются ошибкой отрезчика
+                # попробуем отключить отрезку перед этой операцией
+                o_shtrih.cutter_off()
+                status_code, status_code_desc = o_shtrih.shtrih_operation_fn()
+                if cutter_on:
+                    o_shtrih.cutter_on()
                 if status_code != 0:
-                    Mbox('ошибка {0}'.format(status_code), error_close_receipt_description, 4096 + 16)
+                    Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
+                    logging.debug('после неудачной операции ФН показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
+                # закрытие чека
+                status_code, status_code_desc = o_shtrih.shtrih_close_check()
+                if status_code != 0:
+                    Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
+                    logging.debug('после неудачной операции закрытия чека показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
             # если у нас печать неудачно закончилась, то надо что-то с этим делать
             # проверка на ошибки железа и бумаги
             status_code, status_description = o_shtrih.error_analysis_hard()
