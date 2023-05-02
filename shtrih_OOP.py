@@ -120,13 +120,18 @@ class Shtrih(object):
                 self.drv.WaitForPrinting()
                 if item.get('fullprice', None) is not None:
                     self.print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
+                    logging.debug('печать Первоначальная розничная цена')
                 if item.get('discount', None) is not None:
                     self.print_str(i_str='Скидка = ' + str(item.get('discount', '0')), i_font=1)
+                    logging.debug('печать Скидка = ')
                 if item.get('bonuswritedown', None) is not None:
                     self.print_str(i_str='Бонусов списано = ' + str(item.get('bonuswritedown', '0')), i_font=1)
+                    logging.debug('печать Бонусов списано = ')
                 if item.get('bonusaccrual', None) is not None:
                     self.print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
+                    logging.debug('печать Бонусов начислено = ')
         logging.debug('FNOperation= {0}, описание ошибки: {1}'.format(error_code, error_code_desc))
+
         return error_code, error_code_desc
 
     def shtrih_close_check(self) -> Tuple:
@@ -668,7 +673,7 @@ class Shtrih(object):
         self.drv.TableNumber = 1
         self.drv.RowNumber = 1
         self.drv.FieldNumber = 7
-        self.drv.ValueOfFieldInteger = 0
+        self.drv.ValueOfFieldInteger = 3
         self.drv.WriteTable()
 
     def cutter_on(self):
@@ -713,6 +718,13 @@ class Shtrih(object):
             if count > 0:
                 time.sleep(1)
             self.drv.WaitForPrinting()
+            rez_oper = {
+                'rezult_code': self.drv.ResultCode,
+                'rezult_code_desc': self.drv.ResultCodeDescription
+            }
+            logging.debug('провели запрос WaitForPrinting(), попытка {0}{1}'.format(count, rez_oper))
+            if rez_oper.get('rezult_code', None) != 0:
+                Mbox('Ошибка {0}'.format(rez_oper.get('rezult_code', None)), '{0}'.format(rez_oper.get('rezult_code_desc', None)), 4096 + 16)
             self.drv.GetECRStatus()
             # 0 - Принтер в рабочем режиме
             # 2 - Открытая смена, 24 часа не кончились
@@ -724,6 +736,7 @@ class Shtrih(object):
                 'ecr_adv_desc': self.drv.ECRAdvancedModeDescription,
                 'ecr_8status': self.drv.ECRMode8Status
             }
+            ecr_status.update(rez_oper)
             logging.debug('провели запрос GetECRStatus(), попытка {0}{1}'.format(count, ecr_status))
             if self.drv.ECRMode == 2:
                 if self.drv.ECRAdvancedMode == 0:
