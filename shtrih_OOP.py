@@ -472,6 +472,7 @@ class Shtrih(object):
 
     def continuation_printing(self):
         self.drv.Password = 30
+        self.drv.WaitForPrinting()
         self.drv.ContinuePrint()
         self.drv.WaitForPrinting()
         return self.drv.ECRMode, self.drv.ECRModeDescription, self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription,
@@ -725,6 +726,7 @@ class Shtrih(object):
             logging.debug('провели запрос WaitForPrinting(), попытка {0}{1}'.format(count, rez_oper))
             if rez_oper.get('rezult_code', None) != 0:
                 Mbox('Ошибка {0}'.format(rez_oper.get('rezult_code', None)), '{0}'.format(rez_oper.get('rezult_code_desc', None)), 4096 + 16)
+                logging.debug('показали ошибку кассиру, попытка {0}{1}'.format(count, rez_oper))
             self.drv.GetECRStatus()
             # 0 - Принтер в рабочем режиме
             # 2 - Открытая смена, 24 часа не кончились
@@ -759,7 +761,7 @@ class Shtrih(object):
                     logging.debug('статус: {0}'.format(ecr_status))
                     if self.drv.ECRAdvancedMode == 3:
                         self.continuation_printing()
-                        logging.debug('статус: {0}'.format(ecr_status))
+                        logging.debug('continuation_printing статус: {0}'.format(ecr_status))
 
             count += 1
             if count > 5:
