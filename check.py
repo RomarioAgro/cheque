@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from sys import argv, exit
 import datetime
 
@@ -232,11 +233,18 @@ def main() -> int:
             o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
         # отключение печати
         if o_shtrih.cash_receipt.get('tag1008', None):
+            if pinpad_text or sbp_text:
+                o_shtrih.cut_print(cut_type=2, feed=2)
+                # без этой паузы не режет, уж не знаю почему, и если 1 поставить то тоже не режет
+                time.sleep(2)
             o_shtrih.print_off()
         else:
             o_shtrih.print_on()
         status_code = 1
         while status_code != 0:
+            if status_code == 99999:
+                o_shtrih.kill_document()
+                print(o_shtrih.drv.ResultCode, o_shtrih.drv.ResultCodeDescription)
             status_code, status_description = o_shtrih.error_analysis_hard()
             if status_code != 0:
                 Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
