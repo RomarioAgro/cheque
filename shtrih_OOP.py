@@ -469,12 +469,14 @@ class Shtrih(object):
         """
         self.drv.Password = 30
         self.drv.SysAdminCancelCheck()
+        logging.debug('прибили документ')
 
     def continuation_printing(self):
         self.drv.Password = 30
         self.drv.WaitForPrinting()
         self.drv.ContinuePrint()
         self.drv.WaitForPrinting()
+        logging.debug('попытка продолжить печать')
         return self.drv.ECRMode, self.drv.ECRModeDescription, self.drv.ECRAdvancedMode, self.drv.ECRAdvancedModeDescription,
 
     def check_km(self):
@@ -618,6 +620,7 @@ class Shtrih(object):
         self.drv.FeedDocument()
         self.drv.CutType = cut_type
         self.drv.CutCheck()
+        self.drv.WaitForPrinting()
 
     def print_str(self, i_str: str, i_font: int = 5):
         """
@@ -754,7 +757,7 @@ class Shtrih(object):
                     logging.debug('статус: {0}'.format(ecr_status))
             else:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(ecr_status), 4096 + 16)
-                if count > 10:
+                if count > 8:
                     self.send_mess_to_tg(self.drv.ECRAdvancedMode, ecr_status)
                 if self.drv.ECRMode == 8:
                     # 8 - Открытый документ
@@ -766,11 +769,12 @@ class Shtrih(object):
             count += 1
             if count > 5:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                # self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
-            if count > 15:
-                Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}\nпиздец ты ебанутая'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-                self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз'.format(count, ecr_status))
-                exit(1)
+            if count > 10:
+                Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
+                self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз, будем делать все заново'.format(count, ecr_status))
+                # делаем возврат нереального кода
+                logging.debug('будем возвращать код 99999')
+                return 99999, 'будем печатать заново'
 
 
 def format_string(elem: str) -> str:
