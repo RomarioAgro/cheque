@@ -279,6 +279,13 @@ def main() -> int:
             if status_code != 0:
                 Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
             else:
+                # если у нас возврат наличных, то сначала проверим сколько наличных в кассе, и сделаем внесение
+                if o_shtrih.cash_receipt['operationtype'] == 'return_sale' and o_shtrih.cash_receipt['sum-cash'] > 0:
+                    o_shtrih.get_cash_in_shtrih()
+                    if o_shtrih.drv.ContentsOfCashRegister < o_shtrih.cash_receipt['sum-cash']:
+                        o_shtrih.drv.Summ1 = o_shtrih.cash_receipt['sum-cash']
+                        o_shtrih.drv.CashIncome()
+                        logging.debug('сделали внесение наличных {0}'.format(o_shtrih.cash_receipt['sum-cash']))
                 #печать номера чека
                 o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 3)
                 # печать бонусов

@@ -82,7 +82,7 @@ class Shtrih(object):
         """
         # уточняем по какому ФФД работает касса 1.05 или 1.2
         error_code = 1000
-        error_code_desc = 'ошибка начала'
+        error_code_desc = 'ошибка нет артикулов в документе json'
         for item in self.cash_receipt['items']:
             if item['quantity'] != 0:
                 self.print_str(i_str='_' * 30, i_font=2)
@@ -280,12 +280,6 @@ class Shtrih(object):
                 logging.debug('режим не рабочий {0}, запускаем {1}'.format(ecr_mode, dict_of_command_ecr_mode))
                 dict_of_command_ecr_mode.get(ecr_mode, self.i_dont_know)()
 
-        # внесение наличных в кассу, если это у нас первый возврат в смене
-        if self.cash_receipt.get('cashincome', 0) > 0:
-            logging.debug('внесение наличных в кассу, если это у нас первый возврат в смене')
-            self.shtrih_operation_cashincime()
-            logging.debug('cashincome')
-
     def open_box(self):
         self.drv.OpenDrawer()
 
@@ -304,14 +298,6 @@ class Shtrih(object):
         self.drv.FNCloseSession()
         self.drv.WaitForPrinting()
         return self.drv.ECRMode, self.drv.ECRModeDescription
-
-    def shtrih_operation_cashincime(self):
-        """
-        функция внесения наличных в кассу
-        на случай 1-го возврата в смене
-        """
-        self.drv.Summ1 = self.cash_receipt.get('cashincome', 0)
-        self.drv.CashIncome()
 
     def sendcustomeremail(self):
         """
@@ -710,6 +696,15 @@ class Shtrih(object):
             my_bot.send_message()
         except Exception as exc:
             logging.debug('проблема с ботом телеграм {0}'.format(exc))
+
+    def get_cash_in_shtrih(self):
+        """
+        метод получения наличности в кассовом аппарате
+        после вызова появляется свойство ContentsOfCashRegister в нем наличные
+        :return:
+        """
+        self.drv.RegisterNumber = 241
+        self.drv.GetCashReg()
 
     def error_analysis_hard(self):
         """
