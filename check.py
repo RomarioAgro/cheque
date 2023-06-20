@@ -73,13 +73,14 @@ def sale_sbp(o_shtrih, sbp_qr) -> str:
     o_shtrih.print_QR(order_info['order_form_url'])  # печатаем QR код на кассе
     # вывод QR на минидисплее
     mini_display = False
-    if check_com_port(COM_PORT):
-        qr_pict = qr_image(i_text=order_info['order_form_url'])
-        lcd_comm = LcdCommRevB(com_port=COM_PORT,
-                               display_width=320,
-                               display_height=480)
-        show_qr(lcd=lcd_comm, image=qr_pict, qr_text="для оплаты по СБП\nсосканируйте QR код\nСумма {0}".format(float(o_shtrih.cash_receipt['summ3'])))
-        mini_display = True
+    if COM_PORT:
+        if check_com_port(COM_PORT):
+            qr_pict = qr_image(i_text=order_info['order_form_url'])
+            lcd_comm = LcdCommRevB(com_port=COM_PORT,
+                                   display_width=320,
+                                   display_height=480)
+            show_qr(lcd=lcd_comm, image=qr_pict, qr_text="для оплаты по СБП\nсосканируйте QR код\nСумма {0}".format(float(o_shtrih.cash_receipt['summ3'])))
+            mini_display = True
     i_exit, data_status = sbp_qr.waiting_payment(cash_receipt=o_shtrih.cash_receipt)  # ждем оплаты по СБП
     if i_exit == 0:
         sbp_text_local = print_operation_SBP_PAY(data_status)
