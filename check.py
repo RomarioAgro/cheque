@@ -206,7 +206,7 @@ def main() -> int:
 
         if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
             # начинаем оплату по сбп
-            logging.debug('начинаем оплату по СБП Сбербанк')
+            logging.debug('начинаем оплату по СБП')
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'HlynovSBP':
@@ -240,6 +240,12 @@ def main() -> int:
         pin_error = 0
         pinpad_text = None
     if pin_error == 0:
+        # печать слипа терминала
+        if pinpad_text:
+            o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
+        # печать ответа от сервера СБП
+        if sbp_text:
+            o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
         # печать рекламы
         if o_shtrih.cash_receipt.get('text-attic-before-bc', None):
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
@@ -256,12 +262,6 @@ def main() -> int:
             lll = o_shtrih.cash_receipt.get('text-basement', None)
             o_shtrih.print_basement(lll)
         # печать примечаний
-        # печать слипа терминала
-        if pinpad_text:
-            o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
-        # печать ответа от сервера СБП
-        if sbp_text:
-            o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
         # отключение печати
         if o_shtrih.cash_receipt.get('tag1008', None):
             if pinpad_text or sbp_text:
