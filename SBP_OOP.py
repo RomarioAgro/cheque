@@ -12,7 +12,7 @@ import ctypes
 import os
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
-TIMEOUT_BANK = 60
+TIMEOUT_BANK = 600
 httpclient_logger = logging.getLogger("http.client")
 
 def httpclient_logging_patch(level=logging.DEBUG):
@@ -482,6 +482,9 @@ class SBP(object):
                     ctypes.windll.user32.MessageBoxW(0, i_text_error + '\nделайте новый чек', i_title, 4096 + 16)
                     logging.debug(i_title + ' ' + ' ' + i_text_error)
                     i_exit = int(error_code)  # ошибка выхода
+                    if i_exit == 0:
+                        i_exit = 96
+                        logging.debug('заказ отменен, код выхода не может быть 0, поэтому поменяли на {0}'.format(i_exit))
                     break
                 if data_status['order_state'] == 'REVOKED':
                     logging.debug(data_status)
