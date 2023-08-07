@@ -4,6 +4,8 @@ import time
 from sys import argv, exit
 import datetime
 from decouple import config
+from typing import Tuple
+import dbf_make
 
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
@@ -158,7 +160,7 @@ def save_FiscalSign(i_path: str = '', i_file: str = '', i_fp: str = ''):
     with open(f_name, 'w') as i_file:
         i_file.write(i_fp)
 
-def main() -> int:
+def main() -> Tuple:
     """
     основная функция печати чека
     создаем объекты для работы с кассой штрих, СБП, пинпад сбербанка
@@ -318,11 +320,14 @@ def main() -> int:
             if status_code == 0:
                 o_shtrih.open_box()
                 save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
-                return status_code
+
+                return status_code, o_shtrih.cash_receipt
     else:
-        return pin_error
+        return pin_error, None
 
 
 if __name__ == '__main__':
-    code_error_main = main()
+    code_error_main, o_shtrih = main()
+    if code_error_main == 0 and o_shtrih is not None:
+        dbf_make.main(o_shtrih)
     exit(code_error_main)
