@@ -1,14 +1,8 @@
 import logging
 import datetime
-from sys import argv
+from sys import argv, exit
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-logging.basicConfig(
-    filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
 
 import win32com.client
 import json
@@ -59,8 +53,12 @@ class Shtrih(object):
         """
         file_json_name = i_path + '\\' + i_file_name + '.json'
         if os.path.exists(file_json_name):
-            with open(file_json_name, 'r') as json_file:
-                self.cash_receipt = json.load(json_file)
+            try:
+                with open(file_json_name, 'r') as json_file:
+                    self.cash_receipt = json.load(json_file)
+            except Exception as exs:
+                logging.debug('при чтении json чека произошла ошибка\n{0}'.format(exs))
+                exit(1)
         else:
             self.cash_receipt = None
         self.drv = win32com.client.Dispatch('Addin.DRvFR')
