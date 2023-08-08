@@ -16,7 +16,9 @@ logging.basicConfig(
     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
     datefmt='%H:%M:%S')
 
-logging.debug('start')
+logger_check: logging.Logger = logging.getLogger(__name__)
+logger_check.setLevel(logging.DEBUG)
+logger_check.debug('start')
 
 
 try:
@@ -26,7 +28,7 @@ except Exception as exs:
     check_com_port = None
     qr_image = None
     show_qr = None
-    logging.debug(exs)
+    logger_check.debug(exs)
     # exit(9994)
 
 
@@ -35,22 +37,22 @@ os.chdir('d:\\kassa\\script_py\\shtrih\\')
 try:
     from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
 except Exception as exs:
-    logging.debug(exs)
+    logger_check.debug(exs)
     exit(9998)
 try:
     from pinpad_OOP import PinPad
 except Exception as exs:
-    logging.debug(exs)
+    logger_check.debug(exs)
     exit(9997)
 try:
     from hlynov_bank import HlynovSBP
 except Exception as exs:
-    logging.debug(exs)
+    logger_check.debug(exs)
     exit(9996)
 try:
     from SBP_OOP import SBP
 except Exception as exs:
-    logging.debug(exs)
+    logger_check.debug(exs)
     exit(9995)
 
 # словарь операций чека
@@ -88,13 +90,13 @@ def sale_sbp(o_shtrih, sbp_qr) -> str:
         sbp_text_local = print_operation_SBP_PAY(data_status)
         if mini_display:
             show_qr(lcd=lcd_comm, image=None)
-        logging.debug(sbp_text_local)
+        logger_check.debug(sbp_text_local)
     else:
         id_bad_order = data_status.get('order_id', '')
         sbp_qr.revoke(order_id=id_bad_order)
         if mini_display:
             show_qr(lcd=lcd_comm, image=None)
-        logging.debug(i_exit)
+        logger_check.debug(i_exit)
         exit(i_exit)
     return sbp_text_local
 
@@ -118,9 +120,9 @@ def return_sale_sbp(o_shtrih, sbp_qr) ->str:
     data_status = sbp_qr.cancel(order_refund=order_refund)
     # печатаем ответ сервера СБП
     sbp_text_local = print_operation_SBP_REFUND(data_status)
-    logging.debug(sbp_text_local)
-    logging.debug(order_refund)
-    logging.debug(data_status)
+    logger_check.debug(sbp_text_local)
+    logger_check.debug(order_refund)
+    logger_check.debug(data_status)
     return sbp_text_local
 
 def return_sale_sbp_hlynov(o_shtrih, sbp_qr) ->str:
@@ -139,9 +141,9 @@ def return_sale_sbp_hlynov(o_shtrih, sbp_qr) ->str:
     data_status = sbp_qr.cancel(order_refund=order_refund)
     # печатаем ответ сервера СБП
     sbp_text_local = print_operation_SBP_REFUND(data_status)
-    logging.debug(sbp_text_local)
-    logging.debug(order_refund)
-    logging.debug(data_status)
+    logger_check.debug(sbp_text_local)
+    logger_check.debug(order_refund)
+    logger_check.debug(data_status)
     return sbp_text_local
 
 
@@ -166,7 +168,7 @@ def main() -> Tuple:
     создаем объекты для работы с кассой штрих, СБП, пинпад сбербанка
     :return: int код ошибки
     """
-    logging.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
+    logger_check.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
     o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     o_shtrih.preparation_for_work()
     status_code, status_description = o_shtrih.error_analysis_hard()
@@ -195,7 +197,7 @@ def main() -> Tuple:
     # операци по СБП, оплата или возврат
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1:
-        logging.debug('зашли в СБП')
+        logger_check.debug('зашли в СБП')
         try:
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
                 sbp_qr = SBP()
@@ -203,19 +205,19 @@ def main() -> Tuple:
                 sbp_qr = HlynovSBP()
         except Exception as exc:
             Mbox('ошибка модуля СБП', str(exc), 4096 + 16)
-            logging.debug(exc)
+            logger_check.debug(exc)
             exit(96)
 
         if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
             # начинаем оплату по сбп
-            logging.debug('начинаем оплату по СБП')
+            logger_check.debug('начинаем оплату по СБП')
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'HlynovSBP':
-                logging.debug('начинаем возврат по СБП Хлынов')
+                logger_check.debug('начинаем возврат по СБП Хлынов')
                 sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
             else:
-                logging.debug('начинаем возврат по СБП Сбербанк')
+                logger_check.debug('начинаем возврат по СБП Сбербанк')
                 sbp_text = return_sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
             # при пробитии чеков коррекции не надо деньги трогать
@@ -225,20 +227,20 @@ def main() -> Tuple:
             pass
         else:
             # если мы не знаем что это, то выходим
-            logging.debug('неизвестная операция, выход')
+            logger_check.debug('неизвестная операция, выход')
             exit(99)
 
     # операция по пинпаду
     if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
-        logging.debug('зашли в пинпад')
+        logger_check.debug('зашли в пинпад')
         sber_pinpad = PinPad()
         sber_pinpad.pinpad_operation(operation_name=o_shtrih.cash_receipt['operationtype'],
                                      oper_sum=o_shtrih.cash_receipt['sum-cashless'])
         pin_error = sber_pinpad.error
         pinpad_text = sber_pinpad.text
-        logging.debug('результат оплаты по пинпаду {0} {1}'.format(pin_error, pinpad_text))
+        logger_check.debug('результат оплаты по пинпаду {0} {1}'.format(pin_error, pinpad_text))
     else:
-        logging.debug('оплаты по пинпад нет')
+        logger_check.debug('оплаты по пинпад нет')
         pin_error = 0
         pinpad_text = None
     if pin_error == 0:
@@ -288,7 +290,7 @@ def main() -> Tuple:
                     if o_shtrih.drv.ContentsOfCashRegister < o_shtrih.cash_receipt['sum-cash']:
                         o_shtrih.drv.Summ1 = o_shtrih.cash_receipt['sum-cash']
                         o_shtrih.drv.CashIncome()
-                        logging.debug('сделали внесение наличных {0}'.format(o_shtrih.cash_receipt['sum-cash']))
+                        logger_check.debug('сделали внесение наличных {0}'.format(o_shtrih.cash_receipt['sum-cash']))
                 #печать номера чека
                 o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 3)
                 # печать бонусов
@@ -308,19 +310,18 @@ def main() -> Tuple:
                     o_shtrih.cutter_on()
                 if status_code != 0:
                     Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
-                    logging.debug('после неудачной операции ФН показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
+                    logger_check.debug('после неудачной операции ФН показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
                 # закрытие чека
                 status_code, status_code_desc = o_shtrih.shtrih_close_check()
                 if status_code != 0:
                     Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
-                    logging.debug('после неудачной операции закрытия чека показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
+                    logger_check.debug('после неудачной операции закрытия чека показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
             # если у нас печать неудачно закончилась, то надо что-то с этим делать
             # проверка на ошибки железа и бумаги
             status_code, status_description = o_shtrih.error_analysis_hard()
             if status_code == 0:
                 o_shtrih.open_box()
                 save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
-
                 return status_code, o_shtrih.cash_receipt
     else:
         return pin_error, None
@@ -328,6 +329,9 @@ def main() -> Tuple:
 
 if __name__ == '__main__':
     code_error_main, o_shtrih = main()
-    if code_error_main == 0 and o_shtrih is not None:
-        dbf_make.main(o_shtrih)
+    try:
+        if code_error_main == 0 and o_shtrih is not None:
+            dbf_make.main(o_shtrih)
+    except Exception as exc:
+        logger_check.debug(exc)
     exit(code_error_main)
