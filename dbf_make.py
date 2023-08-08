@@ -9,8 +9,10 @@ import threading
 import time
 import logging
 
-logging.basicConfig(level=logging.INFO)
-logger: logging.Logger = logging.getLogger(__name__)
+logger_make_dbf: logging.Logger = logging.getLogger(__name__)
+logger_make_dbf.setLevel(logging.DEBUG)
+formatter = logging.Formatter(fmt="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+                              datefmt='%H:%M:%S')
 heading = {}
 structure = {}
 DICT_FIELDS = {
@@ -59,14 +61,26 @@ def make_record_Z(data_dict: Dict = {}, id: str = '1'):
     heading['SVREM'] = data_dict.get('stime', '00:00:00')
     heading['IDATA'] = make_date(idate=data_dict.get('mdate', '01.01.70'))
     heading['IVREM'] = data_dict.get('mtime', '00:00:00')
-    heading['SUM'] = str(data_dict.get('sum-cash', 0) + data_dict.get('sum-cashless', 0) + data_dict.get('summ3', 0))
-    heading['KOL'] = str(len(data_dict.get('items', [])) - 1)
+    if data_dict.get("operationtype") == "return_sale":
+        negative = -1
+    else:
+        negative = 1
+    total_amount = negative * (data_dict.get('sum-cash', 0) +
+                               data_dict.get('sum-cashless', 0) +
+                               data_dict.get('summ3', 0) +
+                               data_dict.get('summ14', 0) +
+                               data_dict.get('summ15', 0) +
+                               data_dict.get('summ16', 0))
+    total_count = negative * (len(data_dict.get('items', [])) - 1)
+    heading['SUM'] = str(total_amount)
+    heading['KOL'] = str(total_count)
     heading['FIO'] = data_dict.get('fio', 'Покупатель')
     heading['INN'] = data_dict.get('inn_pman', 'XЧЛ')
     heading['NZ'] = data_dict.get('nz_pman', 'Покупатель')
     heading['SSKID'] = data_dict.get('total-discount', 0)
-    heading['PSKID'] = float(100 * heading['SSKID']) // (
-                float(heading['SUM']) + float(data_dict.get('total-discount', 0)))
+    if total_amount + int(float(data_dict.get('total-discount', 0))) != 0:
+        heading['PSKID'] = float(100 * heading['SSKID']) // (
+                    float(heading['SUM']) + float(data_dict.get('total-discount', 0)))
     if data_dict.get('operationtype', 'sale') == 'sale' or data_dict.get('operationtype', 'sale') == 'return_sale':
         heading['TIP'] = 'НаклРасх'
         heading['PTIP'] = 'ЧЕК'
@@ -94,14 +108,17 @@ def make_record_N(f_path: str = 'e:\\inbox\\export\\TT1A23N.dbf', my_rec: Dict =
     idn: int = 1
     for item in my_rec['items']:
         if int(item.get('quantity', '0')) != 0:
-            idn += 1
             structure['ID'] = id
             structure['IDN'] = str(idn)
             structure['NN'] = item.get('nn', '9999999999999')
             structure['NAIM'] = item.get('name', 'unknown name')
-            structure['KOL'] = str(item.get('quantity', '0'))
+            if my_rec.get("operationtype") == "return_sale":
+                negative = -1
+            else:
+                negative = 1
             structure['NCEN'] = str(item.get('fullprice', '0'))
-            structure['SUM'] = str(item.get('price', '0'))
+            structure['KOL'] = str(negative * item.get('quantity', '0'))
+            structure['SUM'] = str(negative * item.get('price', '0'))
             structure['PROD'] = item.get('seller', 'unknown seller')
             structure['OTDEL'] = item.get('department', 'unknown department')
             structure['KOM'] = item.get('comment', 'unknown comment')
@@ -119,6 +136,7 @@ def make_record_N(f_path: str = 'e:\\inbox\\export\\TT1A23N.dbf', my_rec: Dict =
             structure['BONUSSPIS'] = int(item.get('bonuswritedown', 0))
             structure['BONUSNACH'] = int(item.get('bonusaccrual', 0))
             dbf_add_record(f_path, structure)
+            idn += 1
 
 
 def make_dbf(i_path: str = 'e:\\inbox\\export\\TT197011Z.dbf') -> int:
@@ -132,7 +150,9 @@ def make_dbf(i_path: str = 'e:\\inbox\\export\\TT197011Z.dbf') -> int:
 
     if os.path.isfile(i_path):
         table = dbf.Table(i_path, codepage='cp866')
-        return len(table) + 1
+        len_table = len(table) + 1
+        table.close()
+        return len_table
     else:
         f_spec = DICT_FIELDS.get(i_path[-5:-4].upper(), None)
         table = dbf.Table(i_path,
@@ -172,8 +192,8 @@ def dbf_n(i_path, name_export, my_rec, id_number):
 
 
 def main(my_rec):
-    # from my_rec import my_rec
     name_export = get_name_export()
+    logger_make_dbf.info(my_rec)
     i_path = config('path_export', 'e:\\inbox\\export\\')
     full_path = i_path + name_export + 'z.dbf'
     id_number = make_dbf(i_path=full_path)
@@ -185,7 +205,7 @@ def main(my_rec):
     threads1.join()
     threads2.join()
     end: float = time.time()
-    logger.info('Done multithreading in {:.4}'.format(end - start))
+    logger_make_dbf.info('Done multithreading in {:.4}'.format(end - start))
 
 
 if __name__ == '__main__':
