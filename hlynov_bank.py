@@ -12,7 +12,7 @@ os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from hlynov_sql import DocumentsDB
 
 
-TIMEOUT_BANK = 60
+TIMEOUT_BANK = 600
 httpclient_logger = logging.getLogger("http.client")
 
 
