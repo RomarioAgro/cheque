@@ -5,7 +5,6 @@ from sys import argv, exit
 import datetime
 from decouple import config
 from typing import Tuple
-import dbf_make
 
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
@@ -161,6 +160,21 @@ def save_FiscalSign(i_path: str = '', i_file: str = '', i_fp: str = ''):
     f_name = i_path + '\\' + i_file + '.txt'
     with open(f_name, 'w') as i_file:
         i_file.write(i_fp)
+
+def bonus_export(i_path: str = 'e:\\inbox\\bonus\\',
+                 shop_index: str = '',
+                 card_inn: str = '790000000000',
+                 bonus_add: str = '0',
+                 bonus_dec: str = '0'):
+    """
+    функция экспорта бонусов, убираем это от сбиса
+    :return:
+    """
+    b_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
+    f_name = '{0}_{1}_{2}_A{3}_R{4}.txt'.format(shop_index, card_inn, b_date, bonus_add, bonus_dec)
+    with open(i_path + f_name, 'w') as i_file:
+        i_file.write('')
+
 
 def main() -> Tuple:
     """
@@ -328,10 +342,17 @@ def main() -> Tuple:
 
 
 if __name__ == '__main__':
-    code_error_main, o_shtrih = main()
+    code_error_main, cash_rec = main()
     try:
-        if code_error_main == 0 and o_shtrih is not None:
-            dbf_make.main(o_shtrih)
+        if code_error_main == 0 and cash_rec is not None:
+            import dbf_make
+            dbf_make.main(cash_rec)
+            if datetime.datetime.today() > datetime.datetime(2023, 8, 17, 23, 0, 0) \
+                    and cash_rec.get('inn_pman', 'XЧЛ') != 'XЧЛ':
+                bonus_export(shop_index=cash_rec.get('kassa_index', 'TT'),
+                             card_inn=cash_rec.get('inn_pman', '790000000000'),
+                             bonus_add=cash_rec.get('bonus_add', '0'),
+                             bonus_dec=cash_rec.get('bonus_dec', '0'))
     except Exception as exc:
         logger_check.debug(exc)
     exit(code_error_main)
