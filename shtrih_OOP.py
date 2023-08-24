@@ -33,6 +33,12 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'z_otchet': 6000}
 
 CUTTER = '~S'
+logging.basicConfig(
+    filename='D:\\files\\' + argv[2] + "_" + current_time + '.log',
+    filemode='a',
+    level=logging.DEBUG,
+    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+    datefmt='%H:%M:%S')
 
 
 logging.debug('start')
@@ -351,6 +357,7 @@ class Shtrih(object):
         т. 89197197695
         т.8(800)350-01-23
         """
+        logging.debug(i_str)
         phone_number_pattern = r'т..((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
         i_text = i_str.split('\n')
         count_cutter = 0
