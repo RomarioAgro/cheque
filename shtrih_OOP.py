@@ -15,13 +15,6 @@ import getpass
 import time
 
 
-try:
-    from telegram_send_code.tg_send_OOP import TgSender
-except Exception as exc:
-    logging.debug(exc)
-    exit(9994)
-
-
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -40,6 +33,17 @@ logging.basicConfig(
     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
     datefmt='%H:%M:%S')
 
+try:
+    import pyautogui
+except Exception as exc:
+    logging.debug(exc)
+
+
+try:
+    from telegram_send_code.tg_send_OOP import TgSender
+except Exception as exc:
+    logging.debug(exc)
+    exit(9994)
 
 logging.debug('start')
 
@@ -580,6 +584,11 @@ class Shtrih(object):
         else:
             list_about_fr.append('ШИРИНА ЛЕНТЫ ШИРОКАЯ')
         self.drv.FNGetInfoExchangeStatus()
+        try:
+            screen_width, screen_height = pyautogui.size()
+            list_about_fr.append('SCREEN_RESOLUTION: {sw}x{sh}'.format(sw=screen_width, sh=screen_height))
+        except Exception as exc:
+            logging.debug(exc)
         today = datetime.datetime.today().date()
         datenotsend_date = self.drv.Date.date()
         delta = today - datenotsend_date
