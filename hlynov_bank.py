@@ -8,7 +8,12 @@ import ctypes
 import os
 from sys import argv
 from typing import Dict, Tuple
+from dotenv import load_dotenv
+
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
+
 from hlynov_sql import DocumentsDB
 
 
@@ -51,12 +56,12 @@ class HlynovSBP(object):
         self.accAlias - выдал хлынов
         self.authsp - выдал хлынов
         """
-        self.url = conf_token('url_hlynov', None)
-        self.extEntityId = conf_token('hlynov_extEntityId', None)
-        self.merchantId = conf_token('hlynov_merchantId', None)
-        self.account = conf_token('account', None)
-        self.accAlias = conf_token('banc_alias', None)
-        self.authsp = conf_token('hlynov_authsp', None)
+        self.url = os.getenv('url_hlynov')
+        self.extEntityId = os.getenv('hlynov_extEntityId')
+        self.merchantId = os.getenv('hlynov_merchantId')
+        self.account = os.getenv('account')
+        self.accAlias = os.getenv('banc_alias')
+        self.authsp = os.getenv('hlynov_authsp')
         self.order = None
 
     def create_order(self, my_order: dict = {}) -> Dict:
@@ -84,8 +89,17 @@ class HlynovSBP(object):
             "localExpDt": 60
         }
         url = self.url + '/qr'
-        r = requests.post(url=url, cert=('hlynov_cert.crt', 'hlynov_key.key'), verify='ca.pem', json=param, timeout=10)
-        logging.debug('результат запроса= ' + r.text)
+        try:
+            r = requests.post(url=url,
+                              cert=('hlynov_cert.crt', 'hlynov_key.key'),
+                              verify='ca.pem',
+                              json=param,
+                              timeout=10)
+            logging.debug('результат запроса= ' + r.text)
+        except Exception as exs:
+            logging.debug('ошибка при обращении к хлынову {url_e} {error_text}'.format(error_text=exs,
+                                                                                       url_e=url))
+            exit(96)
         if r.status_code == 200:
             o_dict['order_form_url'] = r.json()['payload']
             o_dict['order_id'] = r.json()['qrcId']
@@ -100,7 +114,7 @@ class HlynovSBP(object):
         :return: NOne
         """
         data_status = dict()  #словарь ответа сбп хлынова
-        path_sql = conf_token('hlynov_sql_path', None)
+        path_sql = os.getenv('hlynov_sql_path')
         hlynov_sql = DocumentsDB(path_sql)
         datetime_obj = datetime.datetime.strptime(order_refund.get('date_sale', None), '%d.%m.%y')
         formatted_date = datetime.datetime.strftime(datetime_obj, '%Y-%m-%d')
@@ -242,7 +256,7 @@ class HlynovSBP(object):
             data_status['order_operation_params'][0].update(new_data)
             new_data = {"operation_sum": cash_receipt['summ3'] * 100}
             data_status['order_operation_params'][0].update(new_data)
-            path_sql = conf_token('hlynov_sql_path', None)
+            path_sql = os.getenv('hlynov_sql_path')
             hlynov_sql = DocumentsDB(path_sql)
             hlynov_sql.add_document(date=datetime.datetime.now().strftime('%Y-%m-%d'),
                                     sbis_id=cash_receipt['number_receipt'], qrc_id=data_status['qrCode']['qrcId'])
