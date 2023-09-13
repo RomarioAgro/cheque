@@ -1,4 +1,5 @@
 import base64
+import random
 import uuid
 import datetime
 import json
@@ -13,7 +14,7 @@ import socket
 import getpass
 from dotenv import load_dotenv
 
-os.chdir('d:\\kassa\\script_py\\shtrih\\')
+# os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=env_path)
@@ -53,7 +54,7 @@ def event_pyament(count_i, event, ):
 class Scope(Enum):
     """
     класс-перечисление наших областей видимости
-    для токенов дуступа
+    для токенов доступа
     """
 
     create = 'https://api.sberbank.ru/qr/order.create'
@@ -87,6 +88,9 @@ class SBP(object):
         self.sert_name = os.getenv('sert_name')
         self.sum = 0
         self.order = None
+        self.create_order_token = None
+        self.status_order_token = None
+        self.order_number = ''
 
     def token(self, scope: Scope) -> str:
         """
@@ -99,6 +103,10 @@ class SBP(object):
         :param scope: str область видимости токена
         :return: str сам токен авторизации
         """
+        if scope.name == 'status' and self.status_order_token:
+            return self.status_order_token
+        if scope.name == 'create' and self.create_order_token:
+            return self.create_order_token
         logging.debug('зашли в метод получения токена')
         url = 'https://mc.api.sberbank.ru:443/prod/tokens/v2/oauth'
         str_for_encoding = self.client_id + ':' + self.client_secret
@@ -116,18 +124,44 @@ class SBP(object):
             "grant_type": "client_credentials",
             "scope": scope.value
         }
-        r = post(
-            url=url,
-            data=data,
-            headers=headers,
-            verify='russian-trusted-cacert.pem',
-            pkcs12_filename=self.sert_name,
-            pkcs12_password=self.sert_pass
-        )
+        j_answer = {}
+        try:
+            r = post(
+                url=url,
+                data=data,
+                headers=headers,
+                verify='russian-trusted-cacert.pem',
+                pkcs12_filename=self.sert_name,
+                pkcs12_password=self.sert_pass
+            )
+            r.raise_for_status()
+        except Exception as exc:
+            logging.debug('ошибка запроса токена сбербанка {0}'.format(exc))
+            j_answer['access_token'] = 'None'
+            f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
+            my_dict = {
+                'shop': f_name,
+                'text': 'ошибка запроса токена сбербанка {0}'.format(exc),
+                'number': self.order_number,
+                'summ': self.sum // 100
+            }
+            try:
+                my_bot = TgSender(message=my_dict)
+                my_bot.send_message()
+            except Exception as exc:
+                logging.debug('ошибка отправки телеграм {0}'.format(exc))
+
+        if r.status_code == 200:
+            j_answer = r.json()
+            if scope.name == 'create':
+                self.create_order_token = j_answer['access_token']
+            if scope.name == 'status':
+                self.status_order_token = j_answer['access_token']
+            logging.debug('answer={0}, json={1} '.format(r.text, r.json()))
         logging.debug('запрос токена headers: ' + str(headers))
         logging.debug('запрос токена data: ' + str(data))
         logging.debug('получаем токен= ' + str(r.text))
-        return r.json()['access_token']
+        return j_answer['access_token']
 
     def create_order(self, my_order: dict = {}) -> dict:
         """
@@ -140,6 +174,7 @@ class SBP(object):
         rq_uid = str(uuid.uuid4()).replace('-', '')
         url = 'https://mc.api.sberbank.ru:443/prod/qr/order/v3/creation'
         self.sum = int(my_order.get("summ3", 0)) * 100
+        self.order_number = my_order['number_receipt']
         headers = {
             "accept": "application/json",
             "content-type": 'application/json',
@@ -483,6 +518,7 @@ class SBP(object):
             event, values = window.read(timeout=1000)
             event_pyament(i, event)
             # здесь посылаем запрос в сбербанк о статусе заказа
+            # TODO подумай как еще можно сократить код
             data_status = self.status_order(
                 order_id=self.order['order_id'],
                 partner_order_number=cash_receipt['number_receipt'])
