@@ -25,7 +25,8 @@ try:
 except Exception as exc:
     logging.debug(exc)
 
-TIMEOUT_BANK = 600
+TIMEOUT_BANK = 600  #время жизни окна проверки статуса оплаты
+TOKEN_LIFE = 30  #время жизни токена сбербанка
 
 httpclient_logger = logging.getLogger("http.client")
 
@@ -181,6 +182,7 @@ class SBP(object):
             "Authorization": f"Bearer {self.token(Scope.create)}",
             "rquid": rq_uid
         }
+        #TODO одинаковые строки надо сократить
         param = {
             "rq_uid": rq_uid,
             "rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -514,7 +516,13 @@ class SBP(object):
         progress_bar = window['progressbar']
         i = 0
         data_status = {}
+        start_time = int(datetime.datetime.now().timestamp())
         while True:  # запускаем показ прогрессбара типа связь с банком
+            now_time = int(datetime.datetime.now().timestamp())
+            if now_time - start_time > TOKEN_LIFE:
+                self.status_order_token = None
+                start_time = int(datetime.datetime.now().timestamp())
+                logging.debug('обнулили токен статуса оплаты')
             event, values = window.read(timeout=1000)
             event_pyament(i, event)
             # здесь посылаем запрос в сбербанк о статусе заказа
