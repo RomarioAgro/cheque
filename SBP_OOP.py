@@ -521,7 +521,7 @@ class SBP(object):
             now_time = int(datetime.datetime.now().timestamp())
             if now_time - start_time > TOKEN_LIFE:
                 self.status_order_token = None
-                start_time = int(datetime.datetime.now().timestamp())
+                start_time = now_time
                 logging.debug('обнулили токен статуса оплаты')
             event, values = window.read(timeout=1000)
             event_pyament(i, event)
