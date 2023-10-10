@@ -14,8 +14,8 @@ import socket
 import getpass
 from dotenv import load_dotenv
 
-os.chdir('d:\\kassa\\script_py\\shtrih\\')
-
+# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+#
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=env_path)
 
@@ -182,13 +182,13 @@ class SBP(object):
             "Authorization": f"Bearer {self.token(Scope.create)}",
             "rquid": rq_uid
         }
-        #TODO одинаковые строки надо сократить
+        time_stamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
         param = {
             "rq_uid": rq_uid,
-            "rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "rq_tm": time_stamp,
             "member_id": self.member_id,
             "order_number": my_order.get("number_receipt", ''),
-            "order_create_date": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "order_create_date": time_stamp,
             # "order_params_type": my_order.get("items", []),
             "id_qr": self.tid,
             "order_sum": self.sum,
@@ -565,7 +565,8 @@ class SBP(object):
                 f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
                 my_dict = {
                     'shop': f_name,
-                    'text': 'проблема оплаты СБП Сбербанк{0}'.format(i_text_error),
+                    'text': 'проблема оплаты СБП Сбербанк{0}, статус заказа {1}'.format(i_text_error,
+                                                                                        data_status['order_state']),
                     'number': cash_receipt['number_receipt'],
                     'summ': cash_receipt['sum-cash'] + cash_receipt['sum-cashless'] + cash_receipt['summ3']
                 }
