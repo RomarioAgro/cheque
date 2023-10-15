@@ -34,7 +34,7 @@ sql_delete_items = """
 
 class Receiptinsql():
 
-    def init(self, db_path: str = 'receipt_to_1C.db'):
+    def __init__(self, db_path: str = 'receipt_to_1C.db'):
         self.conn = sqlite3.connect(db_path)
         self.create_table()
 
@@ -72,18 +72,18 @@ class Receiptinsql():
         """
         метод заполнения нашей таблицы с чеками
         """
-        # cursor = self.conn.cursor()
         rec_id = j_receipt.get('id')
         param_tuple = (rec_id,
                        j_receipt.get('number_receipt'),
                        j_receipt.get('date_create'),
                        j_receipt.get('shop_id', 0),
                        j_receipt.get('sum', 0.0),
-                       j_receipt.get('clientID'),
-                       j_receipt.get('phone', ''),
+                       str(j_receipt.get('clientID', 'zalupa')),
+                       str(j_receipt.get('phone', '')),
                        j_receipt.get('bonus_add', 0),
                        j_receipt.get('bonus_dec', 0))
         self.conn.cursor().execute(sql_add_document, param_tuple)
+        logging.debug('записали чек в БД')
         goods = []
         for item in j_receipt['items']:
             if item['quantity'] != 0:
@@ -94,6 +94,7 @@ class Receiptinsql():
                            item.get('price', 0.0))
                 goods.append(product)
         self.conn.cursor().executemany(sql_add_item, goods)
+        logging.debug('записали соства чека в БД')
         self.conn.commit()
 
     def delete_receipt(self, rec_id: str = ''):
@@ -102,7 +103,9 @@ class Receiptinsql():
         после того как отправим их в 1С
         """
         self.conn.execute(sql_delete_document, (rec_id,))
+        logging.debug('удалили чек из БД')
         self.conn.execute(sql_delete_items, (rec_id,))
+        logging.debug('удалили состав чека из БД')
         self.conn.commit()
 
 
@@ -112,7 +115,7 @@ def main():
         with open(file_json_name, 'r', encoding='cp1251') as json_file:
             i_json = json.load(json_file)
     i_db = Receiptinsql()
-    i_db.create_table()
+    # i_db.create_table()
     i_db.add_document(i_json)
     # i_db.delete_receipt(rec_id="UZ363605/03")
 
