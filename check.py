@@ -54,6 +54,12 @@ except Exception as exs:
     logger_check.debug(exs)
     exit(9995)
 
+try:
+    from receipt_db import Receiptinsql
+except Exception as exs:
+    logger_check.debug(exs)
+    exit(9994)
+
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -195,11 +201,6 @@ def main() -> Tuple:
     o_shtrih.get_info_about_FR()
     # в том числе и заводской номер
     o_shtrih.drv.ReadSerialNumber()
-    i_cutter = o_shtrih.cash_receipt.get('cutter', '~S')
-    # if i_cutter == '~S':
-    #     o_shtrih.cutter_on()
-    # else:
-    #     o_shtrih.cutter_off()
     # список заводских номеров касс в которых отключена отрезка
     fr_no_cut = o_shtrih.cash_receipt.get('no_cut', [])
     if o_shtrih.drv.SerialNumber in fr_no_cut:
@@ -347,6 +348,10 @@ if __name__ == '__main__':
         if code_error_main == 0 and cash_rec is not None:
             import dbf_make
             dbf_make.main(cash_rec)
+            if cash_rec.get('operationtype', 'sale') == 'sale' or \
+                    cash_rec.get('operationtype', 'sale') == 'return_sale':
+                receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
+                receipt_to_1C.add_document(cash_rec)
             if datetime.datetime.today() > datetime.datetime(2023, 8, 17, 23, 0, 0) \
                     and cash_rec.get('inn_pman', 'XЧЛ') != 'XЧЛ':
                 bonus_export(shop_index=cash_rec.get('kassa_index', 'TT'),
