@@ -2,7 +2,7 @@ import sqlite3
 import logging
 import json
 import os
-from typing import Dict
+from typing import Dict, List
 
 sql_add_document = """
             INSERT INTO receipt (id,
@@ -30,11 +30,22 @@ sql_delete_document = """
 sql_delete_items = """
             DELETE FROM items WHERE id = ?;
 """
+# id, number_receipt, date_create, shop_id, sum, clientID, phone, bonus_add, bonus_dec
+sql_get_document = """
+            SELECT id, number_receipt, date_create, shop_id, sum, clientID, phone, bonus_add, bonus_dec
+            FROM receipt
+            LIMIT 10;
+"""
+sql_get_items = """
+            SELECT id, nn, name, quantity, price
+            FROM items
+            WHERE id = ?;
+"""
 
 
 class Receiptinsql():
 
-    def __init__(self, db_path: str = 'receipt_to_1C.db'):
+    def __init__(self, db_path: str = 'd:\\kassa\\db_receipt\\rec_to_1C.db'):
         self.conn = sqlite3.connect(db_path)
         self.create_table()
 
@@ -108,6 +119,28 @@ class Receiptinsql():
         logging.debug('удалили состав чека из БД')
         self.conn.commit()
 
+    def get_receipt(self) -> List:
+        """
+        метод получиния данных наших чеков из БД
+        :return:
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(sql_get_document)
+        recipt = cursor.fetchall()
+        return recipt
+
+    def get_items(self, id: str = '4M102036/02') -> List:
+        """
+        метод получения товаров в чеке по его id
+        :param id:
+        :return:
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(sql_get_items, (id,))
+        recipt = cursor.fetchall()
+        return recipt
+
+
 
 def main():
     file_json_name = '363605_03_sale.json'
@@ -116,9 +149,12 @@ def main():
             i_json = json.load(json_file)
     i_db = Receiptinsql()
     # i_db.create_table()
-    i_db.add_document(i_json)
+    # i_db.add_document(i_json)
+    rec = i_db.get_receipt()
+    print(rec)
+    # i_db.get_items(id='4M102036/02')
     # i_db.delete_receipt(rec_id="UZ363605/03")
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
     main()
