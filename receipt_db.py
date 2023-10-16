@@ -11,9 +11,10 @@ sql_add_document = """
                 shop_id,
                 sum,
                 clientID,
+                inn_pman,
                 phone,
                 bonus_add,
-                bonus_dec) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                bonus_dec) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_item = """
@@ -32,7 +33,7 @@ sql_delete_items = """
 """
 # id, number_receipt, date_create, shop_id, sum, clientID, phone, bonus_add, bonus_dec
 sql_get_document = """
-            SELECT id, number_receipt, date_create, shop_id, sum, clientID, phone, bonus_add, bonus_dec
+            SELECT id, number_receipt, date_create, shop_id, sum, clientID, inn_pman, phone, bonus_add, bonus_dec
             FROM receipt
             LIMIT 10;
 """
@@ -62,6 +63,7 @@ class Receiptinsql():
                 shop_id INTEGER,
                 sum REAL,
                 clientID VARCHAR(12),
+                inn_pman VARCHAR(12),
                 phone VARCHAR(11),
                 bonus_add INTEGER,
                 bonus_dec INTEGER
@@ -90,6 +92,7 @@ class Receiptinsql():
                        j_receipt.get('shop_id', 0),
                        j_receipt.get('sum', 0.0),
                        str(j_receipt.get('clientID', 'zalupa')),
+                       str(j_receipt.get('inn_pman', 'zalupa')),
                        str(j_receipt.get('phone', '')),
                        j_receipt.get('bonus_add', 0),
                        j_receipt.get('bonus_dec', 0))
