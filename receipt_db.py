@@ -4,25 +4,59 @@ import json
 import os
 from typing import Dict, List
 
+sql_make_db = """
+            CREATE TABLE IF NOT EXISTS receipt (
+                id VARCHAR(20) PRIMARY KEY,
+                number_receipt VARCHAR(20),
+                date_create VARCHAR(8),
+                shop_id INTEGER,
+                sum REAL,
+                SumBeforeSale INTEGER,
+                clientID VARCHAR(12),
+                inn_pman VARCHAR(12),
+                phone VARCHAR(11),
+                bonus_add INTEGER,
+                bonus_dec INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS items (
+                id VARCHAR(20),
+                nn VARCHAR(20),
+                barcode VARCHAR(31),
+                name VARCHAR(255),
+                quantity INTEGER,
+                price REAL,
+                seller VARCHAR(20),
+                comment VARCHAR(20),
+                FOREIGN KEY (id) REFERENCES 'receipt' (id)
+            );
+
+        """
+
 sql_add_document = """
-            INSERT INTO receipt (id,
+            INSERT INTO receipt (
+                id,
                 number_receipt,
                 date_create,
                 shop_id,
                 sum,
+                SumBeforeSale,
                 clientID,
                 inn_pman,
                 phone,
                 bonus_add,
-                bonus_dec) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                bonus_dec) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_item = """
-            INSERT INTO items (id,
+            INSERT INTO items (
+                id,
                 nn,
+                barcode,
                 name,
                 quantity,
-                price) VALUES (?, ?, ?, ?, ?);
+                price,
+                seller,
+                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_delete_document = """
@@ -31,14 +65,13 @@ sql_delete_document = """
 sql_delete_items = """
             DELETE FROM items WHERE id = ?;
 """
-# id, number_receipt, date_create, shop_id, sum, clientID, phone, bonus_add, bonus_dec
 sql_get_document = """
-            SELECT id, number_receipt, date_create, shop_id, sum, clientID, inn_pman, phone, bonus_add, bonus_dec
+            SELECT id, number_receipt, date_create, shop_id, sum, SumBeforeSale, clientID, inn_pman, phone, bonus_add, bonus_dec
             FROM receipt
             LIMIT 10;
 """
 sql_get_items = """
-            SELECT id, nn, name, quantity, price
+            SELECT id, nn, barcode, name, quantity, price, seller, comment
             FROM items
             WHERE id = ?;
 """
@@ -55,29 +88,7 @@ class Receiptinsql():
         метод создания нашей таблицы с чеками
         """
         cursor = self.conn.cursor()
-        cursor.executescript("""
-            CREATE TABLE IF NOT EXISTS receipt (
-                id VARCHAR(20) PRIMARY KEY,
-                number_receipt VARCHAR(20),
-                date_create VARCHAR(8),
-                shop_id INTEGER,
-                sum REAL,
-                clientID VARCHAR(12),
-                inn_pman VARCHAR(12),
-                phone VARCHAR(11),
-                bonus_add INTEGER,
-                bonus_dec INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS items (
-                id VARCHAR(20),
-                nn VARCHAR(20),
-                name VARCHAR(255),
-                quantity INTEGER,
-                price REAL,
-                FOREIGN KEY (id) REFERENCES 'receipt' (id)
-            );
-
-        """)
+        cursor.executescript(sql_make_db)
         logging.debug('создали БД')
         self.conn.commit()
 
@@ -91,6 +102,7 @@ class Receiptinsql():
                        j_receipt.get('date_create'),
                        j_receipt.get('shop_id', 0),
                        j_receipt.get('sum', 0.0),
+                       j_receipt.get('sum', 0) + j_receipt.get('total-discount', 0),
                        str(j_receipt.get('clientID', 'zalupa')),
                        str(j_receipt.get('inn_pman', 'zalupa')),
                        str(j_receipt.get('phone', '')),
@@ -101,11 +113,15 @@ class Receiptinsql():
         goods = []
         for item in j_receipt['items']:
             if item['quantity'] != 0:
+                # id, nn, barcode, name, quantity, price, seller, comment
                 product = (rec_id,
                            item.get('nn', ''),
+                           item.get('barcode', ''),
                            item.get('name', ''),
                            item.get('quantity'),
-                           item.get('price', 0.0))
+                           item.get('price', 0.0),
+                           item.get('seller'),
+                           item.get('comment'))
                 goods.append(product)
         self.conn.cursor().executemany(sql_add_item, goods)
         logging.debug('записали соства чека в БД')
