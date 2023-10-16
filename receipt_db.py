@@ -99,8 +99,8 @@ class Receiptinsql():
         for item in j_receipt['items']:
             if item['quantity'] != 0:
                 product = (rec_id,
-                           item.get('name', ''),
                            item.get('nn', ''),
+                           item.get('name', ''),
                            item.get('quantity'),
                            item.get('price', 0.0))
                 goods.append(product)
