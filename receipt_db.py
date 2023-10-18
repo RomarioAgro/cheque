@@ -54,7 +54,9 @@ sql_add_document = """
                 inn_pman,
                 phone,
                 bonus_add,
-                bonus_dec) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                bonus_dec,
+                bonus_begin,
+                bonus_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_item = """
@@ -137,7 +139,11 @@ class Receiptinsql():
                        str(j_receipt.get('inn_pman', 'zalupa')),
                        str(j_receipt.get('phone', '')),
                        j_receipt.get('bonus_add', 0),
-                       j_receipt.get('bonus_dec', 0))
+                       j_receipt.get('bonus_dec', 0),
+                       j_receipt.get('bonus_begin', ''),
+                       j_receipt.get('bonus_end', ''))
+
+
         self.conn.cursor().execute(sql_add_document, param_tuple)
         logging.debug('записали чек в БД')
         goods = []
@@ -192,13 +198,13 @@ class Receiptinsql():
 
 
 def main():
-    file_json_name = '363605_03_sale.json'
+    file_json_name = 'd:\\files\\374263_01_sale.json'
     if os.path.exists(file_json_name):
         with open(file_json_name, 'r', encoding='cp1251') as json_file:
             i_json = json.load(json_file)
     i_db = Receiptinsql()
     # i_db.create_table()
-    # i_db.add_document(i_json)
+    i_db.add_document(i_json)
     # rec = i_db.get_receipt()
     # print(rec)
     # i_db.get_items(id='4M102036/02')
