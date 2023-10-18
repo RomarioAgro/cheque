@@ -348,16 +348,21 @@ if __name__ == '__main__':
         if code_error_main == 0 and cash_rec is not None:
             import dbf_make
             dbf_make.main(cash_rec)
-            if cash_rec.get('operationtype', 'sale') == 'sale' or \
-                    cash_rec.get('operationtype', 'sale') == 'return_sale':
-                receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
-                receipt_to_1C.add_document(cash_rec)
-            if datetime.datetime.today() > datetime.datetime(2023, 8, 17, 23, 0, 0) \
-                    and cash_rec.get('inn_pman', 'XЧЛ') != 'XЧЛ':
-                bonus_export(shop_index=cash_rec.get('kassa_index', 'TT'),
-                             card_inn=cash_rec.get('inn_pman', '790000000000'),
-                             bonus_add=cash_rec.get('bonus_add', '0'),
-                             bonus_dec=cash_rec.get('bonus_dec', '0'))
+    except Exception as exc:
+        logger_check.debug(exc)
+    try:
+        if cash_rec.get('operationtype', 'sale') == 'sale' or \
+                cash_rec.get('operationtype', 'sale') == 'return_sale':
+            receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
+            receipt_to_1C.add_document(cash_rec)
+    except Exception as exc:
+        logger_check.debug(exc)
+    try:
+        if cash_rec.get('inn_pman', 'XЧЛ') != 'XЧЛ':
+            bonus_export(shop_index=cash_rec.get('kassa_index', 'TT'),
+                         card_inn=cash_rec.get('inn_pman', '790000000000'),
+                         bonus_add=cash_rec.get('bonus_add', '0'),
+                         bonus_dec=cash_rec.get('bonus_dec', '0'))
     except Exception as exc:
         logger_check.debug(exc)
     exit(code_error_main)
