@@ -16,7 +16,9 @@ sql_make_db = """
                 inn_pman VARCHAR(12),
                 phone VARCHAR(11),
                 bonus_add INTEGER,
-                bonus_dec INTEGER
+                bonus_dec INTEGER,
+                bonus_begin VARCHAR(8),
+                bonus_end VARCHAR(8)
             );
             CREATE TABLE IF NOT EXISTS items (
                 id VARCHAR(20),
@@ -30,6 +32,14 @@ sql_make_db = """
                 FOREIGN KEY (id) REFERENCES 'receipt' (id)
             );
 
+        """
+sql_update_db_bonus_begin = """
+            ALTER TABLE receipt
+            ADD COLUMN bonus_begin VARCHAR(8)
+        """
+sql_update_db_bonus_end = """
+            ALTER TABLE receipt
+            ADD COLUMN bonus_end VARCHAR(8)
         """
 
 sql_add_document = """
@@ -82,6 +92,7 @@ class Receiptinsql():
     def __init__(self, db_path: str = 'd:\\kassa\\db_receipt\\rec_to_1C.db'):
         self.conn = sqlite3.connect(db_path)
         self.create_table()
+        self.update_table()
 
     def create_table(self):
         """
@@ -91,6 +102,25 @@ class Receiptinsql():
         cursor.executescript(sql_make_db)
         logging.debug('создали БД')
         self.conn.commit()
+
+    def update_table(self):
+        """
+        метод обновления структуры таблицы
+        :return:
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.executescript(sql_update_db_bonus_begin)
+        except Exception as exc:
+            logging.debug('поле begin уже есть в таблице')
+        try:
+            cursor.executescript(sql_update_db_bonus_end)
+        except Exception as exc:
+            logging.debug('поле end уже есть в таблице')
+
+        self.conn.commit()
+        logging.debug('добавили поля в БД')
+
 
     def add_document(self, j_receipt: Dict = {}):
         """
@@ -169,8 +199,8 @@ def main():
     i_db = Receiptinsql()
     # i_db.create_table()
     # i_db.add_document(i_json)
-    rec = i_db.get_receipt()
-    print(rec)
+    # rec = i_db.get_receipt()
+    # print(rec)
     # i_db.get_items(id='4M102036/02')
     # i_db.delete_receipt(rec_id="UZ363605/03")
 
