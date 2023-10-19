@@ -335,6 +335,7 @@ def main() -> Tuple:
             # проверка на ошибки железа и бумаги
             status_code, status_description = o_shtrih.error_analysis_hard()
             if status_code == 0:
+                # открыть ящик
                 o_shtrih.open_box()
                 save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
                 return status_code, o_shtrih.cash_receipt
