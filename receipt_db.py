@@ -88,6 +88,10 @@ sql_get_items = """
             WHERE id = ?;
 """
 
+id_operation = {
+    'sale': 's',
+    'return_sale': 'r_s',
+}
 
 class Receiptinsql():
 
@@ -104,6 +108,13 @@ class Receiptinsql():
         cursor.executescript(sql_make_db)
         logging.debug('создали БД')
         self.conn.commit()
+
+    def test_update(self):
+        sql_update_db_test = """
+                    IF NOT EXISTS(SELECT 1 FROM pragma_table_info(receipt))
+                    ALTER TABLE receipt
+                    ADD COLUMN bonus_end VARCHAR(8)
+                """
 
     def update_table(self):
         """
@@ -128,7 +139,7 @@ class Receiptinsql():
         """
         метод заполнения нашей таблицы с чеками
         """
-        rec_id = j_receipt.get('id')
+        rec_id = j_receipt.get('id') + '_' + id_operation.get(j_receipt.get("operationtype", 'sale'), 's')
         param_tuple = (rec_id,
                        j_receipt.get('number_receipt'),
                        j_receipt.get('date_create'),
@@ -149,7 +160,6 @@ class Receiptinsql():
         goods = []
         for item in j_receipt['items']:
             if item['quantity'] != 0:
-                # id, nn, barcode, name, quantity, price, seller, comment
                 product = (rec_id,
                            item.get('nn', ''),
                            item.get('barcode', ''),
@@ -198,7 +208,7 @@ class Receiptinsql():
 
 
 def main():
-    file_json_name = 'd:\\files\\374263_01_sale.json'
+    file_json_name = 'd:\\files\\337188_02_sale.json'
     if os.path.exists(file_json_name):
         with open(file_json_name, 'r', encoding='cp1251') as json_file:
             i_json = json.load(json_file)
