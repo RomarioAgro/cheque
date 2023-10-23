@@ -13,6 +13,7 @@ import os
 import socket
 import getpass
 import time
+import psutil
 
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
@@ -587,6 +588,12 @@ class Shtrih(object):
         try:
             screen_width, screen_height = pyautogui.size()
             list_about_fr.append('SCREEN_RESOLUTION: {sw}x{sh}'.format(sw=screen_width, sh=screen_height))
+        except Exception as exc:
+            logging.debug(exc)
+        try:
+            svmem = psutil.virtual_memory()
+            memory = svmem[0] // 1024 // 1024
+            list_about_fr.append('MEMORY: {mem}Mb'.format(mem=memory))
         except Exception as exc:
             logging.debug(exc)
         today = datetime.datetime.today().date()
