@@ -18,7 +18,8 @@ sql_make_db = """
                 bonus_add INTEGER,
                 bonus_dec INTEGER,
                 bonus_begin VARCHAR(8),
-                bonus_end VARCHAR(8)
+                bonus_end VARCHAR(8),
+                operation_type VARCHAR(12)
             );
             CREATE TABLE IF NOT EXISTS items (
                 id VARCHAR(20),
@@ -37,6 +38,11 @@ sql_update_db_bonus_begin = """
             ALTER TABLE receipt
             ADD COLUMN bonus_begin VARCHAR(8)
         """
+sql_update_db_operation_type = """
+            ALTER TABLE receipt
+            ADD COLUMN operation_type VARCHAR(12)
+        """
+
 sql_update_db_bonus_end = """
             ALTER TABLE receipt
             ADD COLUMN bonus_end VARCHAR(8)
@@ -56,7 +62,8 @@ sql_add_document = """
                 bonus_add,
                 bonus_dec,
                 bonus_begin,
-                bonus_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                bonus_end,
+                operation_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_item = """
@@ -78,7 +85,20 @@ sql_delete_items = """
             DELETE FROM items WHERE id = ?;
 """
 sql_get_document = """
-            SELECT id, number_receipt, date_create, shop_id, sum, SumBeforeSale, clientID, inn_pman, phone, bonus_add, bonus_dec
+            SELECT id, 
+            number_receipt, 
+            date_create, 
+            shop_id, 
+            sum, 
+            SumBeforeSale, 
+            clientID, 
+            inn_pman, 
+            phone, 
+            bonus_add, 
+            bonus_dec,
+            bonus_begin,
+            bonus_end,
+            operation_type
             FROM receipt
             LIMIT 10;
 """
@@ -109,19 +129,18 @@ class Receiptinsql():
         logging.debug('создали БД')
         self.conn.commit()
 
-    def test_update(self):
-        sql_update_db_test = """
-                    IF NOT EXISTS(SELECT 1 FROM pragma_table_info(receipt))
-                    ALTER TABLE receipt
-                    ADD COLUMN bonus_end VARCHAR(8)
-                """
-
     def update_table(self):
         """
         метод обновления структуры таблицы
         :return:
         """
         cursor = self.conn.cursor()
+
+        try:
+            cursor.executescript(sql_update_db_operation_type)
+        except Exception as exc:
+            logging.debug('поле operation уже есть в таблице')
+
         try:
             cursor.executescript(sql_update_db_bonus_begin)
         except Exception as exc:
@@ -144,19 +163,20 @@ class Receiptinsql():
                        j_receipt.get('number_receipt'),
                        j_receipt.get('date_create'),
                        j_receipt.get('shop_id', 0),
-                       j_receipt.get('sum', 0.0),
+                       j_receipt.get('sum', 0.0) + j_receipt.get('summ16', 0.0),
                        j_receipt.get('sum', 0) + j_receipt.get('total-discount', 0),
-                       str(j_receipt.get('clientID', 'zalupa')),
-                       str(j_receipt.get('inn_pman', 'zalupa')),
+                       str(j_receipt.get('clientID', 'ДжонДоу')),
+                       str(j_receipt.get('inn_pman', 'ДжонДоу')),
                        str(j_receipt.get('phone', '')),
                        j_receipt.get('bonus_add', 0),
                        j_receipt.get('bonus_dec', 0),
                        j_receipt.get('bonus_begin', ''),
-                       j_receipt.get('bonus_end', ''))
+                       j_receipt.get('bonus_end', ''),
+                       j_receipt.get('operationtype', 'sale'))
 
 
         self.conn.cursor().execute(sql_add_document, param_tuple)
-        logging.debug('записали чек в БД')
+        logging.debug('записали чек в БД {0}'.format(param_tuple))
         goods = []
         for item in j_receipt['items']:
             if item['quantity'] != 0:
@@ -170,7 +190,7 @@ class Receiptinsql():
                            item.get('comment'))
                 goods.append(product)
         self.conn.cursor().executemany(sql_add_item, goods)
-        logging.debug('записали соства чека в БД')
+        logging.debug('записали состаd чека в БД {0}'.format(goods))
         self.conn.commit()
 
     def delete_receipt(self, rec_id: str = ''):
@@ -208,7 +228,7 @@ class Receiptinsql():
 
 
 def main():
-    file_json_name = 'd:\\files\\337188_02_sale.json'
+    file_json_name = 'd:\\files\\337056_02_return_sale.json'
     if os.path.exists(file_json_name):
         with open(file_json_name, 'r', encoding='cp1251') as json_file:
             i_json = json.load(json_file)
