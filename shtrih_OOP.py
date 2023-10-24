@@ -13,8 +13,7 @@ import os
 import socket
 import getpass
 import time
-import psutil
-
+from return_ram_memory import ram_memory
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
@@ -591,8 +590,7 @@ class Shtrih(object):
         except Exception as exc:
             logging.debug(exc)
         try:
-            svmem = psutil.virtual_memory()
-            memory = svmem[0] // 1024 // 1024
+            memory = ram_memory()
             list_about_fr.append('MEMORY: {mem}Mb'.format(mem=memory))
         except Exception as exc:
             logging.debug(exc)
