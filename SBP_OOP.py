@@ -46,10 +46,10 @@ def event_pyament(count_i, event, ):
         i_text_error = 'Истекло время ожидания оплаты' + '\nделайте новый чек'
         ctypes.windll.user32.MessageBoxW(0, i_text_error, i_title, 4096 + 16)
         logging.debug('событие = {0}'.format(i_text_error))
-        exit(2000)
+        return 2000
     if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
         logging.debug('событие = {0}'.format(event))
-        exit(2000)
+        return 2000
 
 
 class Scope(Enum):
@@ -524,7 +524,13 @@ class SBP(object):
                 start_time = now_time
                 logging.debug('обнулили токен статуса оплаты')
             event, values = window.read(timeout=1000)
-            event_pyament(i, event)
+            logging.debug(event)
+            # регистрируем событие выхода
+            i_exit = event_pyament(i, event)
+            if i_exit == 2000:
+                print('exit')
+                logging.debug('выход {0}'.format(event))
+                return i_exit, data_status
             # здесь посылаем запрос в сбербанк о статусе заказа
             # TODO подумай как еще можно сократить код
             data_status = self.status_order(
@@ -541,7 +547,8 @@ class SBP(object):
                 # если оплатили, то начинаем печатать ответ сервера
                 logging.debug(data_status)
                 i_exit = 0  # ошибка выхода 0 - нет ошибок
-                break
+                return i_exit, data_status
+                # break
             if data_status['order_state'] == 'DECLINED':
                 logging.debug(data_status)
                 error_code = data_status.get('order_operation_params', None)[0].get('response_code', 'код ошибки')
@@ -553,7 +560,7 @@ class SBP(object):
                 if i_exit == 0:
                     i_exit = 96
                     logging.debug('заказ отменен, код выхода не может быть 0, поэтому поменяли на {0}'.format(i_exit))
-                break
+                return i_exit, data_status
             if data_status['order_state'] == 'REVOKED':
                 logging.debug(data_status)
                 error_code = '97'
@@ -576,10 +583,12 @@ class SBP(object):
                     logging.debug('отправили в телегу сообщение')
                 except Exception as exc:
                     logging.debug(exc)
-                break
+                return i_exit, data_status
+                # break
             progress_bar.UpdateBar(i + 1)
             i += 1
         window.close()
+        print('окно закрылось')
         return i_exit, data_status
 
 
