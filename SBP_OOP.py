@@ -182,7 +182,7 @@ class SBP(object):
             "Authorization": f"Bearer {self.token(Scope.create)}",
             "rquid": rq_uid
         }
-        time_stamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        time_stamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
         param = {
             "rq_uid": rq_uid,
             "rq_tm": time_stamp,
