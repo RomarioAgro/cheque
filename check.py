@@ -21,8 +21,7 @@ logger_check.debug('start')
 
 
 try:
-    from turing_smart_screen_python.library.lcd.lcd_comm_rev_b import LcdCommRevB
-    from turing_smart_screen_python.qr import check_com_port, qr_image, show_qr
+    from turing_smart_screen_python.qr import output_content_on_minidisplay
 except Exception as exs:
     check_com_port = None
     qr_image = None
@@ -31,7 +30,7 @@ except Exception as exs:
     # exit(9994)
 
 
-os.chdir('d:\\kassa\\script_py\\shtrih\\')
+# os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 try:
     from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
@@ -67,7 +66,7 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'correct_return_sale': 130}
 
 COM_PORT = config('lcd_com', None)
-
+COM_PORT = 'COM13'
 
 def sale_sbp(o_shtrih, sbp_qr) -> str:
     """
@@ -77,30 +76,26 @@ def sale_sbp(o_shtrih, sbp_qr) -> str:
     :return:
     """
     # начинаем оплату по сбп
-
     order_info = sbp_qr.create_order(my_order=o_shtrih.cash_receipt)  # формируем заказ СБП
     o_shtrih.print_QR(order_info['order_form_url'])  # печатаем QR код на кассе
     # вывод QR на минидисплее
     mini_display = False
     if COM_PORT:
-        if check_com_port(COM_PORT):
-            qr_pict = qr_image(i_text=order_info['order_form_url'])
-            lcd_comm = LcdCommRevB(com_port=COM_PORT,
-                                   display_width=320,
-                                   display_height=480)
-            show_qr(lcd=lcd_comm, image=qr_pict, qr_text="для оплаты по СБП\nсосканируйте QR код\nСумма {0}".format(float(o_shtrih.cash_receipt['summ3'])))
-            mini_display = True
+        qr_pict = order_info['order_form_url']
+        qr_text = "для оплаты по СБП\nсосканируйте QR код\nСумма {0}".format(float(o_shtrih.cash_receipt['summ3']))
+        output_content_on_minidisplay(qr_pict, qr_text, display_on=True)
+        mini_display = True
     i_exit, data_status = sbp_qr.waiting_payment(cash_receipt=o_shtrih.cash_receipt)  # ждем оплаты по СБП
     if i_exit == 0:
         sbp_text_local = print_operation_SBP_PAY(data_status)
         if mini_display:
-            show_qr(lcd=lcd_comm, image=None)
+            output_content_on_minidisplay('', '', display_on=False)
         logger_check.debug(sbp_text_local)
     else:
         id_bad_order = data_status.get('order_id', '')
         sbp_qr.revoke(order_id=id_bad_order)
         if mini_display:
-            show_qr(lcd=lcd_comm, image=None)
+            output_content_on_minidisplay('', '', display_on=False)
         logger_check.debug(i_exit)
         exit(i_exit)
     return sbp_text_local
@@ -227,6 +222,7 @@ def main() -> Tuple:
             # начинаем оплату по сбп
             logger_check.debug('начинаем оплату по СБП')
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
+        #     залупа
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'HlynovSBP':
                 logger_check.debug('начинаем возврат по СБП Хлынов')
