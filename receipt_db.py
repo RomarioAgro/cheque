@@ -134,23 +134,31 @@ sql_get_bonusi = """
             WHERE id_receipt = ?;
 """
 
+SQL_COUNT = """
+            SELECT COUNT(*) FROM receipt 
+"""
+
 id_operation = {
     'sale': 's',
     'return_sale': 'r_s',
 }
 
+
 class Receiptinsql():
+    """
+    класс для работы с нашей таблицей чеков для 1С
+    """
 
     def __init__(self, db_path: str = 'd:\\kassa\\db_receipt\\rec_to_1C.db'):
         self.conn = sqlite3.connect(db_path)
         self.create_table()
-        # self.update_table()
+        self.update_table()
 
     def create_table(self):
         """
         метод создания нашей таблицы с чеками
         """
-        cursor = self.conn.cursor()
+        cursor = self.conn
         cursor.executescript(sql_make_db)
         logging.debug('создали БД')
         self.conn.commit()
@@ -160,25 +168,19 @@ class Receiptinsql():
         метод обновления структуры таблицы
         :return:
         """
+        pass
+
+    def count_receipt(self):
         cursor = self.conn.cursor()
+        cursor.execute(SQL_COUNT)
+        result = cursor.fetchone()
+        return result
 
-        try:
-            cursor.executescript(sql_update_db_operation_type)
-        except Exception as exc:
-            logging.debug('поле operation уже есть в таблице')
 
-        try:
-            cursor.executescript(sql_update_db_bonus_begin)
-        except Exception as exc:
-            logging.debug('поле begin уже есть в таблице')
-        try:
-            cursor.executescript(sql_update_db_bonus_end)
-        except Exception as exc:
-            logging.debug('поле end уже есть в таблице')
-
+    def drop_table(self):
+        cursor = self.conn.cursor()
+        cursor.executescript(SQL_DROP_TABLE)
         self.conn.commit()
-        logging.debug('добавили поля в БД')
-
 
     def add_document(self, j_receipt: Dict = {}):
         """
@@ -250,6 +252,7 @@ class Receiptinsql():
         cursor = self.conn.cursor()
         cursor.execute(sql_get_document)
         recipt = cursor.fetchall()
+        self.conn.commit()
         return recipt
 
     def get_items(self, id: str = '4M102036/02') -> List:
@@ -261,6 +264,7 @@ class Receiptinsql():
         cursor = self.conn.cursor()
         cursor.execute(sql_get_items, (id,))
         recipt = cursor.fetchall()
+        self.conn.commit()
         return recipt
 
     def get_bonusi(self, id: str = '4M102036/02') -> List:
@@ -272,6 +276,7 @@ class Receiptinsql():
         cursor = self.conn.cursor()
         cursor.execute(sql_get_bonusi, (id,))
         recipt = cursor.fetchall()
+        self.conn.commit()
         return recipt
 
 
@@ -285,15 +290,20 @@ def main():
     # with sqlite3.connect(db_path) as conn:
     #     cursor = conn.cursor()
     #     cursor.executescript(SQL_DROP_TABLE)
+    #     cursor.fetchone()
     i_db = Receiptinsql()
-    i_db.create_table()
-    i_db.add_document(i_json)
-    rec = i_db.get_receipt()
-    print(rec)
-    items = i_db.get_items(id=rec[0][0])
-    print(items)
-    bonusi = i_db.get_bonusi(id=rec[0][0])
-    print(bonusi)
+    print(i_db.count_receipt())
+    # a = i_db.count_receipt()
+    # if a[0] == 0:
+    #     i_db.drop_table()
+    # i_db.create_table()
+    # i_db.add_document(i_json)
+    # rec = i_db.get_receipt()
+    # print(rec)
+    # items = i_db.get_items(id=rec[0][0])
+    # print(items)
+    # bonusi = i_db.get_bonusi(id=rec[0][0])
+    # print(bonusi)
 
 
 if __name__ == '__main__':
