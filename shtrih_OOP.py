@@ -13,7 +13,7 @@ import os
 import socket
 import getpass
 import time
-from return_ram_memory import ram_memory
+from return_ram_memory import ram_memory, mini_display_qr
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
@@ -594,6 +594,12 @@ class Shtrih(object):
             list_about_fr.append('MEMORY: {mem}Mb'.format(mem=memory))
         except Exception as exc:
             logging.debug(exc)
+        try:
+            display_qr = mini_display_qr()
+            list_about_fr.append('MINIDISPLAYQR: {0}'.format(display_qr))
+        except Exception as exc:
+            logging.debug(exc)
+
         today = datetime.datetime.today().date()
         datenotsend_date = self.drv.Date.date()
         delta = today - datenotsend_date
