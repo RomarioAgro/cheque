@@ -102,8 +102,8 @@ def main():
         exit(0)
     if comp_rec['operationtype'] == 'open_box':
         i_shtrih.open_box()
-        list_aboutfr = i_shtrih.about_me()
-        save_about_fr(list_aboutfr)
+        # list_aboutfr = i_shtrih.about_me()
+        # save_about_fr(list_aboutfr)
         exit(0)
     # печать отчета СБП
     if comp_rec.get('SBP', 0) == 1:
