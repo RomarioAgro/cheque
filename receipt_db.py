@@ -224,11 +224,12 @@ class Receiptinsql():
         bonusi = []
         for item in j_receipt['bonus_items']:
             bonus_akciya = (rec_id,
-                       item.get('bonus_id', 0),
+                       item.get('bonus_id', None),
                        item.get('bonus_begin', ''),
                        item.get('bonus_end', ''),
                        item.get('bonus_add', 0))
-            bonusi.append(bonus_akciya)
+            if bonus_akciya[1]:
+                bonusi.append(bonus_akciya)
 
         self.conn.cursor().executemany(sql_add_bonusi, bonusi)
         logging.debug('записали бонусы чека в БД {0}'.format(bonusi))
@@ -281,7 +282,7 @@ class Receiptinsql():
 
 
 def main():
-    file_json_name = 'd:\\files\\5005_01_sale.json'
+    file_json_name = 'd:\\files\\5026_01_sale.json'
     if os.path.exists(file_json_name):
         with open(file_json_name, 'r', encoding='cp1251') as json_file:
             i_json = json.load(json_file)
@@ -297,7 +298,7 @@ def main():
     # if a[0] == 0:
     #     i_db.drop_table()
     # i_db.create_table()
-    # i_db.add_document(i_json)
+    i_db.add_document(i_json)
     # rec = i_db.get_receipt()
     # print(rec)
     # items = i_db.get_items(id=rec[0][0])
