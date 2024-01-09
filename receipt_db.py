@@ -62,7 +62,10 @@ sql_update_db_bonus_end = """
             ALTER TABLE receipt
             ADD COLUMN bonus_end VARCHAR(8)
         """
-
+sql_update_db_items = """
+            ALTER TABLE items
+            ADD COLUMN artname VARCHAR(254);
+        """
 sql_add_document = """
             INSERT INTO receipt (
                 id,
@@ -170,7 +173,12 @@ class Receiptinsql():
         метод обновления структуры таблицы
         :return:
         """
-        pass
+        try:
+            cursor = self.conn.cursor()
+            cursor.executescript(sql_update_db_items)
+        except Exception as exc:
+            logging.debug(f'ошибка обновления базы данных{exc}')
+
 
     def count_receipt(self):
         cursor = self.conn.cursor()
