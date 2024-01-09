@@ -29,6 +29,7 @@ sql_make_db = """
                 id VARCHAR(20),
                 nn VARCHAR(20),
                 barcode VARCHAR(31),
+                artname VARCHAR(255), 
                 name VARCHAR(255),
                 quantity INTEGER,
                 price REAL,
@@ -85,11 +86,12 @@ sql_add_item = """
                 id,
                 nn,
                 barcode,
+                artname,
                 name,
                 quantity,
                 price,
                 seller,
-                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_bonusi = f"""
@@ -123,7 +125,7 @@ sql_get_document = """
             LIMIT 10;
 """
 sql_get_items = """
-            SELECT id, nn, barcode, name, quantity, price, seller, comment
+            SELECT id, nn, barcode, artname, name, quantity, price, seller, comment
             FROM items
             WHERE id = ?;
 """
@@ -211,6 +213,7 @@ class Receiptinsql():
                 product = (rec_id,
                            item.get('nn', ''),
                            item.get('barcode', ''),
+                           item.get('artname', ''),
                            item.get('name', ''),
                            item.get('quantity'),
                            item.get('price', 0.0),
