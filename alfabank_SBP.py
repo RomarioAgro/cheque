@@ -14,8 +14,9 @@ import re
 from time import sleep
 from typing import Dict, Tuple
 from hlynov_sql import DocumentsDB
+import getpass
 
-# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
@@ -85,6 +86,20 @@ def decode_unicode_escape(encoded_message):
     decoded_message = pattern.sub(unicode_escape, encoded_message)
     return decoded_message
 
+def make_picture_qr_code(str_base64: str = '', f_name: str = 'kassir1'):
+    """
+    метод получения картинки QR кода после регистрации кассовой ссылки
+    :param str_base64: Base64-кодированные данные qr кода, возвращиет альфабанк
+    после регистрации ссылки
+    :return:
+    """
+    decoded_data = base64.b64decode(str_base64)
+    f_name = 'd:\\files\\' + f_name + '.png'
+    # Запись декодированных данных в файл PNG
+    with open(f_name, "wb") as f:
+        f.write(decoded_data)
+
+
 class Scope(Enum):
     """
     класс-перечисление команд-зон видимости для генерации токенов
@@ -107,7 +122,6 @@ class Alfa_SBP(object):
         """
         конструктор класса, объект инициализируется
         """
-        self.termno = os.getenv('alfa_temno')
         self.private_key_path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('private_key_path')))
         self.alias = os.getenv('alfa_alias')
         self.order = None
@@ -117,12 +131,16 @@ class Alfa_SBP(object):
         self.root_cert = os.path.normpath(os.path.join(os.path.dirname(__file__), 'alfabank_rootCA.crt'))
         self.error_code = None
         self.payrrn = None
+        # от имени юзера зависит имя переменной в которой хранится номер терминала и код кассовой ссылки
+        cashier = getpass.getuser().lower()
+        self.term_number = 'alfa_temno_' + cashier
+        self.qrcId_number = 'alfa_qrcid_' + cashier
+
 
     def _get_token(self, scope: Scope):
         """
-        метод получения токена авторизации, берем хэша json заказа без пробелов и переносов строк
+        метод получения токена авторизации, берем хэш json заказа без пробелов и переносов строк
         подписываем его приватным ключом
-        :param request_json:
         :return: str токен авторизации
         """
         json_order = self.order
@@ -138,15 +156,16 @@ class Alfa_SBP(object):
         logger_check.debug(f'токен={encoded_data_str}')
         return encoded_data_str
 
+
     def registaration_cash_link(self, my_order=None):
         """
         метод регистрации кассовой ссылки, делается 1 раз
         :return:
         """
-        #TODO подумаю над регистрацией, для нее нужен только номер терминала и команда
+        kassa = 'alfa_temno_kassir4'
         order_data = {
-            "TermNo": os.getenv('alfa_temno'),
-            'qrcId': os.getenv('alfa_qrcid')
+            "TermNo": os.getenv(kassa),
+            "command": Scope.registration.value
         }
         self.order = order_data
         token = self._get_token(Scope.registration)
@@ -160,6 +179,7 @@ class Alfa_SBP(object):
         data = _make_order_body(request_data=self.order)
         r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert)
         logger_check.debug(f'регистрация кассовой ссылки {r.text}')
+        make_picture_qr_code(str_base64=r.json()['content'], f_name=kassa)
 
     def create_order(self, my_order=None):
         """
@@ -168,11 +188,11 @@ class Alfa_SBP(object):
         """
         # собираем наш словарь заказа
         order_data = {
-            "TermNo": os.getenv('alfa_temno'),
+            "TermNo": os.getenv(self.term_number),
             "amount": int(my_order.get("summ3", 0)) * 100,  #сумма в копейках,
             "currency": "RUB",
             "paymentPurpose": my_order.get('number_receipt', 'nothing'),
-            'qrcId': os.getenv('alfa_qrcid'),
+            'qrcId': os.getenv(self.qrcId_number),
             'command': Scope.create.value
         }
         self.order = order_data
@@ -199,7 +219,7 @@ class Alfa_SBP(object):
         :return:
         """
         order_data = {
-            "TermNo": os.getenv('alfa_temno'),
+            "TermNo": os.getenv(self.term_number),
             "payrrn": payrrn,
             "amount": order_refund.get('cancel_sum', None),
             'command': Scope.possibility_refund.value,
@@ -223,8 +243,14 @@ class Alfa_SBP(object):
         return r.json()['ErrorCode']
 
     def _refund(self, payrrn: str = '', order_refund: dict = {}) -> None:
+        """
+        непосредственно возврат
+        :param payrrn:
+        :param order_refund:
+        :return:
+        """
         order_data = {
-            "TermNo": os.getenv('alfa_temno'),
+            "TermNo": os.getenv(self.term_number),
             "payrrn": payrrn,
             "amount": order_refund.get('cancel_sum', None),
             'command': Scope.refund.value,
@@ -250,9 +276,11 @@ class Alfa_SBP(object):
     def cancel(self, order_refund: dict = {}) -> Dict:
         """
         метод возврата денег покупателю
-        order_id str это id платежа по СБП у хлынова, там много всяких id, этот называется qrcId
-        amount int сумма возврата в копейках
-        :return: NOne
+        в альфе возврат состоит из двух запросов:
+        1)запрос возможности сделать возврат
+        2)запрос возврата
+        я не знаю зачем так сделано.
+        :return: dict
         """
         data_status = dict()
         path_sql = os.getenv('alfa_sql_path')
@@ -261,15 +289,18 @@ class Alfa_SBP(object):
         formatted_date = datetime.datetime.strftime(datetime_obj, '%Y-%m-%d')
         logger_check.debug('дата qrcid ={0} номер = {1}'.format(formatted_date, order_refund.get('sbis_id', None)))
         payrrn = alfa_sql.find_document(date=formatted_date, sbis_id=order_refund.get('sbis_id', None))
+        r_json = dict()
         if self._possibility_refund(payrrn=payrrn, order_refund=order_refund) == 0:
             r_json = self._refund(payrrn=payrrn, order_refund=order_refund)
+        else:
+            exit(2000)
         new_data = {"rq_tm": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')}
         data_status.update(new_data)
         new_data = {"operation_type": 'REFUND'}
         data_status.update(new_data)
         new_data = {'tid': os.getenv('alfa_temno')}
         data_status.update(new_data)
-        new_data = {"operation_id": r_json['trxId']}
+        new_data = {"operation_id": r_json.get('trxId', 'None')}
         data_status.update(new_data)
         new_data = {"operation_sum": order_refund.get('cancel_sum', None)}
         data_status.update(new_data)
@@ -282,7 +313,7 @@ class Alfa_SBP(object):
         :return:
         """
         order_data = {
-            "TermNo": os.getenv('alfa_temno'),
+            "TermNo": os.getenv(self.term_number),
             'command': Scope.status.value,
             'payrrn': payrrn
         }
@@ -409,7 +440,7 @@ def main():
         "paymentPurpose": '123',
     }
     # my_order = {
-    #     "TermNo": os.getenv('alfa_temno'),
+    #     "TermNo": os.getenv(self.term_number),
     #     "payrrn": "000000060112"
     # }
     # my_order = {
@@ -419,17 +450,17 @@ def main():
     sbp_qr = Alfa_SBP()
     # для регистрации кассовой ссылки нужен только терминал
     # sbp_qr.registaration_cash_link()
-    payrrn = sbp_qr.create_order(my_order=my_order)
+    # payrrn = sbp_qr.create_order(my_order=my_order)
     # payrrn = '000706732453'
     # my_order = {
-    #     "TermNo": os.getenv('alfa_temno'),
+    #     "TermNo": os.getenv(self.term_number),
     #     'payrrn': payrrn
     # }
 
-    while True:
-        sbp_qr.status_order(payrrn=payrrn)
-        sleep(3)
-    print('конец')
+    # while True:
+    #     sbp_qr.status_order(payrrn=payrrn)
+    #     sleep(3)
+    # print('конец')
 
 
 if __name__ == '__main__':
