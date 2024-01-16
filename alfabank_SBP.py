@@ -1,6 +1,5 @@
 import base64
 import logging
-import http.client
 import PySimpleGUI as sg
 import ctypes
 import os
@@ -17,10 +16,11 @@ from hlynov_sql import DocumentsDB
 import getpass
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
-
+script_name = os.path.splitext(os.path.basename(__file__))[0]
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+
 logging.basicConfig(
-    filename='d:\\files\\alfabank_SBP_' + current_time + '_.log',
+    filename=f'd:\\files\\{script_name}_{current_time}_.log',
     filemode='a',
     level=logging.DEBUG,
     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
@@ -29,7 +29,7 @@ logging.basicConfig(
 logger_check: logging.Logger = logging.getLogger(__name__)
 logger_check.setLevel(logging.DEBUG)
 logger_check.debug('start')
-env_path = os.path.join(os.path.dirname(__file__), '.env')
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(dotenv_path=env_path)
 
 
@@ -41,17 +41,6 @@ except Exception as exc:
 TIMEOUT_BANK = 600  #время жизни окна проверки статуса оплаты
 TOKEN_LIFE = 30  #время жизни токена сбербанка
 
-httpclient_logger = logging.getLogger("http.client")
-
-def httpclient_logging_patch(level=logging.DEBUG):
-    """Enable HTTPConnection debug logging to the logging framework"""
-    def httpclient_log(*args):
-        httpclient_logger.log(level, " ".join(args))
-    # mask the print() built-in in the http.client module to use
-    # logging instead
-    http.client.print = httpclient_log
-    # enable debugging
-    http.client.HTTPConnection.debuglevel = 1
 
 def event_pyament(count_i, event, ):
     if count_i > TIMEOUT_BANK:
@@ -99,6 +88,12 @@ def make_picture_qr_code(str_base64: str = '', f_name: str = 'kassir1'):
     with open(f_name, "wb") as f:
         f.write(decoded_data)
 
+def get_cashier():
+    cashier = getpass.getuser().lower()
+    if 'kassir' in cashier:
+        return cashier
+    else:
+        return 'kassir1'
 
 class Scope(Enum):
     """
@@ -111,6 +106,7 @@ class Scope(Enum):
     status = 'GetQRCstatus'
     possibility_refund = 'GetQRCreversalData'
     refund = 'QRCreversal'
+
 
 
 
@@ -132,7 +128,7 @@ class Alfa_SBP(object):
         self.error_code = None
         self.payrrn = None
         # от имени юзера зависит имя переменной в которой хранится номер терминала и код кассовой ссылки
-        cashier = getpass.getuser().lower()
+        cashier = get_cashier()
         self.term_number = 'alfa_temno_' + cashier
         self.qrcId_number = 'alfa_qrcid_' + cashier
 
@@ -432,6 +428,7 @@ class Alfa_SBP(object):
         logging.debug('окончательный статус = {0}, ответ сервера = {1}'.format(i_exit, data_status))
         return i_exit, data_status
 
+
 def main():
 
     my_order = {
@@ -450,7 +447,7 @@ def main():
     sbp_qr = Alfa_SBP()
     # для регистрации кассовой ссылки нужен только терминал
     # sbp_qr.registaration_cash_link()
-    # payrrn = sbp_qr.create_order(my_order=my_order)
+    payrrn = sbp_qr.create_order(my_order=my_order)
     # payrrn = '000706732453'
     # my_order = {
     #     "TermNo": os.getenv(self.term_number),
