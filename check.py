@@ -30,7 +30,7 @@ except Exception as exs:
     # exit(9994)
 
 
-# os.chdir('d:\\kassa\\script_py\\shtrih\\')
+os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 try:
     from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
@@ -52,12 +52,17 @@ try:
 except Exception as exs:
     logger_check.debug(exs)
     exit(9995)
+try:
+    from alfabank_SBP import Alfa_SBP
+except Exception as exs:
+    logger_check.debug(exs)
+    exit(9994)
 
 try:
     from receipt_db import Receiptinsql
 except Exception as exs:
     logger_check.debug(exs)
-    exit(9994)
+    exit(9993)
 
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -66,7 +71,6 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'correct_return_sale': 130}
 
 COM_PORT = config('lcd_com', None)
-COM_PORT = 'COM13'
 
 def sale_sbp(o_shtrih, sbp_qr) -> str:
     """
@@ -77,14 +81,17 @@ def sale_sbp(o_shtrih, sbp_qr) -> str:
     """
     # начинаем оплату по сбп
     order_info = sbp_qr.create_order(my_order=o_shtrih.cash_receipt)  # формируем заказ СБП
-    o_shtrih.print_QR(order_info['order_form_url'])  # печатаем QR код на кассе
-    # вывод QR на минидисплее
+    # если у нас альфабанк, то печатать ничего не надо
     mini_display = False
-    if COM_PORT:
-        qr_pict = order_info['order_form_url']
-        qr_text = "для оплаты по СБП\nсосканируйте QR код\nСумма {0}".format(float(o_shtrih.cash_receipt['summ3']))
-        output_content_on_minidisplay(qr_pict, qr_text, display_on=True)
-        mini_display = True
+    if o_shtrih.cash_receipt.get('SBP-type', 'sber') != 'alfabank_bank':
+        o_shtrih.print_QR(order_info['order_form_url'])  # печатаем QR код на кассе
+        # вывод QR на минидисплее
+        # mini_display = False
+        if COM_PORT:
+            qr_pict = order_info['order_form_url']
+            qr_text = "для оплаты по СБП\nсосканируйте QR код\nСумма {0}".format(float(o_shtrih.cash_receipt['summ3']))
+            output_content_on_minidisplay(qr_pict, qr_text, display_on=True)
+            mini_display = True
     i_exit, data_status = sbp_qr.waiting_payment(cash_receipt=o_shtrih.cash_receipt)  # ждем оплаты по СБП
     if i_exit == 0:
         sbp_text_local = print_operation_SBP_PAY(data_status)
@@ -162,21 +169,6 @@ def save_FiscalSign(i_path: str = '', i_file: str = '', i_fp: str = ''):
     with open(f_name, 'w') as i_file:
         i_file.write(i_fp)
 
-def bonus_export(i_path: str = 'e:\\inbox\\bonus\\',
-                 shop_index: str = '',
-                 card_inn: str = '790000000000',
-                 bonus_add: str = '0',
-                 bonus_dec: str = '0'):
-    """
-    функция экспорта бонусов, убираем это от сбиса
-    :return:
-    """
-    b_date = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
-    f_name = '{0}_{1}_{2}_A{3}_R{4}.txt'.format(shop_index, card_inn, b_date, bonus_add, bonus_dec)
-    with open(i_path + f_name, 'w') as i_file:
-        i_file.write('')
-
-
 def main() -> Tuple:
     """
     основная функция печати чека
@@ -211,6 +203,8 @@ def main() -> Tuple:
         try:
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
                 sbp_qr = SBP()
+            elif o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'alfabank_bank':
+                sbp_qr = Alfa_SBP()
             else:
                 sbp_qr = HlynovSBP()
         except Exception as exc:
@@ -222,10 +216,12 @@ def main() -> Tuple:
             # начинаем оплату по сбп
             logger_check.debug('начинаем оплату по СБП')
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
-        #     залупа
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'HlynovSBP':
                 logger_check.debug('начинаем возврат по СБП Хлынов')
+                sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
+            elif sbp_qr.__class__.__name__ == 'Alfa_SBP':
+                logger_check.debug('начинаем возврат по СБП Альфабанк')
                 sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
             else:
                 logger_check.debug('начинаем возврат по СБП Сбербанк')
@@ -258,7 +254,7 @@ def main() -> Tuple:
         # печать рекламы
         if o_shtrih.cash_receipt.get('text-attic-before-bc', None):
             o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
-            o_shtrih.cut_print()
+            # o_shtrih.cut_print()
         # печать баркода
         if o_shtrih.cash_receipt.get('barcode', None):
             o_shtrih.print_barcode()
@@ -352,14 +348,6 @@ if __name__ == '__main__':
                 cash_rec.get('operationtype', 'sale') == 'return_sale':
             receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
             receipt_to_1C.add_document(cash_rec)
-    except Exception as exc:
-        logger_check.debug(exc)
-    try:
-        if cash_rec.get('inn_pman', 'XЧЛ') != 'XЧЛ':
-            bonus_export(shop_index=cash_rec.get('kassa_index', 'TT'),
-                         card_inn=cash_rec.get('inn_pman', '790000000000'),
-                         bonus_add=cash_rec.get('bonus_add', '0'),
-                         bonus_dec=cash_rec.get('bonus_dec', '0'))
     except Exception as exc:
         logger_check.debug(exc)
     exit(code_error_main)
