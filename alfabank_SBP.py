@@ -144,8 +144,12 @@ class Alfa_SBP(object):
         json_order = _make_order_body(request_data=json_order)
         logger_check.debug(f'тело запроса={json_order}')
         path_key = os.path.normpath(os.path.join(os.path.dirname(__file__), self.private_key_path))
-        with open(path_key, 'rb') as key_file:
-            private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_file.read())
+        try:
+            with open(path_key, 'rb') as key_file:
+                private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_file.read())
+        except Exception as exc:
+            logger_check.debug(f'ошибка формирования приватного ключа={exc}')
+            exit(9990)
         signature = crypto.sign(private_key, json_order, 'sha256')
         encoded_data = base64.b64encode(signature)
         encoded_data_str = encoded_data.decode('utf-8').replace('\r', '').replace('\n', '')
