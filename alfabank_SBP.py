@@ -159,9 +159,11 @@ class Alfa_SBP(object):
         :return:
         """
         kassa = 'alfa_temno_kassir4'
+        qcrcid = 'alfa_qrcid_kassir4'
         order_data = {
             "TermNo": os.getenv(kassa),
-            "command": Scope.registration.value
+            "command": Scope.registration.value,
+            "qrcId": os.getenv(qcrcid)
         }
         self.order = order_data
         token = self._get_token(Scope.registration)
@@ -337,7 +339,6 @@ class Alfa_SBP(object):
         :param cash_receipt: dict словарь с чеком
         :return:
         """
-        sleep(15)  #в альфабанке надо ждать 15 секунд прежде чем запрашивать статус оплаты
         data_status = {}
         if cash_receipt is None:
             logging.debug('выход по ошибке словарь чека пустой')
@@ -373,13 +374,19 @@ class Alfa_SBP(object):
             else:
                 # здесь посылаем запрос в альфабанк о статусе заказа
                 try:
-                    data_status = self.status_order(payrrn=self.payrrn)
+                    # в альфабанке запрос о статусе можно послать только через 15 секунд после формирования заказа
+                    # чтобы кассиров не пугать пустой паузой, сделаем типа заглушку, как будто статус мы проверили
+                    if i > 15:
+                        data_status = self.status_order(payrrn=self.payrrn)
+                    else:
+                        data_status['status'] = 'UNKN'
+                        sleep(1)
                 except Exception as exc:
                     print(exc)
                     logging.debug('ошибка запроса статуса оплаты сбп альфабанк{0}'.format(exc))
                 print('Запрос состояния заказа {3}, сумма {0} руб. Попытка запроса № {1}. Статус заказа {2}'.
                       format(str(cash_receipt['summ3']),
-                             i + 1, data_status['status'],
+                             i + 1, data_status.get('status', 'UNKN'),
                              cash_receipt['number_receipt']))
                 logging.debug(data_status)
                 if data_status['status'] == 'ACWP':
@@ -447,7 +454,7 @@ def main():
     sbp_qr = Alfa_SBP()
     # для регистрации кассовой ссылки нужен только терминал
     # sbp_qr.registaration_cash_link()
-    payrrn = sbp_qr.create_order(my_order=my_order)
+    # payrrn = sbp_qr.create_order(my_order=my_order)
     # payrrn = '000706732453'
     # my_order = {
     #     "TermNo": os.getenv(self.term_number),
