@@ -433,9 +433,12 @@ class Alfa_SBP(object):
             new_data = {"operation_sum": cash_receipt['summ3'] * 100}
             data_status['order_operation_params'][0].update(new_data)
             path_sql = os.getenv('alfa_sql_path')
+            # сохраняем в базу данные чека, мало ли потом будет возврат
             alfa_sql = DocumentsDB(path_sql)
             alfa_sql.add_document(date=datetime.datetime.now().strftime('%Y-%m-%d'),
-                                    sbis_id=cash_receipt['number_receipt'], qrc_id=data_status['payrrn'])
+                                  sbis_id=cash_receipt['number_receipt'],
+                                  qrc_id=data_status['payrrn'],
+                                  sum=int(cash_receipt.get('summ3', 0)))
         logging.debug('окончательный статус = {0}, ответ сервера = {1}'.format(i_exit, data_status))
         return i_exit, data_status
 
