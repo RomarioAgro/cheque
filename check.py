@@ -329,17 +329,18 @@ def main() -> Tuple:
             if status_code == 0:
                 # открыть ящик
                 o_shtrih.open_box()
-                save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=o_shtrih.drv.FiscalSignAsString)
-                return status_code, o_shtrih.cash_receipt
+                return status_code, o_shtrih.cash_receipt, o_shtrih.drv.FiscalSignAsString
     else:
-        return pin_error, None
+        return pin_error, None, 'nothing'
 
 
 if __name__ == '__main__':
-    code_error_main, cash_rec = main()
+    code_error_main, cash_rec, fpd = main()  #возвращаем, код ошибки, словарь документа, Фискальный Признак Документа
     try:
         if code_error_main == 0 and cash_rec is not None:
             import dbf_make
+            save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=fpd)
+            save_FiscalSign(i_path=argv[1], i_file=argv[2] + '_fpd', i_fp=fpd)
             dbf_make.main(cash_rec)
     except Exception as exc:
         logger_check.debug(exc)
