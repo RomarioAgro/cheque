@@ -380,7 +380,7 @@ class Alfa_SBP(object):
                 try:
                     # в альфабанке запрос о статусе можно послать только через 15 секунд после формирования заказа
                     # чтобы кассиров не пугать пустой паузой, сделаем типа заглушку, как будто статус мы проверили
-                    if i > 15:
+                    if i > 5:
                         data_status = self.status_order(payrrn=self.payrrn)
                     else:
                         data_status['status'] = 'UNKN'
