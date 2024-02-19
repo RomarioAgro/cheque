@@ -339,7 +339,6 @@ if __name__ == '__main__':
     try:
         if code_error_main == 0 and cash_rec is not None:
             import dbf_make
-            save_FiscalSign(i_path=argv[1], i_file=argv[2], i_fp=fpd)
             save_FiscalSign(i_path=argv[1], i_file=argv[2] + '_fpd', i_fp=fpd)
             dbf_make.main(cash_rec)
     except Exception as exc:
