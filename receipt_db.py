@@ -3,7 +3,7 @@ import logging
 import json
 import os
 from typing import Dict, List
-from sql_script_for_receipt_db import \
+from shtrih.sql_script_for_receipt_db import \
     (SQL_DROP_TABLE, sql_make_db,
      sql_update_db_bonus_begin,
      sql_update_db_operation_type,
@@ -100,13 +100,14 @@ class Receiptinsql():
                            item.get('barcode', ''),
                            item.get('artname', ''),
                            item.get('name', ''),
+                           item.get('modification', ''),
                            item.get('quantity'),
                            item.get('price', 0.0),
                            item.get('seller'),
                            item.get('comment'))
                 goods.append(product)
         self.conn.cursor().executemany(sql_add_item, goods)
-        logging.debug('записали состаd чека в БД {0}'.format(goods))
+        logging.debug('записали состав чека в БД {0}'.format(goods))
         self.conn.commit()
 
         bonusi = []

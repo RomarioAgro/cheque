@@ -26,6 +26,7 @@ sql_make_db = """
                 barcode VARCHAR(31),
                 artname VARCHAR(255), 
                 name VARCHAR(255),
+                modification VARCHAR(254),
                 quantity INTEGER,
                 price REAL,
                 seller VARCHAR(20),
@@ -59,7 +60,7 @@ sql_update_db_bonus_end = """
         """
 sql_update_db_items = """
             ALTER TABLE items
-            ADD COLUMN artname VARCHAR(254);
+            ADD COLUMN modification VARCHAR(254);
         """
 sql_add_document = """
             INSERT INTO receipt (
@@ -86,10 +87,11 @@ sql_add_item = """
                 barcode,
                 artname,
                 name,
+                modification,
                 quantity,
                 price,
                 seller,
-                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_bonusi = f"""
@@ -123,7 +125,7 @@ sql_get_document = """
             LIMIT 10;
 """
 sql_get_items = """
-            SELECT id, nn, barcode, artname, name, quantity, price, seller, comment
+            SELECT id, nn, barcode, artname, name, modification, quantity, price, seller, comment
             FROM items
             WHERE id = ?;
 """
