@@ -124,7 +124,8 @@ class Alfa_SBP(object):
         self.token = None
         self.tls_cert = (os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_tls_crt'))),
                          os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_tls_key'))))
-        self.root_cert = os.path.normpath(os.path.join(os.path.dirname(__file__), 'alfabank_rootCA.crt'))
+        self.root_cert = False
+
         self.error_code = None
         self.payrrn = None
         # от имени юзера зависит имя переменной в которой хранится номер терминала и код кассовой ссылки
@@ -157,17 +158,17 @@ class Alfa_SBP(object):
         return encoded_data_str
 
 
-    def registaration_cash_link(self, my_order=None):
+    def registaration_cash_link(self, my_order=None, kassa: str = '', qrcid: str = ''):
         """
         метод регистрации кассовой ссылки, делается 1 раз
+        kassa: str это имя переменнои из .env файла в которой хранится номер терминала с системе СБП, строка
+        qrcid: str это имя переменнои из .env файла в которой хранится ID куаркода в системе СБП, строка
         :return:
         """
-        kassa = 'alfa_temno_kassir4'
-        qcrcid = 'alfa_qrcid_kassir4'
         order_data = {
             "TermNo": os.getenv(kassa),
             "command": Scope.registration.value,
-            "qrcId": os.getenv(qcrcid)
+            "qrcId": os.getenv(qrcid)
         }
         self.order = order_data
         token = self._get_token(Scope.registration)
@@ -207,7 +208,11 @@ class Alfa_SBP(object):
             "Authorization": token
         }
         data = _make_order_body(request_data=self.order)
-        r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert, timeout=20)
+        try:
+            r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert, timeout=20)
+        except Exception as exc:
+            print(exc)
+            logger_check.debug(f'ошибка запроса создания заказа {exc}')
         logger_check.debug(f'активация кассовой ссылки {r.text}')
         payrrn = r.json()['payrrn']
         self.order['order_id'] = payrrn
@@ -459,8 +464,16 @@ def main():
     # }
 
     sbp_qr = Alfa_SBP()
-    # для регистрации кассовой ссылки нужен только терминал
-    # sbp_qr.registaration_cash_link()
+    # для регистрации кассовой ссылки нужен только терминал и qrcid
+    # лучше их занести в .env файл, а тут использовать только имена этих
+    # переменных из .env файла, а потом в коде их читать
+    # kassa = 'alfa_temno_kassir1'
+    # qrcid = 'alfa_qrcid_kassir1'
+    # kassa - это номер терминала
+    # qrcid - это id qr с таблички альфабанка
+    kassa = 'alfa_temno_kassir_KB'
+    qrcid = 'alfa_qrcid_kassir_KB'
+    sbp_qr.registaration_cash_link(kassa=kassa, qrcid=qrcid)
     # payrrn = sbp_qr.create_order(my_order=my_order)
     # payrrn = '000706732453'
     # my_order = {
