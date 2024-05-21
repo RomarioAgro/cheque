@@ -426,6 +426,29 @@ class Shtrih(object):
             self.drv.WaitForPrinting()
             self.drv.StringQuantity = 10
 
+    def print_kupon(self, kupon_list: List):
+        """
+        метод печати купонов текст и barcode
+        :return:
+        """
+        for kupon in kupon_list:
+            self.drv.Password = 30
+            self.drv.BarCode = kupon.get("barcode", "")
+            self.drv.BarcodeType = 3
+            self.drv.BarcodeStartBlockNumber = 0
+            self.drv.BarcodeParameter1 = 0
+            self.drv.BarcodeParameter3 = 4
+            self.drv.BarcodeParameter5 = 3
+            self.drv.LoadAndPrint2DBarcode()
+            self.drv.WaitForPrinting()
+            self.drv.StringQuantity = 10
+            kupon_text_list = kupon.get("text", None)
+            if kupon_text_list:
+                self.print_advertisement(kupon_text_list)
+            if kupon.get("cut", 0) != 0:
+                self.cut_print(cut_type=kupon.get("cut", 0), feed=7)
+
+
     def get_info_about_FR(self):
         """
         функция запроса итогов фискализации
