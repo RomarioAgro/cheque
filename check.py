@@ -251,23 +251,32 @@ def main() -> Tuple:
         pin_error = 0
         pinpad_text = None
     if pin_error == 0:
-        # печать рекламы
-        if o_shtrih.cash_receipt.get('text-attic-before-bc', None):
-            o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-before-bc', None))
-            # o_shtrih.cut_print()
-        # печать баркода
-        if o_shtrih.cash_receipt.get('barcode', None):
-            o_shtrih.print_barcode()
-        # печать рекламы после баркода
-        if o_shtrih.cash_receipt.get('text-attic-after-bc', None):
-            o_shtrih.print_advertisement(o_shtrih.cash_receipt.get('text-attic-after-bc', None))
-            o_shtrih.cut_print()
         # печать слипа терминала
         if pinpad_text:
-            o_shtrih.print_pinpad(pinpad_text, str(o_shtrih.cash_receipt['sum-cashless']))
+            text_for_print = pinpad_text.split(o_shtrih.cash_receipt['cutter'])
+            for i, elem in enumerate(text_for_print):
+                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['sum-cashless']))
+                if i == 0:
+                    o_shtrih.cut_print()
+                    if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
+                        o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
+                        # на случай дробных оплат купоны обнуляем
+                        o_shtrih.cash_receipt['kupon'] = None
+        # видимо когда-то подразумевалась возможность одновременной оплаты по СБП и банковской картой
+        # отсюда и задвоение кода, надо будет убрать это
         # печать ответа от сервера СБП
         if sbp_text:
-            o_shtrih.print_pinpad(sbp_text, str(o_shtrih.cash_receipt['summ3']))
+            text_for_print = sbp_text.split(o_shtrih.cash_receipt['cutter'])
+            for i, elem in enumerate(text_for_print):
+                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ3']))
+                if i == 0:
+                    o_shtrih.cut_print()
+                    if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
+                        o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
+                        # на случай дробных оплат купоны обнуляем
+                        o_shtrih.cash_receipt['kupon'] = None
+
+
         # печать примечаний
         if o_shtrih.cash_receipt.get('text-basement', None):
             lll = o_shtrih.cash_receipt.get('text-basement', None)
@@ -298,6 +307,11 @@ def main() -> Tuple:
                         o_shtrih.drv.Summ1 = o_shtrih.cash_receipt['sum-cash']
                         o_shtrih.drv.CashIncome()
                         logger_check.debug('сделали внесение наличных {0}'.format(o_shtrih.cash_receipt['sum-cash']))
+                #печать купонов
+                if o_shtrih.cash_receipt.get('kupon', None):
+                    o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
+                    # на случай дробных оплат купоны обнуляем
+                    o_shtrih.cash_receipt['kupon'] = None
                 #печать номера чека
                 o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 3)
                 # печать бонусов
