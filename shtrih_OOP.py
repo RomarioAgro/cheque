@@ -810,9 +810,9 @@ class Shtrih(object):
                         logging.debug('continuation_printing статус: {0}'.format(ecr_status))
 
             count += 1
-            if count > 5:
+            if count > 3:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
-            if count > 10:
+            if count > 5:
                 Mbox('Ошибка {0}'.format(self.drv.ECRAdvancedMode), '{0}'.format(self.drv.ECRAdvancedModeDescription), 4096 + 16)
                 self.send_mess_to_tg(self.drv.ECRAdvancedMode, '{1}_она уже нажала OK {0} раз, будем делать все заново'.format(count, ecr_status))
                 # делаем возврат нереального кода
