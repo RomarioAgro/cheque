@@ -198,7 +198,8 @@ def main() -> Tuple:
         cutter_on = True
     # операци по СБП, оплата или возврат
     sbp_text = None
-    if o_shtrih.cash_receipt.get('SBP', 0) == 1:
+    if o_shtrih.cash_receipt.get('SBP', 0) == 1 \
+            and o_shtrih.cash_receipt.get('summ3', 0) != 0:
         logger_check.debug('зашли в СБП')
         try:
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
@@ -231,6 +232,10 @@ def main() -> Tuple:
             pass
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_return_sale':
             # при пробитии чеков коррекции не надо деньги трогать
+            pass
+        elif o_shtrih.cash_receipt.get('summ3', 0) == 0:
+            # за каким-то чертом кассиры делают пробитие чеков по СБП
+            # с нулевой суммой, в таком случае просто не надо к сбп обращаться
             pass
         else:
             # если мы не знаем что это, то выходим
