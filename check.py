@@ -5,6 +5,7 @@ from sys import argv, exit
 import datetime
 from decouple import config
 from typing import Tuple
+import uuid
 
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
@@ -57,6 +58,28 @@ try:
 except Exception as exs:
     logger_check.debug(exs)
     exit(9994)
+## импорт библиотек сервиса Podeli
+try:
+    from _podeli.podeli.BnplApiModul import *
+except Exception as exs:
+    logger_check.debug(exs)
+    exit(9992)
+try:
+    from _podeli.podeli.model.BnplOrderItem import BnplOrderItem
+except Exception as exs:
+    logger_check.debug(exs)
+    exit(9991)
+try:
+    from _podeli.podeli.model.RefundOrderRequest import RefundInfo, RefundItem
+except Exception as exs:
+    logger_check.debug(exs)
+    exit(9990)
+
+try:
+    from podeli import make_order_item, create_sale_waiting_pay_podeli
+except Exception as exs:
+    logger_check.debug(exs)
+    exit(9990)
 
 try:
     from receipt_db import Receiptinsql
@@ -107,6 +130,36 @@ def sale_sbp(o_shtrih, sbp_qr) -> str:
         exit(i_exit)
     return sbp_text_local
 
+# def sale_podeli(o_shtrih, api_podeli):
+#     """
+#     функция оплаты сервисом подели
+#     :param o_shtrih: объект чека
+#     :param api_podeli: обект вызовов api подели
+#     :return: результат оплаты
+#     """
+#     #запрос и формирование клиента
+#     from simple_dialog import get_user_id
+#     user_id = get_user_id()
+#     client = BnplClientInfo(
+#         id=user_id
+#     )
+#     #формирование заказа
+#     order_item = make_order_item(o_shtrih)
+#     order = BnplOrder(
+#         order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
+#         amount=o_shtrih.cash_receipt.get('summ3', 0.0),
+#         prepaid_amount=0.0,
+#         items=order_item
+#     )
+#     x_correlation_id = str(uuid.uuid4())
+#     # оплата
+#     result = api_podeli.create_order(
+#         order=order,
+#         client=client,
+#         x_correlation_id=x_correlation_id
+#     )
+#
+#     return result
 
 
 def return_sale_sbp(o_shtrih, sbp_qr) ->str:
@@ -202,6 +255,7 @@ def main() -> Tuple:
             and o_shtrih.cash_receipt.get('summ3', 0) != 0:
         logger_check.debug('зашли в СБП')
         try:
+            # это у нас печать QR сбп для разных банков
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
                 sbp_qr = SBP()
             elif o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'alfabank_bank':
@@ -241,6 +295,31 @@ def main() -> Tuple:
             # если мы не знаем что это, то выходим
             logger_check.debug('неизвестная операция, выход')
             exit(99)
+    ## оплата подели
+    podeli_text = None
+    if o_shtrih.cash_receipt.get('podeli', 0) == 1\
+        and o_shtrih.cash_receipt.get('summ3', 0) != 0:
+            if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
+                logger_check.debug('начинаем продажу по Подели')
+                podeli_text = create_sale_waiting_pay_podeli(o_shtrih)
+            elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
+                # пока не готово
+                pass
+            elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
+                # при пробитии чеков коррекции не надо деньги трогать
+                pass
+            elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_return_sale':
+                # при пробитии чеков коррекции не надо деньги трогать
+                pass
+            elif o_shtrih.cash_receipt.get('summ3', 0) == 0:
+                # за каким-то чертом кассиры делают пробитие чеков по подели
+                # с нулевой суммой, в таком случае просто не надо к подели обращаться
+                pass
+            else:
+                # если мы не знаем что это, то выходим
+                logger_check.debug('неизвестная операция, выход')
+                exit(99)
+
 
     # операция по пинпаду
     if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
@@ -272,6 +351,17 @@ def main() -> Tuple:
         # печать ответа от сервера СБП
         if sbp_text:
             text_for_print = sbp_text.split(o_shtrih.cash_receipt['cutter'])
+            for i, elem in enumerate(text_for_print):
+                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ3']))
+                if i == 0:
+                    o_shtrih.cut_print()
+                    if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
+                        o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
+                        # на случай дробных оплат купоны обнуляем
+                        o_shtrih.cash_receipt['kupon'] = None
+
+        if podeli_text:
+            text_for_print = podeli_text.split(o_shtrih.cash_receipt['cutter'])
             for i, elem in enumerate(text_for_print):
                 o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ3']))
                 if i == 0:
