@@ -76,7 +76,7 @@ except Exception as exs:
     exit(9990)
 
 try:
-    from podeli import make_order_item, create_sale_waiting_pay_podeli
+    from podeli import create_sale_waiting_pay_podeli, refund_podeli
 except Exception as exs:
     logger_check.debug(exs)
     exit(9990)
@@ -129,38 +129,6 @@ def sale_sbp(o_shtrih, sbp_qr) -> str:
         logger_check.debug(i_exit)
         exit(i_exit)
     return sbp_text_local
-
-# def sale_podeli(o_shtrih, api_podeli):
-#     """
-#     функция оплаты сервисом подели
-#     :param o_shtrih: объект чека
-#     :param api_podeli: обект вызовов api подели
-#     :return: результат оплаты
-#     """
-#     #запрос и формирование клиента
-#     from simple_dialog import get_user_id
-#     user_id = get_user_id()
-#     client = BnplClientInfo(
-#         id=user_id
-#     )
-#     #формирование заказа
-#     order_item = make_order_item(o_shtrih)
-#     order = BnplOrder(
-#         order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
-#         amount=o_shtrih.cash_receipt.get('summ3', 0.0),
-#         prepaid_amount=0.0,
-#         items=order_item
-#     )
-#     x_correlation_id = str(uuid.uuid4())
-#     # оплата
-#     result = api_podeli.create_order(
-#         order=order,
-#         client=client,
-#         x_correlation_id=x_correlation_id
-#     )
-#
-#     return result
-
 
 def return_sale_sbp(o_shtrih, sbp_qr) ->str:
     """
