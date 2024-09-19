@@ -44,50 +44,29 @@ except Exception as exs:
 config = configparser.ConfigParser()
 
 
-def get_random_order_id():
-    # берем количество секунд с начала времен
-    return trunc((datetime.datetime.now() - datetime.datetime(1, 1, 1)).total_seconds())
-
-
-def create(api: BnplApi, x_correlation_id: str, order: BnplOrder, client: BnplClientInfo):
-    try:
-        logger_check.debug("Запрашиваем создание заказа")
-        result = api.create_order(
-            order=order,
-            client=client,
-            x_correlation_id=x_correlation_id
-        )
-    except BnlpStatusError as e:
-        logger_check.debug(e)
-    except Exception as e:
-        logger_check.debug(e)
-        print(e)
-    return result
-
-def get_status(api: BnplApi, x_correlation_id: str, order: BnplOrder):
-    try:
-        print("Запрашиваем статус заказа")
-        logger_check.debug("Запрашиваем статус заказа")
-        result = api.get_order_info(
-            order_id=order.id,
-            x_correlation_id=x_correlation_id
-        )
-    except BnlpStatusError as e:
-        logger_check.debug(e)
-        print(e)
-    except Exception as e:
-        logger_check.debug(e)
-        print(e)
-    return result
-
-def refund(api: BnplApi, x_correlation_id: str, order: BnplOrder):
+def refund_podeli(o_shtrih):
     try:
         print("запрашиваем возврат одной штуки одной позиции")
-        logger_check.debug("запрашиваем возврат одной штуки одной позиции")
-        refund_item = RefundItem(item_id='333', refunded_quantity=1.0)
-        refund_info = RefundInfo(refund_id=str(get_random_order_id()), initiator='client', items=[refund_item])
+        logger_check.debug(f"возврат из {o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_')}")
+        config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
+        api = BnplApi(
+            login=config['podeli']['login'],
+            password=config['podeli']['password'],
+            cert_file=config['podeli']['cert_file'],
+            cert_key=config['podeli']['cert_key'],
+            url=config['podeli']['url'],
+            proxy=None,
+            verify_ssl=False
+        )
+        refund_item = make_refund_item(o_shtrih)
+        refund_info = RefundInfo(
+            refund_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
+            initiator='client',
+            items=refund_item)
+        x_correlation_id = str(uuid.uuid4())
+        # возврат
         refund_result = api.refund_order(
-            order_id=order.id,
+            order_id=o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_'),
             x_correlation_id=x_correlation_id,
             refund_info=refund_info)
     except BnlpStatusError as e:
@@ -117,6 +96,27 @@ def make_order_item(o_shtrih: Shtrih) -> List[BnplOrderItem]:
                     quantity=elem.get("quantity", 0),
                     prepaid_amount=0.0
                 ))
+    except Exception as exc:
+        logger_check.debug(f"ошибка {exc}")
+        print(exc)
+    return order_item
+
+def make_refund_item(o_shtrih: Shtrih) -> List[RefundItem]:
+    """
+    из объекта штриха получаем список артикулов возврата подели
+    :param o_shtrih: объект штриха для печати чека
+    :return:
+    """
+    order_item = []
+    try:
+        for elem in o_shtrih.cash_receipt.get('items', None):
+            ## подарочные артикулы нам в подели не нужны
+            if trunc(elem.get("price", 0.0)) > 0:
+                order_item.append(RefundItem(
+                    item_id=elem.get("barcode", None)[:31],
+                    refunded_quantity=elem.get("quantity", 0)
+                ))
+
     except Exception as exc:
         logger_check.debug(f"ошибка {exc}")
         print(exc)
@@ -220,16 +220,6 @@ def main():
         prepaid_amount=0.0,
         items=order_item
     )
-    print("========== Создание-подтверждение-возврат заказа =========")
-    x_correlation_id = str(uuid.uuid4())
-    result = create(api=api, x_correlation_id=x_correlation_id, order=order, client=client)
-    print(result)
-    result = get_status(api=api, x_correlation_id=x_correlation_id, order=order)
-    print(result)
-    input('пауза до ввода')
-    result = refund(api=api, x_correlation_id=x_correlation_id, order=order)
-    print(result)
-
 
 if __name__ == '__main__':
     main()
