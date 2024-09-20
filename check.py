@@ -271,8 +271,8 @@ def main() -> Tuple:
                 logger_check.debug('начинаем продажу по Подели')
                 podeli_text = create_sale_waiting_pay_podeli(o_shtrih)
             elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
+                podeli_text = refund_podeli(o_shtrih)
                 # пока не готово
-                pass
             elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
                 # при пробитии чеков коррекции не надо деньги трогать
                 pass

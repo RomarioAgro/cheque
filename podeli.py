@@ -46,7 +46,6 @@ config = configparser.ConfigParser()
 
 def refund_podeli(o_shtrih):
     try:
-        print("запрашиваем возврат одной штуки одной позиции")
         logger_check.debug(f"возврат из {o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_')}")
         config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
         api = BnplApi(
@@ -65,17 +64,43 @@ def refund_podeli(o_shtrih):
             items=refund_item)
         x_correlation_id = str(uuid.uuid4())
         # возврат
+        logger_check.debug(f"номер возврата {refund_info.id}")
+        # это id первоначального заказа
+        order_id = o_shtrih.cash_receipt.get('kassa_index', None) + \
+                   o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_')
         refund_result = api.refund_order(
-            order_id=o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_'),
+            order_id=order_id,
             x_correlation_id=x_correlation_id,
             refund_info=refund_info)
+        print(refund_result)
+        logger_check.debug(f"результат возврата {refund_result}")
     except BnlpStatusError as e:
         logger_check.debug(e)
         print(e)
     except Exception as e:
         logger_check.debug(e)
         print(e)
-    return refund_result
+    refund_result_text = text_receipt_for_refund(refund_result, x_correlation_id)
+    return refund_result_text
+
+def text_receipt_for_refund(*args):
+    """
+    формируем текст для печати на чеке для возврата товара
+    :return:
+    app.response, x_correlation_id, client.id
+    """
+    i_list = [] #список наших строк для печати
+    i_list.append('ПОДЕЛИ')
+    i_str = f'ВОЗВРАТ_ID {args[0].refund.id}'
+    i_list.append(format_string(i_str))
+    i_str = f'{datetime.datetime.strptime(args[0].refund.refundRequestDate, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d %H:%M:%S")}'
+    i_list.append(format_string(i_str))
+    i_str = f'ID {args[1]}'
+    i_list.append(format_string(i_str))
+    i_str = f'СУММА {args[0].refund.totalRefundedAmount}'
+    i_list.append(format_string(i_str))
+    o_str = '\n'.join(i_list) + ' \n' * 2 + '~S' + ' \n' * 2 + '\n'.join(i_list)
+    return o_str
 
 def make_order_item(o_shtrih: Shtrih) -> List[BnplOrderItem]:
     """
