@@ -1,9 +1,6 @@
-import time
 import uuid
 from math import trunc
-import datetime
 import configparser
-import os
 from sys import argv, exit
 from typing import List
 from _podeli.podeli.BnplApiModul import *
@@ -28,14 +25,12 @@ logging.basicConfig(
 
 logger_check: logging.Logger = logging.getLogger(__name__)
 logger_check.setLevel(logging.DEBUG)
-logger_check.debug('start')
+logger_check.debug('start podeli')
 DURATION_PAYMENT = 1200  ## время ожидания оплаты
 
 
-
-
 try:
-    from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
+    from shtrih_OOP import Shtrih, Mbox
 except Exception as exs:
     logger_check.debug(f"ошибка 9998 {exs} ")
     exit(9998)
@@ -44,7 +39,7 @@ except Exception as exs:
 config = configparser.ConfigParser()
 
 
-def refund_podeli(o_shtrih):
+def refund_podeli(o_shtrih: Shtrih):
     try:
         logger_check.debug(f"возврат из {o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_')}")
         config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
@@ -68,18 +63,21 @@ def refund_podeli(o_shtrih):
         # это id первоначального заказа
         order_id = o_shtrih.cash_receipt.get('kassa_index', None) + \
                    o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_')
-        refund_result = api.refund_order(
-            order_id=order_id,
-            x_correlation_id=x_correlation_id,
-            refund_info=refund_info)
-        print(refund_result)
+        refund_result = None
+        try:
+            refund_result = api.refund_order(
+                order_id=order_id,
+                x_correlation_id=x_correlation_id,
+                refund_info=refund_info)
+        except Exception as exc:
+            logger_check.debug(f'ошибка в запросе возврата {exc}')
         logger_check.debug(f"результат возврата {refund_result}")
-    except BnlpStatusError as e:
-        logger_check.debug(e)
-        print(e)
-    except Exception as e:
-        logger_check.debug(e)
-        print(e)
+    except BnlpStatusError as exc:
+        logger_check.debug(f'ошибка класса BnlpStatusError {exc}')
+        Mbox('Ошибка', exc, 4096 + 16)
+    except Exception as exc:
+        logger_check.debug(exc)
+        Mbox('Ошибка', exc, 4096 + 16)
     refund_result_text = text_receipt_for_refund(refund_result, x_correlation_id)
     return refund_result_text
 
@@ -168,7 +166,7 @@ def text_receipt_for_bayer(*args):
     o_str = '\n'.join(i_list) + ' \n' * 2 + '~S' + ' \n' * 2 + '\n'.join(i_list)
     return o_str
 
-def create_sale_waiting_pay_podeli(o_shtrih):
+def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     """
     функция оплаты сервисом подели
     :param o_shtrih: объект чека
