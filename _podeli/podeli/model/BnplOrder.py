@@ -12,6 +12,7 @@ class BnplOrder:
                  order_id: str,
                  amount: float,
                  prepaid_amount: float,
+                 address: str,
                  items: list[BnplOrderItem],
                  ) -> object:
         """
@@ -25,8 +26,8 @@ class BnplOrder:
         self.amount = amount
         self.prepaidAmount = prepaid_amount
         self.items = items
-        self.mall = 'Тестовый торговый центр'
-        self.address = 'тестовый адрес'
+        self.mall = ''
+        self.address = address
 
     def to_dict(self):
         """
