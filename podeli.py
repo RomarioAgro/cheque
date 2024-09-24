@@ -121,7 +121,6 @@ def make_order_item(o_shtrih: Shtrih) -> List[BnplOrderItem]:
                 ))
     except Exception as exc:
         logger_check.debug(f"ошибка {exc}")
-        print(exc)
     return order_item
 
 def make_refund_item(o_shtrih: Shtrih) -> List[RefundItem]:
@@ -142,7 +141,6 @@ def make_refund_item(o_shtrih: Shtrih) -> List[RefundItem]:
 
     except Exception as exc:
         logger_check.debug(f"ошибка {exc}")
-        print(exc)
     return order_item
 
 def text_receipt_for_bayer(*args):
@@ -175,20 +173,25 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     """
     # запрос и формирование клиента
     user_id = get_user_id()
-    # user_id = "MTgzOQ=="
     client = BnplClientInfo(
         id=user_id
     )
+    logger_check.debug(f'результат создания пользователя = {user_id}')
+    if user_id is None:
+        logger_check.debug(f'пользователя нет, дальше нет смысла продолжать')
+        exit(9988)
     # формирование заказа
     order_item = make_order_item(o_shtrih)
     order = BnplOrder(
         order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
         amount=o_shtrih.cash_receipt.get('summ3', 0.0),
         prepaid_amount=0.0,
+        address=o_shtrih.cash_receipt.get('adr', ''),
         items=order_item
     )
     x_correlation_id = str(uuid.uuid4())
     # оплата
+    logger_check.debug(f'объект заказа создан = \n{order.id}\n{order.amount}\n{order.address}\nx_correlation_id={x_correlation_id}')
     config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
     api = BnplApi(
         login=config['podeli']['login'],
@@ -199,12 +202,18 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
         proxy=None,
         verify_ssl=False
     )
-
-    result = api.create_order(
-        order=order,
-        client=client,
-        x_correlation_id=x_correlation_id
-    )
+    logger_check.debug(f'объект API создан \n{api.login}\n{api.password}\n{api.cert_file}\n{api.cert_key}\n{api.BaseUrl}')
+    try:
+        result = api.create_order(
+            order=order,
+            client=client,
+            x_correlation_id=x_correlation_id
+        )
+    except Exception as exc:
+        exit_code = 9987
+        logger_check.debug(f'результат создания заказа {exc} код выхода {exit_code}')
+        exit(exit_code)
+    logger_check.debug(f'результат создания заказа {result}')
     # Инициализация GUI (главное окно tkinter)
     root = tk.Tk()
     # Создаем форму с длительностью, например, 10 минут (600 секунд)
@@ -213,6 +222,10 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     if app.status_code == 'COMPLETED':
         podeli_text = text_receipt_for_bayer(app.response, x_correlation_id, client.id)
         return podeli_text
+    else:
+        exit_code = 9989
+        logger_check.debug(f'статус заказа: {app.status_code}, текстовое описание: {app.response} код выхода {exit_code}')
+        exit(exit_code)
     return result
 
 
