@@ -5,7 +5,6 @@ from sys import argv, exit
 import datetime
 from decouple import config
 from typing import Tuple
-import uuid
 
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
@@ -59,21 +58,21 @@ except Exception as exs:
     logger_check.debug(exs)
     exit(9994)
 ## импорт библиотек сервиса Podeli
-try:
-    from _podeli.podeli.BnplApiModul import *
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9992)
-try:
-    from _podeli.podeli.model.BnplOrderItem import BnplOrderItem
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9991)
-try:
-    from _podeli.podeli.model.RefundOrderRequest import RefundInfo, RefundItem
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9990)
+# try:
+#     from _podeli.podeli.BnplApiModul import *
+# except Exception as exs:
+#     logger_check.debug(exs)
+#     exit(9992)
+# try:
+#     from _podeli.podeli.model.BnplOrderItem import BnplOrderItem
+# except Exception as exs:
+#     logger_check.debug(exs)
+#     exit(9991)
+# try:
+#     from _podeli.podeli.model.RefundOrderRequest import RefundInfo, RefundItem
+# except Exception as exs:
+#     logger_check.debug(exs)
+#     exit(9990)
 
 try:
     from podeli import create_sale_waiting_pay_podeli, refund_podeli
@@ -267,6 +266,7 @@ def main() -> Tuple:
     podeli_text = None
     if o_shtrih.cash_receipt.get('podeli', 0) == 1\
         and o_shtrih.cash_receipt.get('summ3', 0) != 0:
+            o_shtrih.cash_receipt['adr'] = o_shtrih.addres_fr()
             if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
                 logger_check.debug('начинаем продажу по Подели')
                 podeli_text = create_sale_waiting_pay_podeli(o_shtrih)
