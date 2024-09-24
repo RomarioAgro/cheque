@@ -37,8 +37,17 @@ class App:
         self.start_time = time.time()
         self.end_time = self.start_time + self.duration
         self.progress_step = 100 / self.duration
+        # Привязка обработчика закрытия окна
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        # для отладки надо каментить выполнение в другом потоке
         threading.Thread(target=self.run_form).start()
         # self.run_form()
+
+    def on_close(self):
+        #код, который должен выполняться при закрытии окна
+        self.status_code = 2000
+        self.response = 'окно было закрыто пользователем'
+        self.root.destroy()  # Закрыть окно
 
     def run_form(self):
         start_time = time.time()
