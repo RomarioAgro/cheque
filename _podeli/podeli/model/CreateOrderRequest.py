@@ -3,7 +3,7 @@ import json
 from _podeli.podeli.model import BnplOrder
 from _podeli.podeli.model import BnplClientInfo
 from _podeli.podeli.model.BnplRequest import BnplRequest
-import base64
+
 
 class CreateOrderRequest(BnplRequest):
     """
@@ -15,16 +15,17 @@ class CreateOrderRequest(BnplRequest):
             self,
             order: BnplOrder,
             client: BnplClientInfo,
-            x_correlation_id: str):
-        original_string = "beletag_offline_test:test3"
-        encoded_bytes = base64.b64encode(original_string.encode('utf-8'))
-        self.auth = encoded_bytes.decode('utf-8')
+            x_correlation_id: str,
+            auth: str
+    ):
+        self.auth = auth
 
         """
         Создание запроса создания заказа
         :param order: данные о заказе ``podeli.model.BnplOrder.BnplOrder``
         :param client: данные о клиенте ``podeli.model.BnplClientInfo.BnplClientInfo``
         :param x_correlation_id: идентификатор заказа на стороне сервиса, строка GUID
+        :param auth: логин-пароль аутентификация в сервисе
         """
         super(CreateOrderRequest, self).__init__(
             method="POST",

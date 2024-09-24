@@ -5,6 +5,7 @@ import logging
 import os
 import datetime
 import ctypes
+import base64
 
 from _podeli.podeli.model.BnplClientInfo import BnplClientInfo
 from _podeli.podeli.model.BnplRequest import BnplRequest
@@ -66,6 +67,7 @@ class BnplApi:
         self.cert_key = cert_key
         self.verify_ssl = verify_ssl
         self.client = client_id
+        self.auth = base64.b64encode(f'{login}:{password}'.encode('utf-8')).decode('utf-8')
 
         # Отключение предупреждений о самоподписанном сертификате при отключенной верификации сертификата
         if not self.verify_ssl:
@@ -89,7 +91,8 @@ class BnplApi:
         create_request = CreateOrderRequest(
             order=order,
             client=client,
-            x_correlation_id=x_correlation_id
+            x_correlation_id=x_correlation_id,
+            auth=self.auth
         )
         response = self.request_api(create_request)
         result = self.__check_response(response)
@@ -108,10 +111,14 @@ class BnplApi:
         :raises: ``podeli.error.BnlpStatusError``: если статус ответа не 200 (не удалось сделать возврат по какой-то причине)
         :raises: ``podeli.error.BnlpFormatError``: не распознан ответ сервиса
         """
-        refund = RefundOrderRequest(order_id=order_id, x_correlation_id=x_correlation_id, refund_info=refund_info)
+        refund = RefundOrderRequest(
+            order_id=order_id,
+            x_correlation_id=x_correlation_id,
+            refund_info=refund_info,
+            auth=self.auth
+        )
         response = self.request_api(refund)
-        a = response.json()
-        logger_podeli.debug(f"самый первый ответ возврата{a}")
+        logger_podeli.debug(f"самый первый ответ возврата{response.json()}")
         result = self.__check_response(response)
         logger_podeli.debug(f'респонзе {response}')
         logger_podeli.debug(f'результ {result}')
@@ -136,12 +143,9 @@ class BnplApi:
             x_correlation_id=x_correlation_id
         )
         response = self.request_api(info_request)
-        print(f"респонзе на гет статус {response}")
         result = self.__check_response(response)
-        print(f"результ из респонзе {result}")
-        print(f"InfoOrderResponse.from_response(result) {InfoOrderResponse.from_response(result)}")
-        logger_podeli.debug(f'{response}')
-        logger_podeli.debug(f'{result}')
+        logger_podeli.debug(f'респонзе {response}')
+        logger_podeli.debug(f'результ из респонзе {result}')
         return InfoOrderResponse.from_response(result)
 
     @staticmethod

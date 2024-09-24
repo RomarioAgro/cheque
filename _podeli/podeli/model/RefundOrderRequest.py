@@ -74,16 +74,16 @@ class RefundOrderRequest(BnplRequest):
             self,
             order_id: str,
             x_correlation_id: str,
-            refund_info: RefundInfo
+            refund_info: RefundInfo,
+            auth: str
     ):
-        original_string = "beletag_offline_test:test3"
-        encoded_bytes = base64.b64encode(original_string.encode('utf-8'))
-        self.auth = encoded_bytes.decode('utf-8')
+        self.auth = auth
         """
         Создание запроса возврата
         :param order_id: идентификатор заказа на стороне клиента
         :param x_correlation_id: идентификатор заказа на стороне сервиса, строка GUID
         :param refund_info: информация о возврате ``RefundInfo``
+        :param auth: логин-пароль аутентификация в сервисе
         """
 
         super(RefundOrderRequest, self).__init__(
