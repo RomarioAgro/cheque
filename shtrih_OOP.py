@@ -256,6 +256,17 @@ class Shtrih(object):
         self.drv.GetECRStatus()
         return self.drv.ECRMode, self.drv.ECRModeDescription
 
+    def addres_fr(self):
+        """
+        метод получения адреса установки фискального регистратора
+        :return:
+        """
+        self.drv.TableNumber = 18
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 9
+        self.drv.ReadTable()
+        return self.drv.ValueOfFieldString
+
     def preparation_for_work(self):
         """
         функция подготовки кассы к работе
