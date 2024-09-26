@@ -27,14 +27,22 @@ class ReconciliationOrderResponse(object):
         :raises: ``podeli.error.BnlpFormatError``: не распознан ответ сервиса
         """
         list_operations = ['СПИСОК ОПЕРАЦИ ПОДЕЛИ']
+        add_date = True
         for payment in data["order"]["payments"]:
-            p_time = datetime.datetime.strptime(payment['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d %H:%M:%S")
-            list_operations.append(f"Платеж {payment['orderId']} {p_time} сумма {payment['amount']:.2f}")
+            if add_date:
+                o_time = datetime.datetime.strptime(payment['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d")
+                list_operations.append(o_time)
+                add_date = False
+            o_time = datetime.datetime.strptime(payment['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%H:%M:%S")
+            list_operations.append(f"PAY {payment['orderId']} {o_time} сумма {payment['amount']:.2f}")
         # Обработка возвратов
         for refund in data["order"]["refunds"]:
-            f_time = datetime.datetime.strptime(refund['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime(
-                "%Y-%m-%d %H:%M:%S")
-            list_operations.append(f"Возврат {refund['orderId']} {f_time} сумма {refund['amount']:.2f}")
+            if add_date:
+                o_time = datetime.datetime.strptime(refund['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y%m%d")
+                list_operations.append(o_time)
+                add_date = False
+            o_time = datetime.datetime.strptime(refund['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%H:%M:%S")
+            list_operations.append(f"REF {refund['orderId']} {o_time} сумма {refund['amount']:.2f}")
         list_operations.append('КОНЕЦ СПИСКА ОПЕРАЦИ ПОДЕЛИ')
         o_str = '\n'.join(list_operations) + '\n'
         return o_str
