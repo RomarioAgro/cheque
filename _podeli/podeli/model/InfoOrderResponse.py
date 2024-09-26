@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from _podeli.podeli.error import BnlpFormatError
-from _podeli.podeli.model.BnplClientInfo import BnplClientInfo
 from _podeli.podeli.model.BnplOrderItem import BnplOrderItem
 
 
@@ -75,51 +74,6 @@ class InfoOrder:
         return f'ID={self.order_id} Amount={self.amount} Date={self.date} Status={self.status}'
 
 
-class PaymentInfo:
-    """
-    Информация о платеже
-    """
-    def __init__(
-            self,
-            payment_number: int,
-            payment_date: datetime,
-            payment_amount: float,
-            status_name: str
-
-    ):
-        """
-        Создание информации о платеже
-        :param payment_number: порядковый номер платежа
-        :param payment_date: дата платежа
-        :param payment_amount: сумма платежа
-        :param status_name: статус платежа
-        """
-        self.paymentNumber = payment_number
-        self.paymentDate = payment_date
-        self.paymentAmount = payment_amount
-        self.statusName = status_name
-
-    @classmethod
-    def from_dict(cls, data):
-        """
-        Создание информации о платеже с параметрами из словаря
-        :param data: словарь с параметрами
-        :return: ``PaymentInfo``
-        :raises: ``podeli.error.BnlpFormatError``: не распознан ответ сервиса
-        """
-        try:
-            return cls(
-                payment_number=data['paymentNumber'],
-                payment_date=data['paymentDate'],
-                payment_amount=data['paymentAmount'],
-                status_name=data['statusName']
-            )
-        except KeyError as e:
-            raise BnlpFormatError(message=e)
-
-    def __str__(self):
-        return f'N={self.paymentNumber} Date={self.paymentDate} ' \
-               f'Amount={self.paymentAmount} Status={self.statusName}'
 
 
 class InfoOrderResponse:
@@ -155,3 +109,49 @@ class InfoOrderResponse:
     def __str__(self):
         print(self.order)
         return f'{self.order}'
+
+# class PaymentInfo:
+#     """
+#     Информация о платеже
+#     """
+#     def __init__(
+#             self,
+#             payment_number: int,
+#             payment_date: datetime,
+#             payment_amount: float,
+#             status_name: str
+#
+#     ):
+#         """
+#         Создание информации о платеже
+#         :param payment_number: порядковый номер платежа
+#         :param payment_date: дата платежа
+#         :param payment_amount: сумма платежа
+#         :param status_name: статус платежа
+#         """
+#         self.paymentNumber = payment_number
+#         self.paymentDate = payment_date
+#         self.paymentAmount = payment_amount
+#         self.statusName = status_name
+#
+#     @classmethod
+#     def from_dict(cls, data):
+#         """
+#         Создание информации о платеже с параметрами из словаря
+#         :param data: словарь с параметрами
+#         :return: ``PaymentInfo``
+#         :raises: ``podeli.error.BnlpFormatError``: не распознан ответ сервиса
+#         """
+#         try:
+#             return cls(
+#                 payment_number=data['paymentNumber'],
+#                 payment_date=data['paymentDate'],
+#                 payment_amount=data['paymentAmount'],
+#                 status_name=data['statusName']
+#             )
+#         except KeyError as e:
+#             raise BnlpFormatError(message=e)
+#
+#     def __str__(self):
+#         return f'N={self.paymentNumber} Date={self.paymentDate} ' \
+#                f'Amount={self.paymentAmount} Status={self.statusName}'

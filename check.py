@@ -57,22 +57,7 @@ try:
 except Exception as exs:
     logger_check.debug(exs)
     exit(9994)
-## импорт библиотек сервиса Podeli
-# try:
-#     from _podeli.podeli.BnplApiModul import *
-# except Exception as exs:
-#     logger_check.debug(exs)
-#     exit(9992)
-# try:
-#     from _podeli.podeli.model.BnplOrderItem import BnplOrderItem
-# except Exception as exs:
-#     logger_check.debug(exs)
-#     exit(9991)
-# try:
-#     from _podeli.podeli.model.RefundOrderRequest import RefundInfo, RefundItem
-# except Exception as exs:
-#     logger_check.debug(exs)
-#     exit(9990)
+
 
 try:
     from podeli import create_sale_waiting_pay_podeli, refund_podeli

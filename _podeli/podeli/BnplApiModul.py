@@ -17,6 +17,8 @@ from _podeli.podeli.model.InfoOrderRequest import InfoOrderRequest
 from _podeli.podeli.model.InfoOrderResponse import InfoOrderResponse
 from _podeli.podeli.model.RefundOrderRequest import RefundOrderRequest, RefundInfo
 from _podeli.podeli.model.RefundOrderResponse import RefundOrderResponse
+from _podeli.podeli.model.RegistryOrderRequest import ReconciliationOrderRequest
+from _podeli.podeli.model.RegistryOrderResponse import ReconciliationOrderResponse
 
 
 script_name = os.path.splitext(os.path.basename(__file__))[0]
@@ -72,6 +74,33 @@ class BnplApi:
         # Отключение предупреждений о самоподписанном сертификате при отключенной верификации сертификата
         if not self.verify_ssl:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    def reconcilation_order(self,
+                            x_correlation_id: str,
+                            delta_start: int,
+                            delta_end: int,
+                            detailing: bool
+                     ) -> CreateOrderResponse:
+        """
+        Метод сверки заказов за (текдат-delta)
+        :param x_correlation_id: идентификатор транзакции на стороне сервиса, строка GUID
+        :rtype: podeli.model.CreateOrderResponse
+        :raises: ``podeli.error.BnlpStatusError``: если статус ответа не 200 (не удалось создать заказ по какой-то причине)
+        :raises: ``podeli.error.BnlpFormatError``: не распознан ответ сервиса
+        """
+        reconciliation_request = ReconciliationOrderRequest(
+            x_correlation_id=x_correlation_id,
+            auth=self.auth,
+            delta_start=delta_start,
+            delta_end=delta_end,
+            detailing=detailing
+        )
+        logger_podeli.debug(f' заголовки запроса {reconciliation_request.headers}\nтело запроса {reconciliation_request.message}')
+        response = self.request_api(reconciliation_request)
+        result = self.__check_response(response)
+        logger_podeli.debug(f'{response}')
+        logger_podeli.debug(f'{result}')
+        return ReconciliationOrderResponse.from_response(result)
 
     def create_order(self,
                      order: BnplOrder,
@@ -211,7 +240,7 @@ class BnplApi:
             return r
         elif method == "GET":
             return requests.get(url,
-                                json=data,
+                                params=data,
                                 headers=headers,
                                 auth=(self.login, self.password),
                                 cert=(self.cert_file, self.cert_key),

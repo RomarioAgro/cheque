@@ -10,6 +10,7 @@ os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
 from shtrih_OOP import Shtrih
+from podeli import reconciliation_of_orders
 
 
 CUTTER = '~S'
@@ -116,6 +117,16 @@ def main():
                 logging.debug(exc)
                 str_registry_SBP += '\n' + str(exc)
             i_shtrih.print_pinpad(str_registry_SBP)
+            i_shtrih.drv.StringQuantity = 3
+            i_shtrih.drv.FeedDocument()
+            i_shtrih.cut_print(cut_type=2, feed=5)
+    # печать отчета подели
+    if comp_rec.get('podeli', 0) == 1:
+        podeli_text = reconciliation_of_orders(delta_start=0, delta_end=0, detailing=True)
+        i_shtrih.print_pinpad(podeli_text)
+        i_shtrih.drv.StringQuantity = 3
+        i_shtrih.drv.FeedDocument()
+        i_shtrih.cut_print(cut_type=2, feed=5)
 
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:

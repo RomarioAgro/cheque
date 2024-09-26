@@ -228,11 +228,19 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
         exit(exit_code)
     return result
 
-
-def main():
-    # Чтение INI файла
+def reconciliation_of_orders(
+        delta_start: int = 0,
+        delta_end: int = 0,
+        detailing: bool = True
+        ):
+    """
+    функция сверки заказов
+    :param o_shtrih: объект чека
+    :param api_podeli: обект вызовов api подели
+    :return: результат оплаты
+    """
+    x_correlation_id = str(uuid.uuid4())
     config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
-
     api = BnplApi(
         login=config['podeli']['login'],
         password=config['podeli']['password'],
@@ -242,20 +250,51 @@ def main():
         proxy=None,
         verify_ssl=False
     )
-    ## id клиента мы получаем сосканировав QR со смартфона покупателя
-    client = BnplClientInfo(
-        id="MTgzOQ=="
-    )
+    logger_check.debug(f'объект API создан \n{api.login}\n{api.password}\n{api.cert_file}\n{api.cert_key}\n{api.BaseUrl}')
+    result = 'списка заказов нет'
+    try:
+        result = api.reconcilation_order(
+            x_correlation_id=x_correlation_id,
+            delta_start=delta_start,
+            delta_end=delta_end,
+            detailing=detailing
+        )
+    except Exception as exc:
+        exit_code = 9987
+        logger_check.debug(f'результат запроса списка заказов {exc} код выхода {exit_code}')
+        exit(exit_code)
+    logger_check.debug(f'результат запроса списка заказов {result}')
+    return result
 
-    o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
-    order_item = make_order_item(o_shtrih)
 
-    order = BnplOrder(
-        order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
-        amount=o_shtrih.cash_receipt.get('summ3', 0.0),
-        prepaid_amount=0.0,
-        items=order_item
-    )
+def main():
+    # Чтение INI файла
+    # config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
+    # reconciliation_of_orders(delta_start=2, delta_end=2, detailing=True)
+    # api = BnplApi(
+    #     login=config['podeli']['login'],
+    #     password=config['podeli']['password'],
+    #     cert_file=config['podeli']['cert_file'],
+    #     cert_key=config['podeli']['cert_key'],
+    #     url=config['podeli']['url'],
+    #     proxy=None,
+    #     verify_ssl=False
+    # )
+    # ## id клиента мы получаем сосканировав QR со смартфона покупателя
+    # client = BnplClientInfo(
+    #     id="MTgzOQ=="
+    # )
+    #
+    # o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
+    # order_item = make_order_item(o_shtrih)
+    #
+    # order = BnplOrder(
+    #     order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
+    #     amount=o_shtrih.cash_receipt.get('summ3', 0.0),
+    #     prepaid_amount=0.0,
+    #     items=order_item
+    # )
+    pass
 
 if __name__ == '__main__':
     main()
