@@ -28,7 +28,8 @@ class ReconciliationOrderResponse(object):
         """
         list_operations = ['СПИСОК ОПЕРАЦИ ПОДЕЛИ']
         add_date = True
-        for payment in data["order"]["payments"]:
+        payments = (data.get("order", {})).get("payments", {})
+        for payment in payments:
             if add_date:
                 o_time = datetime.datetime.strptime(payment['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d")
                 list_operations.append(o_time)
@@ -36,7 +37,8 @@ class ReconciliationOrderResponse(object):
             o_time = datetime.datetime.strptime(payment['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%H:%M:%S")
             list_operations.append(f"PAY {payment['orderId']} {o_time} сумма {payment['amount']:.2f}")
         # Обработка возвратов
-        for refund in data["order"]["refunds"]:
+        refunds = (data.get("order", {})).get("refunds", {})
+        for refund in refunds:
             if add_date:
                 o_time = datetime.datetime.strptime(refund['transactionDate'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y%m%d")
                 list_operations.append(o_time)
