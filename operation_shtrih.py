@@ -117,15 +117,15 @@ def main():
             except Exception as exc:
                 logging.debug(exc)
                 str_registry_SBP += '\n' + str(exc)
-            i_shtrih.print_pinpad(str_registry_SBP)
-            i_shtrih.drv.StringQuantity = 3
-            i_shtrih.drv.FeedDocument()
-            i_shtrih.cut_print(cut_type=2, feed=5)
+                i_shtrih.print_pinpad(str_registry_SBP)
+                i_shtrih.drv.StringQuantity = 3
+                i_shtrih.drv.FeedDocument()
+                i_shtrih.cut_print(cut_type=2, feed=5)
     # печать отчета подели
     if comp_rec.get('podeli', 0) == 1:
         podeli_text = None
         try:
-            from _podeli import reconciliation_of_orders
+            from podeli import reconciliation_of_orders
         except Exception as exc:
             logging.debug(f'проблема импорта reconciliation_of_orders {exc}')
             podeli_text = "ошибка импорта модуля подели"
