@@ -245,7 +245,7 @@ def main() -> Tuple:
     ## оплата подели
     podeli_text = None
     if o_shtrih.cash_receipt.get('podeli', 0) == 1\
-        and o_shtrih.cash_receipt.get('summ3', 0) != 0:
+        and o_shtrih.cash_receipt.get('summ4', 0) != 0:
             try:
                 from podeli import create_sale_waiting_pay_podeli, refund_podeli
             except Exception as exc:

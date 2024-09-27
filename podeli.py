@@ -184,7 +184,7 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     order_item = make_order_item(o_shtrih)
     order = BnplOrder(
         order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
-        amount=o_shtrih.cash_receipt.get('summ3', 0.0),
+        amount=o_shtrih.cash_receipt.get('summ4', 0.0),
         prepaid_amount=0.0,
         address=o_shtrih.cash_receipt.get('adr', ''),
         items=order_item
