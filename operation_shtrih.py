@@ -6,11 +6,12 @@ import json
 from sys import argv, exit
 import datetime
 import sqlite3
+
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
 from pinpad_OOP import PinPad
 from shtrih_OOP import Shtrih
-from podeli import reconciliation_of_orders
+
 
 
 CUTTER = '~S'
@@ -122,7 +123,14 @@ def main():
             i_shtrih.cut_print(cut_type=2, feed=5)
     # печать отчета подели
     if comp_rec.get('podeli', 0) == 1:
-        podeli_text = reconciliation_of_orders(delta_start=0, delta_end=0, detailing=True)
+        podeli_text = None
+        try:
+            from _podeli import reconciliation_of_orders
+        except Exception as exc:
+            logging.debug(f'проблема импорта reconciliation_of_orders {exc}')
+            podeli_text = "ошибка импорта модуля подели"
+        if podeli_text is None:
+            podeli_text = reconciliation_of_orders(delta_start=0, delta_end=0, detailing=True)
         i_shtrih.print_pinpad(podeli_text)
         i_shtrih.drv.StringQuantity = 3
         i_shtrih.drv.FeedDocument()
