@@ -59,11 +59,6 @@ except Exception as exs:
     exit(9994)
 
 
-try:
-    from podeli import create_sale_waiting_pay_podeli, refund_podeli
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9990)
 
 try:
     from receipt_db import Receiptinsql
@@ -251,6 +246,13 @@ def main() -> Tuple:
     podeli_text = None
     if o_shtrih.cash_receipt.get('podeli', 0) == 1\
         and o_shtrih.cash_receipt.get('summ3', 0) != 0:
+            try:
+                from podeli import create_sale_waiting_pay_podeli, refund_podeli
+            except Exception as exc:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(0, 'Ошибка модуля подели', f'ошибка {exc} модуля подели\nзвоните в ИТ отдел', 4096 + 16)
+                logger_check.debug(f'ошибка импорта подели {exc}, код выхода 9990')
+                exit(9990)
             o_shtrih.cash_receipt['adr'] = o_shtrih.addres_fr()
             if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
                 logger_check.debug('начинаем продажу по Подели')
