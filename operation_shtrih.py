@@ -120,7 +120,6 @@ def main():
             i_shtrih.print_pinpad(str_registry_SBP)
             i_shtrih.drv.StringQuantity = 3
             i_shtrih.drv.FeedDocument()
-            i_shtrih.cut_print(cut_type=2, feed=5)
     # печать отчета подели
     if comp_rec.get('podeli', 0) == 1:
         podeli_text = None
@@ -134,7 +133,6 @@ def main():
         i_shtrih.print_pinpad(podeli_text)
         i_shtrih.drv.StringQuantity = 3
         i_shtrih.drv.FeedDocument()
-        i_shtrih.cut_print(cut_type=2, feed=5)
 
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:
