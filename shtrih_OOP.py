@@ -517,23 +517,6 @@ class Shtrih(object):
         """
         logging.debug('произошло обращение к методу check_km')
         Mbox('я не знаю что делать', f'сообщите дежурному о проблеме: произошло обращение к методу check_km', 4096 + 16)
-        # for qr in self.cash_receipt['km']:
-        #     """
-        #     поиск шиблона между 91 и 92 с помощью регулярного выражения
-        #     и замена потом этого шаблона на него же но с символами разрыва
-        #     перед 91 и 92
-        #     """
-        #     self.drv.BarCode = preparation_km(qr)
-        #     if (DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 0 or
-        #             DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 128):
-        #         self.drv.ItemStatus = 1
-        #     else:
-        #         self.drv.ItemStatus = 3
-        #     self.drv.CheckItemMode = 0
-        #     self.drv.DivisionalQuantity = False
-        #     self.drv.FNCheckItemBarcode2()
-        #     if self.drv.KMServerCheckingStatus != 15:
-        #         self.drv.FNAcceptMarkingCode()
 
     def about_me(self) -> List:
         """
@@ -734,6 +717,21 @@ class Shtrih(object):
         self.drv.RowNumber = 1
         self.drv.FieldNumber = 7
         self.drv.ValueOfFieldInteger = 1
+        self.drv.WriteTable()
+
+    def cutter_on_off(self, cut: int = 3):
+        """
+        метод управления отрезкой
+        :param cut: int
+        1 - полная отрезка
+        2 - не полная отрезка
+        3 - нет отрезки
+        :return:
+        """
+        self.drv.TableNumber = 1
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 7
+        self.drv.ValueOfFieldInteger = cut
         self.drv.WriteTable()
 
     def send_mess_to_tg(self, error_code, error_descripton) -> None:
