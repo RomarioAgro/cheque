@@ -14,6 +14,8 @@ from time import sleep
 from typing import Dict, Tuple
 from hlynov_sql import DocumentsDB
 import getpass
+import socket
+
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 script_name = os.path.splitext(os.path.basename(__file__))[0]
@@ -150,6 +152,18 @@ class Alfa_SBP(object):
                 private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_file.read())
         except Exception as exc:
             logger_check.debug(f'ошибка формирования приватного ключа={exc}')
+            f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
+            my_dict = {
+                'shop': f_name,
+                'text': f'ошибка формирования приватного ключа={exc}',
+                'number': self.order.get('paymentPurpose', 'unknown'),
+                'sum': 0
+            }
+            try:
+                my_bot = TgSender(message=my_dict)
+                my_bot.send_message()
+            except Exception as exc:
+                logging.debug('ошибка отправки телеграм {0}'.format(exc))
             exit(9990)
         signature = crypto.sign(private_key, json_order, 'sha256')
         encoded_data = base64.b64encode(signature)
@@ -211,8 +225,19 @@ class Alfa_SBP(object):
         try:
             r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert, timeout=20)
         except Exception as exc:
-            print(exc)
             logger_check.debug(f'ошибка запроса создания заказа {exc}')
+            f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
+            my_dict = {
+                'shop': f_name,
+                'text': f'ошибка запроса создания заказа {exc}',
+                'number': self.order.get('paymentPurpose', 'unknown'),
+                'sum': 0
+            }
+            try:
+                my_bot = TgSender(message=my_dict)
+                my_bot.send_message()
+            except Exception as exc:
+                logging.debug('ошибка отправки телеграм {0}'.format(exc))
         logger_check.debug(f'активация кассовой ссылки {r.text}')
         payrrn = r.json()['payrrn']
         self.order['order_id'] = payrrn
