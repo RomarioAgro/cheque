@@ -3,6 +3,7 @@ from tkinter import ttk
 import threading
 import time
 import random
+from datetime import datetime
 
 
 STATUS_EXIT_FORM = ['COMPLETED', 'CANCELLED', 'REJECTED', 'REFUNDED']
@@ -58,7 +59,8 @@ class App:
             # Выполнение запроса каждые 3 секунды
             time.sleep(TIME_PAUSE)
             response = self.req_function(self.req_param_id, self.req_param_x_correlation)
-            self.result_text.insert(tk.END, f"Ответ: {response}\n")
+            current_time = datetime.now().strftime("%H:%M:%S")
+            self.result_text.insert(tk.END, f"{current_time} Ответ: {response}\n")
             print(f"ответ из формы {response}")
 
             try:
