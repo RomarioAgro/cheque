@@ -29,6 +29,7 @@ sql_make_db = """
                 modification VARCHAR(254),
                 quantity INTEGER,
                 price REAL,
+                fullprice REAL,
                 seller VARCHAR(20),
                 comment VARCHAR(20),
                 FOREIGN KEY (id) REFERENCES 'receipt' (id)
@@ -60,7 +61,7 @@ sql_update_db_bonus_end = """
         """
 sql_update_db_items = """
             ALTER TABLE items
-            ADD COLUMN modification VARCHAR(254);
+            ADD COLUMN fullprice REAL;
         """
 sql_add_document = """
             INSERT INTO receipt (
