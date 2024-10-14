@@ -42,7 +42,7 @@ config = configparser.ConfigParser()
 def refund_podeli(o_shtrih: Shtrih):
     try:
         logger_check.debug(f"возврат из {o_shtrih.cash_receipt.get('initial_sale_number', None).replace('/', '_')}")
-        config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
+        config.read('d:\\kassa\\script_py\\shtrih\\podeli_config.ini')
         api = BnplApi(
             login=config['podeli']['login'],
             password=config['podeli']['password'],
@@ -192,7 +192,7 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     x_correlation_id = str(uuid.uuid4())
     # оплата
     logger_check.debug(f'объект заказа создан = \n{order.id}\n{order.amount}\n{order.address}\nx_correlation_id={x_correlation_id}')
-    config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
+    config.read('d:\\kassa\\script_py\\shtrih\\podeli_config.ini')
     api = BnplApi(
         login=config['podeli']['login'],
         password=config['podeli']['password'],
@@ -240,7 +240,7 @@ def reconciliation_of_orders(
     :return: результат оплаты
     """
     x_correlation_id = str(uuid.uuid4())
-    config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
+    config.read('d:\\kassa\\script_py\\shtrih\\podeli_config.ini')
     api = BnplApi(
         login=config['podeli']['login'],
         password=config['podeli']['password'],
@@ -269,7 +269,7 @@ def reconciliation_of_orders(
 
 def main():
     # Чтение INI файла
-    # config.read('d:\\kassa\\script_py\\shtrih\\config.ini')
+    # config.read('d:\\kassa\\script_py\\shtrih\\podeli_config.ini')
     # reconciliation_of_orders(delta_start=2, delta_end=2, detailing=True)
     # api = BnplApi(
     #     login=config['podeli']['login'],
