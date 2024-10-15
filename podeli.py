@@ -262,7 +262,6 @@ def reconciliation_of_orders(
     except Exception as exc:
         exit_code = 9987
         logger_check.debug(f'результат запроса списка заказов {exc} код выхода {exit_code}')
-        exit(exit_code)
     logger_check.debug(f'результат запроса списка заказов {result}')
     return result
 
