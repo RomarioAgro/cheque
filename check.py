@@ -70,7 +70,7 @@ path_to_env = os.path.dirname(os.path.abspath(__file__))
 # path_to_env = 'd:\\kassa\\script_py\\shtrih\\'
 config_rec = Config(RepositoryEnv(path_to_env + '//.env'))
 COM_PORT = config_rec('lcd_com', None)
-
+STOP_WORD = 'vozvrat'  #флаг по которому мы не проверяем КМ в ЧЗ
 
 def sale_sbp(o_shtrih, sbp_qr) -> str:
     """
@@ -173,7 +173,8 @@ def check_KM_in_honeist_sign(o_shtrih):
     и проверка включена
     :return:
     """
-    km_for_checking = o_shtrih.cash_receipt.get('km', None)
+    my_list = o_shtrih.cash_receipt.get('km', None)
+    km_for_checking = [item for item in my_list if item != STOP_WORD]
     if km_for_checking and o_shtrih.cash_receipt.get('perm_mode', 1) == 1:
         dict_for_check = {
             'operation': o_shtrih.cash_receipt.get('operationtype', 'sale'),

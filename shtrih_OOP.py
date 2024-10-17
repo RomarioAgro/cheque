@@ -6,16 +6,18 @@ current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_
 
 import win32com.client
 import json
-from typing import Tuple, List
+from typing import Tuple, List, Any
 import ctypes
 import re
 import os
 import socket
 import getpass
 import time
-from return_ram_memory import ram_memory, mini_display_qr
+from preparation_km_to_honest_sign import preparation_km
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
+from shtrih.return_ram_memory import ram_memory, mini_display_qr
+
 
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
@@ -120,6 +122,16 @@ class Shtrih(object):
                     self.drv.DivisionalQuantity = False
                     self.drv.BarCode = preparation_km(item['qr'])
                     self.drv.FNSendItemBarcode()
+                    # отправляем данные проверки КМ для разрешительного режима
+                    self.send_tag_operation('030', tag_number=1262, tag_type=7)
+                    date_check_odj = datetime.datetime.strptime(self.cash_receipt['date_create'], "%Y%m%d")
+                    date_check_str = date_check_odj.strftime("%d.%m.%Y")
+                    self.send_tag_operation(date_check_str, tag_number=1263, tag_type=7)
+                    self.send_tag_operation(self.cash_receipt['number_receipt'], tag_number=1264, tag_type=7)
+                    self.send_tag_operation(f"UUID={self.cash_receipt['reqId']}&Time={self.cash_receipt['reqTimestamp']}",
+                                            tag_number=1265,
+                                            tag_type=7
+                                            )
                 if len(item['qr_water']) > 30:
                     self.drv.DivisionalQuantity = False
                     self.drv.BarCode = preparation_km_water(item['qr_water'])
@@ -176,6 +188,31 @@ class Shtrih(object):
         fp_str = self.drv.FiscalSignAsString
         logging.debug('чек закрылся ФД: {0}, ФП: {1},  ФП строка: {2}'.format(fd, fp, fp_str))
         return error_code, error_descr
+
+    def send_tag_operation(self,
+                 tag_value: Any,
+                 tag_number: int = 0,
+                 tag_type: int = 7,
+                 ):
+        """
+        метод отправки тэгов привязанных к операции
+        tag_value значение тэга который надо отправить
+        tag_number номер тэга
+        tag_type тип значения
+        0,1,2 это числовые данные
+        7 это строка
+        :return:
+        """
+
+        self.drv.TagNumber = tag_number
+        self.drv.TagType = tag_type
+        if tag_type == 7:
+            self.drv.TagValueStr = tag_value
+        elif tag_type == 1 or \
+                tag_type == 2 or \
+                tag_type == 0:
+            self.drv.TagValueInt = tag_value
+        self.drv.FNSendTagOperation()
 
     def print_on(self):
         """
@@ -945,8 +982,9 @@ def Mbox(title, text, style):
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
 
-def preparation_km(in_km: str) -> str:
+def preparation_km_off(in_km: str) -> str:
     """
+    пока выключил
     функция подготовки кода маркировки к отправке в честный знак
     вставляем символы разрыва перед 91 и 92
     :param in_km: str
