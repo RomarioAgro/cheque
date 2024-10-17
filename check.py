@@ -3,9 +3,9 @@ import os
 import time
 from sys import argv, exit
 import datetime
-from decouple import config
+from decouple import Config, RepositoryEnv
 from typing import Tuple
-
+from correct_email import sanitize_email, is_valid_email
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
@@ -33,46 +33,44 @@ except Exception as exs:
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
 try:
-    from shtrih_OOP import Shtrih, print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
+    from shtrih_OOP import print_operation_SBP_PAY, print_operation_SBP_REFUND, Mbox
 except Exception as exs:
     logger_check.debug(exs)
     exit(9998)
-try:
-    from pinpad_OOP import PinPad
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9997)
-try:
-    from hlynov_bank import HlynovSBP
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9996)
-try:
-    from SBP_OOP import SBP
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9995)
-try:
-    from alfabank_SBP import Alfa_SBP
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9994)
+
+# Попытка импорта модулей
+def safe_import(module_name, class_name, error_exit_code):
+    try:
+        # Импортируем модуль
+        module = __import__(module_name, fromlist=[class_name])
+        # Получаем класс из модуля
+        class_ = getattr(module, class_name)
+        return class_
+    except (ImportError, AttributeError) as e:
+        logger_check.debug(f"Ошибка импорта класса {class_name} из модуля {module_name}: {e}")
+        exit(error_exit_code)
+    except Exception as e:
+        logger_check.debug(f"Ошибка импорта класса {class_name} из модуля {module_name}: {e}")
+        exit(error_exit_code)
 
 
-
-try:
-    from receipt_db import Receiptinsql
-except Exception as exs:
-    logger_check.debug(exs)
-    exit(9993)
-
+Shtrih = safe_import('shtrih_OOP', 'Shtrih', 9998)
+PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
+HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
+SBP = safe_import('SBP_OOP', 'SBP', 9995)
+Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
+Receiptinsql = safe_import('receipt_db', 'Receiptinsql', 9993)
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
                         'return_sale': 2,
                         'correct_sale': 128,
                         'correct_return_sale': 130}
 
-COM_PORT = config('lcd_com', None)
+path_to_env = os.path.dirname(os.path.abspath(__file__))
+# path_to_env = 'd:\\kassa\\script_py\\shtrih\\'
+config_rec = Config(RepositoryEnv(path_to_env + '//.env'))
+COM_PORT = config_rec('lcd_com', None)
+
 
 def sale_sbp(o_shtrih, sbp_qr) -> str:
     """
@@ -153,7 +151,6 @@ def return_sale_sbp_hlynov(o_shtrih, sbp_qr) ->str:
     logger_check.debug(data_status)
     return sbp_text_local
 
-
 def return_sale_pinpad():
     pass
 
@@ -169,10 +166,36 @@ def save_FiscalSign(i_path: str = '', i_file: str = '', i_fp: str = ''):
     with open(f_name, 'w') as i_file:
         i_file.write(i_fp)
 
+def check_KM_in_honeist_sign(o_shtrih):
+    """
+    функция проверки КМ в честном знаке
+    разрешительный режим, проверяем если есть что проверять
+    и проверка включена
+    :return:
+    """
+    km_for_checking = o_shtrih.cash_receipt.get('km', None)
+    if km_for_checking and o_shtrih.cash_receipt.get('perm_mode', 1) == 1:
+        dict_for_check = {
+            'operation': o_shtrih.cash_receipt.get('operationtype', 'sale'),
+            'km': km_for_checking,
+            'fn': o_shtrih.cash_receipt.get('fn', None),
+            'rec_name': argv[2]
+        }
+        logger_check.debug(f'собрали словарь для проверки КМ {dict_for_check}')
+        logger_check.debug(f'сейчас будет импорт класса CheckKM')
+        CheckKM = safe_import('honest_sign.check_km', 'CheckKM', 9888)
+        o_check = CheckKM(i_dict_km=dict_for_check)
+        o_check.check_km_permission_mode()
+        o_exit = o_check.pm_show_errors_honest_sign()
+        return o_exit
+    else:
+        return 0, 'good', 12345678
+
 def main() -> Tuple:
     """
     основная функция печати чека
     создаем объекты для работы с кассой штрих, СБП, пинпад сбербанка
+    проверяем Коды Маркировки
     :return: int код ошибки
     """
     logger_check.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
@@ -188,6 +211,9 @@ def main() -> Tuple:
     o_shtrih.get_info_about_FR()
     # в том числе и заводской номер
     o_shtrih.drv.ReadSerialNumber()
+    # читаем номер ФН, его потом в ЧЗ надо отправить
+    o_shtrih.drv.FNGetSerial()
+    o_shtrih.cash_receipt['fn'] = o_shtrih.drv.SerialNumber
     # список заводских номеров касс в которых отключена отрезка
     fr_no_cut = o_shtrih.cash_receipt.get('no_cut', [])
     if o_shtrih.drv.SerialNumber in fr_no_cut:
@@ -196,6 +222,15 @@ def main() -> Tuple:
     else:
         o_shtrih.cutter_on()
         cutter_on = True
+
+    #здесь сделаем проверку КМ в ЧЗ
+    result_check_km = check_KM_in_honeist_sign(o_shtrih)
+    if result_check_km[0] != 0:
+        logger_check.debug(f'КМ не прошли проверку {result_check_km}')
+        exit(98)
+    else:
+        o_shtrih.cash_receipt['reqId'] = result_check_km[1]
+        o_shtrih.cash_receipt['reqTimestamp'] = result_check_km[2]
     # операци по СБП, оплата или возврат
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1 \
@@ -371,7 +406,10 @@ def main() -> Tuple:
                 # начало чека, в кассе создается объект "ЧЕК"
                 o_shtrih.shtrih_operation_attic()
                 # отправка чека по смс или почте
-                if o_shtrih.cash_receipt.get('email', '') != '':
+                bayer_email = o_shtrih.cash_receipt.get('email', None)
+                if bayer_email:
+                    if not is_valid_email(bayer_email):
+                        o_shtrih.cash_receipt['email'] = sanitize_email(bayer_email)
                     o_shtrih.sendcustomeremail()
                 # при операциях ФН вообще нет никакой печати и отрезки, но почему-то иногда операции ФН кончаются ошибкой отрезчика
                 # попробуем отключить отрезку перед этой операцией
