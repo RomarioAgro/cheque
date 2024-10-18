@@ -34,7 +34,7 @@ class Receiptinsql():
     def __init__(self, db_path: str = 'd:\\kassa\\db_receipt\\rec_to_1C.db'):
         self.conn = sqlite3.connect(db_path)
         self.create_table()
-        self.update_table()
+        # self.update_table()
 
     def create_table(self):
         """
@@ -103,6 +103,7 @@ class Receiptinsql():
                            item.get('modification', ''),
                            item.get('quantity'),
                            item.get('price', 0.0),
+                           item.get('fullprice', 0.0),
                            item.get('seller'),
                            item.get('comment'))
                 goods.append(product)

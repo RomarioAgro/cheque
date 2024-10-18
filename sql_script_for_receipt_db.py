@@ -91,8 +91,9 @@ sql_add_item = """
                 modification,
                 quantity,
                 price,
+                fullprice,
                 seller,
-                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_bonusi = f"""
