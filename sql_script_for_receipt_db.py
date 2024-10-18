@@ -127,7 +127,7 @@ sql_get_document = """
             LIMIT 10;
 """
 sql_get_items = """
-            SELECT id, nn, barcode, artname, name, modification, quantity, price, seller, comment
+            SELECT id, nn, barcode, artname, name, modification, quantity, price, fullprice, seller, comment
             FROM items
             WHERE id = ?;
 """
