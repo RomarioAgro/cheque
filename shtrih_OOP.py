@@ -132,11 +132,6 @@ class Shtrih(object):
                                             tag_number=1265,
                                             tag_type=7
                                             )
-                if len(item['qr_water']) > 30:
-                    self.drv.DivisionalQuantity = False
-                    self.drv.BarCode = preparation_km_water(item['qr_water'])
-                    self.drv.FNSendItemBarcode()
-
                 self.drv.WaitForPrinting()
                 if item.get('fullprice', None) is not None:
                     self.print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
