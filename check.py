@@ -177,7 +177,8 @@ def check_KM_in_honeist_sign(o_shtrih):
     if my_list:
         km_for_checking = [item for item in my_list if item != STOP_WORD]
     else:
-        km_for_checking = None
+        logger_check.debug(f'нет КМ для проверки, выходим из этой функции')
+        return 0, 'good', 12345678
     if km_for_checking and o_shtrih.cash_receipt.get('perm_mode', 1) == 1:
         dict_for_check = {
             'operation': o_shtrih.cash_receipt.get('operationtype', 'sale'),
