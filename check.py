@@ -174,7 +174,10 @@ def check_KM_in_honeist_sign(o_shtrih):
     :return:
     """
     my_list = o_shtrih.cash_receipt.get('km', None)
-    km_for_checking = [item for item in my_list if item != STOP_WORD]
+    if my_list:
+        km_for_checking = [item for item in my_list if item != STOP_WORD]
+    else:
+        km_for_checking = None
     if km_for_checking and o_shtrih.cash_receipt.get('perm_mode', 1) == 1:
         dict_for_check = {
             'operation': o_shtrih.cash_receipt.get('operationtype', 'sale'),
