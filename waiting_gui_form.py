@@ -1,3 +1,4 @@
+import logging
 import tkinter as tk
 from tkinter import ttk
 import threading
@@ -58,7 +59,11 @@ class App:
         while time.time() < end_time:
             # Выполнение запроса каждые 3 секунды
             time.sleep(TIME_PAUSE)
-            response = self.req_function(self.req_param_id, self.req_param_x_correlation)
+            try:
+                response = self.req_function(self.req_param_id, self.req_param_x_correlation)
+            except Exception as exc:
+                logging.debug(f"запрос к подели закончился ошибкой {exc}")
+                response = 'ошибка запроса'
             current_time = datetime.now().strftime("%H:%M:%S")
             self.result_text.insert(tk.END, f"{current_time} Ответ: {response}\n")
             print(f"ответ из формы {response}")
@@ -76,8 +81,6 @@ class App:
             # Обновление прогресс-бара
             elapsed_time = time.time() - start_time
             self.progress['value'] = progress_step * elapsed_time * TIME_PAUSE
-
-
         self.root.after(0, self.root.quit)
 
 def send_request(text="test"):
