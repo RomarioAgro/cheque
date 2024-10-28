@@ -74,9 +74,10 @@ class Receiptinsql():
         метод заполнения нашей таблицы с чеками
         """
         rec_id = j_receipt.get('id') + '_' + id_operation.get(j_receipt.get("operationtype", 'sale'), 's')
+        date_time = j_receipt.get('date_create') + j_receipt.get('mtime', None).replace(':', '')
         param_tuple = (rec_id,
                        j_receipt.get('number_receipt'),
-                       j_receipt.get('date_create'),
+                       date_time,
                        j_receipt.get('shop_id', 0),
                        j_receipt.get('sum', 0.0) + j_receipt.get('summ16', 0.0),
                        j_receipt.get('sum', 0) + j_receipt.get('total-discount', 0),
