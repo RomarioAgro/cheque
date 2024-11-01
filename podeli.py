@@ -215,10 +215,14 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
         exit(exit_code)
     logger_check.debug(f'результат создания заказа {result}')
     # Инициализация GUI (главное окно tkinter)
-    root = tk.Tk()
-    # Создаем форму с длительностью, например, 10 минут (600 секунд)
-    app = App(root, api.get_order_info, order.id, x_correlation_id, duration=DURATION_PAYMENT)
-    root.mainloop()
+    try:
+        root = tk.Tk()
+        # Создаем форму с длительностью, например, 10 минут (600 секунд)
+        app = App(root, api.get_order_info, order.id, x_correlation_id, duration=DURATION_PAYMENT)
+        root.mainloop()
+    except Exception as exc:
+        logger_check.debug(f'ошибка gui формы оплаты {exc}')
+
     if app.status_code == 'COMPLETED':
         podeli_text = text_receipt_for_bayer(app.response, x_correlation_id, client.id)
         return podeli_text

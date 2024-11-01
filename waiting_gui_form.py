@@ -54,8 +54,8 @@ class App:
     def run_form(self):
         start_time = time.time()
         end_time = start_time + self.duration
+        logging.debug(f"время старта формы ожидания оплаты {start_time} когда должна закончиться оплата {end_time}")
         progress_step = 100 / self.duration
-
         while time.time() < end_time:
             # Выполнение запроса каждые 3 секунды
             time.sleep(TIME_PAUSE)
@@ -65,18 +65,19 @@ class App:
                 logging.debug(f"запрос к подели закончился ошибкой {exc}")
                 response = 'ошибка запроса'
             current_time = datetime.now().strftime("%H:%M:%S")
-            self.result_text.insert(tk.END, f"{current_time} Ответ: {response}\n")
-            print(f"ответ из формы {response}")
-
+            text_for_log = f"{current_time} Ответ: {response}\n"
+            logging.debug(text_for_log)
+            self.result_text.insert(tk.END, text_for_log)
             try:
                 self.status_code = response.order.status
                 self.response = response.order
             except Exception as exc:
-                print(exc)
-            a = self.status_code
+                logging.debug(f"ошибка исполнения запроса {exc}")
+            logging.debug(f"какой-то код {self.status_code}, какой-то ответ сервиса {self.response}")
             self.result_text.see(tk.END)
             if self.status_code in STATUS_EXIT_FORM:
                 self.result_text.insert(tk.END, "Форма закрывается по успешному ответу\n")
+                logging.debug(f"Форма закрывается по успешному ответу {self.status_code}")
                 break
             # Обновление прогресс-бара
             elapsed_time = time.time() - start_time
