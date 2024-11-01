@@ -217,12 +217,17 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     # Инициализация GUI (главное окно tkinter)
     try:
         root = tk.Tk()
+    except Exception as exc:
+        logger_check.debug(f'ошибка создания основного окна графического интерфейса (GUI) в библиотеке tkinter. {exc}')
+    try:
         # Создаем форму с длительностью, например, 10 минут (600 секунд)
         app = App(root, api.get_order_info, order.id, x_correlation_id, duration=DURATION_PAYMENT)
+    except Exception as exc:
+        logger_check.debug(f'ошибка экземпляра класса App и инициализация gui формы оплаты {exc}')
+    try:
         root.mainloop()
     except Exception as exc:
-        logger_check.debug(f'ошибка gui формы оплаты {exc}')
-
+        logger_check.debug(f'ошибка запуска основного цикла приложения gui формы оплаты {exc}')
     if app.status_code == 'COMPLETED':
         podeli_text = text_receipt_for_bayer(app.response, x_correlation_id, client.id)
         return podeli_text

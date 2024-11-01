@@ -47,8 +47,10 @@ class App:
 
     def on_close(self):
         #код, который должен выполняться при закрытии окна
+        logging.debug("Окно закрыто пользователем")
         self.status_code = 2000
         self.response = 'окно было закрыто пользователем'
+        self.root.quit()  # Завершить основной цикл
         self.root.destroy()  # Закрыть окно
 
     def run_form(self):
