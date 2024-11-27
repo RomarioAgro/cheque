@@ -66,14 +66,23 @@ class App:
             except Exception as exc:
                 logging.debug(f"запрос к подели закончился ошибкой {exc}")
                 response = 'ошибка запроса'
+                self.status_code = 'UNKNOWN'
             current_time = datetime.now().strftime("%H:%M:%S")
             text_for_log = f"{current_time} Ответ: {response}\n"
             logging.debug(text_for_log)
-            self.result_text.insert(tk.END, text_for_log)
+            try:
+                self.result_text.insert(tk.END, text_for_log)
+            except Exception as exc:
+                logging.debug(f"ошибка вставки текста в форму {exc}")
             try:
                 self.status_code = response.order.status
+            except Exception as exc:
+                logging.debug(f"ошибка получения статуса заказа {exc}")
+                self.status_code = 'UNKNOWN'
+            try:
                 self.response = response.order
             except Exception as exc:
+                self.response = 'NONE'
                 logging.debug(f"ошибка исполнения запроса {exc}")
             logging.debug(f"какой-то код {self.status_code}, какой-то ответ сервиса {self.response}")
             self.result_text.see(tk.END)
