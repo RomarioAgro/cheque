@@ -14,16 +14,7 @@ import tkinter as tk
 from shtrih_OOP import format_string
 
 
-current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-script_name = os.path.splitext(os.path.basename(__file__))[0]
-logging.basicConfig(
-    filename=f"{argv[1]}\\{script_name}_{current_time}.log",
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
-
-logger_check: logging.Logger = logging.getLogger(__name__)
+logger_check: logging.Logger = logging.getLogger('check')
 logger_check.setLevel(logging.DEBUG)
 logger_check.debug('start podeli')
 DURATION_PAYMENT = 1200  ## время ожидания оплаты
