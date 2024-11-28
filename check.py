@@ -215,12 +215,14 @@ def main() -> Tuple:
     # но после запроса у объекта o_shtrih появляются дополнительные свойства
     o_shtrih.get_info_about_FR()
     # в том числе и заводской номер
-    o_shtrih.drv.ReadSerialNumber()
+    # сохраняем в нашем заказе регномер кассы
+    o_shtrih.cash_receipt['rn'] = o_shtrih.drv.KKTRegistrationNumber
     # читаем номер ФН, его потом в ЧЗ надо отправить
     o_shtrih.drv.FNGetSerial()
     o_shtrih.cash_receipt['fn'] = o_shtrih.drv.SerialNumber
     # список заводских номеров касс в которых отключена отрезка
     fr_no_cut = o_shtrih.cash_receipt.get('no_cut', [])
+    o_shtrih.drv.ReadSerialNumber()
     if o_shtrih.drv.SerialNumber in fr_no_cut:
         cutter_on = False
         o_shtrih.cutter_off()
