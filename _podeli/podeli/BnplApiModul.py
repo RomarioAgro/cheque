@@ -13,6 +13,8 @@ from _podeli.podeli.model.CreateOrderRequest import CreateOrderRequest
 from _podeli.podeli.model.BnplOrder import *
 from _podeli.podeli.model.CreateOrderResponse import *
 from _podeli.podeli.error import *
+from _podeli.podeli.model.CancelOrderRequest import CancelOrderRequest
+from _podeli.podeli.model.CancelOrderResponse import CancelOrderResponse
 from _podeli.podeli.model.InfoOrderRequest import InfoOrderRequest
 from _podeli.podeli.model.InfoOrderResponse import InfoOrderResponse
 from _podeli.podeli.model.RefundOrderRequest import RefundOrderRequest, RefundInfo
@@ -128,6 +130,26 @@ class BnplApi:
         logger_podeli.debug(f'{response}')
         logger_podeli.debug(f'{result}')
         return result
+
+    def cancel_order(self, order_id: int, x_correlation_id: str, initiator: str) -> CancelOrderResponse:
+        """
+        Метод отмены заказа
+        :param order_id: идентификатор заказа на стороне клиента
+        :param x_correlation_id: идентификатор заказа на стороне сервиса, строка GUID
+        :param initiator: инициатор отмены заказа ('shop' или 'client')
+        :return: результат отмены заказа ``podeli.model.CancelOrderResponse``
+        :raises: ``podeli.error.BnlpStatusError``: если статус ответа не 200 (не удалось создать заказ по какой-то причине)
+        :raises: ``podeli.error.BnlpFormatError``: не распознан ответ сервиса
+        :raises: ``ValueError`` если инициатор отмены не 'client' или 'shop'
+        """
+        cancel_request = CancelOrderRequest(
+            order_id=order_id,
+            x_correlation_id=x_correlation_id,
+            initiator=initiator
+        )
+        response = self.request_api(cancel_request)
+        result = self.__check_response(response)
+        return CancelOrderResponse.from_response(result)
 
     def refund_order(self, order_id: str, x_correlation_id: str, refund_info: RefundInfo) -> RefundOrderResponse:
         """

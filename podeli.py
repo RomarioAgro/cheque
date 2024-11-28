@@ -202,7 +202,8 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
         )
     except Exception as exc:
         exit_code = 9987
-        logger_check.debug(f'результат создания заказа {exc} код выхода {exit_code}')
+        logger_check.debug(f'ошибка создания заказа {exc}\nкод выхода {exit_code}\nбудем аннулировать заказ')
+        api.cancel_order(order_id=order.id, x_correlation_id=x_correlation_id, initiator='shop')
         exit(exit_code)
     logger_check.debug(f'результат создания заказа {result}')
     # Инициализация GUI (главное окно tkinter)
@@ -225,6 +226,8 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
     else:
         exit_code = 9989
         logger_check.debug(f'статус заказа: {app.status_code}, текстовое описание: {app.response} код выхода {exit_code}')
+        logger_check.debug(f'будем аннулировать заказ')
+        api.cancel_order(order_id=order.id, x_correlation_id=x_correlation_id, initiator='shop')
         exit(exit_code)
     return result
 
