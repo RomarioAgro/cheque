@@ -14,6 +14,7 @@ class BnplOrder:
                  prepaid_amount: float,
                  address: str,
                  items: list[BnplOrderItem],
+                 cash_register: str = ''
                  ) -> object:
         """
         Создание заказа
@@ -25,8 +26,8 @@ class BnplOrder:
         self.id = order_id
         self.amount = amount
         self.prepaidAmount = prepaid_amount
+        self.cashRegisterNumber = cash_register
         self.items = items
-        self.mall = ''
         self.address = address
 
     def to_dict(self):
@@ -38,8 +39,8 @@ class BnplOrder:
             "id": self.id,
             "amount": self.amount,
             "prepaidAmount": self.prepaidAmount,
+            "cashRegisterNumber": self.cashRegisterNumber,
             "items": self.__items_to_dict(),
-            "mall": self.mall,
             "address": self.address
         }
 
