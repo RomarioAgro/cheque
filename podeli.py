@@ -177,6 +177,7 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
         order_id=o_shtrih.cash_receipt.get('id', None).replace('/', "_"),
         amount=o_shtrih.cash_receipt.get('summ4', 0.0),
         prepaid_amount=0.0,
+        cash_register=o_shtrih.cash_receipt.get('rn', 'unknown_number'),
         address=o_shtrih.cash_receipt.get('adr', ''),
         items=order_item
     )
