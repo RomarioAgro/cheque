@@ -38,7 +38,8 @@ class ReconciliationOrderRequest(BnplRequest):
             auth: str,
             delta_start: int,
             delta_end: int,
-            detailing: bool = True
+            detailing: bool = True,
+            rn: str = 'unknown_number'
     ):
         self.auth = auth
         """
@@ -56,6 +57,7 @@ class ReconciliationOrderRequest(BnplRequest):
             message={
                 'dateFrom': date_time_with_timezone(delta=delta_start, beginning=True),
                 'dateTo': date_time_with_timezone(delta=delta_end, beginning=False),
+                'cashRegisterNumber': rn,
                 'detailing': detailing
             }
         )

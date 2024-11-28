@@ -129,7 +129,11 @@ def main():
             logging.debug(f'проблема импорта reconciliation_of_orders {exc}')
             podeli_text = "ошибка импорта модуля подели"
         if podeli_text is None:
-            podeli_text = reconciliation_of_orders(delta_start=0, delta_end=0, detailing=True)
+            podeli_text = reconciliation_of_orders(delta_start=0,
+                                                   delta_end=0,
+                                                   detailing=True,
+                                                   rn=i_shtrih.cash_receipt.get('rn', 'unknown_number')
+                                                   )
         i_shtrih.print_pinpad(podeli_text)
         i_shtrih.drv.StringQuantity = 3
         i_shtrih.drv.FeedDocument()

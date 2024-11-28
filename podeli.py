@@ -235,7 +235,8 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
 def reconciliation_of_orders(
         delta_start: int = 0,
         delta_end: int = 0,
-        detailing: bool = True
+        detailing: bool = True,
+        rn: str = 'unknon_number'
         ):
     """
     функция сверки заказов
@@ -261,7 +262,8 @@ def reconciliation_of_orders(
             x_correlation_id=x_correlation_id,
             delta_start=delta_start,
             delta_end=delta_end,
-            detailing=detailing
+            detailing=detailing,
+            rn=rn
         )
     except Exception as exc:
         exit_code = 9987

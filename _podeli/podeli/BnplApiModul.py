@@ -81,7 +81,8 @@ class BnplApi:
                             x_correlation_id: str,
                             delta_start: int,
                             delta_end: int,
-                            detailing: bool
+                            detailing: bool,
+                            rn: str = 'unknown_number'
                      ) -> CreateOrderResponse:
         """
         Метод сверки заказов за (текдат-delta)
@@ -95,7 +96,8 @@ class BnplApi:
             auth=self.auth,
             delta_start=delta_start,
             delta_end=delta_end,
-            detailing=detailing
+            detailing=detailing,
+            rn=rn
         )
         logger_podeli.debug(f' заголовки запроса {reconciliation_request.headers}\nтело запроса {reconciliation_request.message}')
         response = self.request_api(reconciliation_request)
