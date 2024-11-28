@@ -567,6 +567,7 @@ class Shtrih(object):
         list_about_fr.append('ZN ' + self.drv.SerialNumber)
         self.drv.FNGetFiscalizationResult()
         list_about_fr.append('RN ' + self.drv.KKTRegistrationNumber)
+        self.cash_receipt['rn'] = self.drv.KKTRegistrationNumber
         self.drv.FNGetSerial()
         list_about_fr.append('FN ' + self.drv.SerialNumber)
         self.drv.ReadFeatureLicenses()
