@@ -173,15 +173,17 @@ def check_KM_in_honeist_sign(o_shtrih):
     и проверка включена
     :return:
     """
-    my_list = o_shtrih.cash_receipt.get('km', None)
-    if my_list:
-        km_for_checking = [item for item in my_list if item != STOP_WORD]
-    else:
+    # my_list = o_shtrih.cash_receipt.get('km', None)
+    not_checking = {'', STOP_WORD}
+    names = [item["name"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
+    km_for_checking = [item["qr"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
+    if not km_for_checking:
         logger_check.debug(f'нет КМ для проверки, выходим из этой функции')
         return 0, 'good', 12345678
-    if km_for_checking and o_shtrih.cash_receipt.get('perm_mode', 1) == 1:
+    if o_shtrih.cash_receipt.get('perm_mode', 1) == 1:
         dict_for_check = {
             'operation': o_shtrih.cash_receipt.get('operationtype', 'sale'),
+            'names': names,
             'km': km_for_checking,
             'fn': o_shtrih.cash_receipt.get('fn', None),
             'rec_name': argv[2]
