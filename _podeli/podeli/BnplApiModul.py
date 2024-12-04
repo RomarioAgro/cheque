@@ -26,14 +26,14 @@ from _podeli.podeli.model.RegistryOrderResponse import ReconciliationOrderRespon
 script_name = os.path.splitext(os.path.basename(__file__))[0]
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 
-logging.basicConfig(
-    filename=f'd:\\files\\{script_name}_{current_time}_.log',
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
+# logging.basicConfig(
+#     filename=f'd:\\files\\{script_name}_{current_time}_.log',
+#     filemode='a',
+#     level=logging.DEBUG,
+#     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
+#     datefmt='%H:%M:%S')
 
-logger_podeli: logging.Logger = logging.getLogger(__name__)
+logger_podeli: logging.Logger = logging.getLogger('check')
 logger_podeli.setLevel(logging.DEBUG)
 logger_podeli.debug('start podeli')
 
