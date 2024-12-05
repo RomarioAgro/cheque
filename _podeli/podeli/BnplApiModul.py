@@ -195,7 +195,12 @@ class BnplApi:
             order_id=order_id,
             x_correlation_id=x_correlation_id
         )
-        response = self.request_api(info_request)
+        try:
+            response = self.request_api(info_request)
+        except Exception as exc:
+            error_text = 'ошибка запроса info_request'
+            logger_podeli.debug(f'{error_text} {exc}')
+            response = error_text
         result = self.__check_response(response)
         logger_podeli.debug(f'респонзе {response}')
         logger_podeli.debug(f'результ из респонзе {result}')
@@ -226,6 +231,8 @@ class BnplApi:
             return json.loads(response.text)
         else:
             ctypes.windll.user32.MessageBoxW(0, response.text, 'ошибка', 4096 + 16)
+            error_str = f"{response.text}"
+            logger_podeli.debug(error_str)
             raise BnlpStatusError(message="RequestError", http_status=response.status_code, json_body=response.text)
 
     def request_api(self, request: BnplRequest) -> requests.Response:
