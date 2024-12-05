@@ -1,3 +1,10 @@
+import logging
+
+
+logger_podeli: logging.Logger = logging.getLogger('check')
+logger_podeli.setLevel(logging.DEBUG)
+
+
 class BnlpFormatError(Exception):
     """
     Создается, если ответ сервиса не содержит ожидаемые данные
@@ -25,7 +32,9 @@ class BnlpFormatError(Exception):
         self.headers = headers or {}
 
     def __str__(self):
-        return u"{0} : http_status={1}, data={2}".format(self._message, self.http_status, self.json_body)
+        error_str = f"{self._message} : http_status={self.http_status}, data={self.json_body}"
+        logger_podeli.debug(error_str)
+        return error_str
 
 
 class BnlpStatusError(Exception):
@@ -52,4 +61,6 @@ class BnlpStatusError(Exception):
         self.headers = headers or {}
 
     def __str__(self):
-        return u"{0} : http_status={1}, data={2}".format(self._message, self.http_status, self.json_body)
+        error_str = f"{self._message} : http_status={self.http_status}, data={self.json_body}"
+        logger_podeli.debug(error_str)
+        return error_str
