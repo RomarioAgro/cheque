@@ -7,6 +7,10 @@ import random
 from datetime import datetime
 
 
+logger_podeli: logging.Logger = logging.getLogger('check')
+logger_podeli.setLevel(logging.DEBUG)
+logger_podeli.debug('start podeli')
+
 STATUS_EXIT_FORM = ['COMPLETED', 'CANCELLED', 'REJECTED', 'REFUNDED']
 TIME_PAUSE = 3
 
@@ -47,7 +51,7 @@ class App:
 
     def on_close(self):
         #код, который должен выполняться при закрытии окна
-        logging.debug("Окно закрыто пользователем")
+        logger_podeli.debug("Окно закрыто пользователем")
         self.status_code = 2000
         self.response = 'окно было закрыто пользователем'
         self.root.quit()  # Завершить основной цикл
@@ -56,7 +60,7 @@ class App:
     def run_form(self):
         start_time = time.time()
         end_time = start_time + self.duration
-        logging.debug(f"время старта формы ожидания оплаты {start_time} когда должна закончиться оплата {end_time}")
+        logger_podeli.debug(f"время старта формы ожидания оплаты {start_time} когда должна закончиться оплата {end_time}")
         progress_step = 100 / self.duration
         while time.time() < end_time:
             # Выполнение запроса каждые 3 секунды
@@ -64,31 +68,31 @@ class App:
             try:
                 response = self.req_function(self.req_param_id, self.req_param_x_correlation)
             except Exception as exc:
-                logging.debug(f"запрос к подели закончился ошибкой {exc}")
+                logger_podeli.debug(f"запрос к подели закончился ошибкой {exc}")
                 response = 'ошибка запроса'
                 self.status_code = 'UNKNOWN'
             current_time = datetime.now().strftime("%H:%M:%S")
             text_for_log = f"{current_time} Ответ: {response}\n"
-            logging.debug(text_for_log)
+            logger_podeli.debug(text_for_log)
             try:
                 self.result_text.insert(tk.END, text_for_log)
             except Exception as exc:
-                logging.debug(f"ошибка вставки текста в форму {exc}")
+                logger_podeli.debug(f"ошибка вставки текста в форму {exc}")
             try:
                 self.status_code = response.order.status
             except Exception as exc:
-                logging.debug(f"ошибка получения статуса заказа {exc}")
+                logger_podeli.debug(f"ошибка получения статуса заказа {exc}")
                 self.status_code = 'UNKNOWN'
             try:
                 self.response = response.order
             except Exception as exc:
                 self.response = 'NONE'
-                logging.debug(f"ошибка исполнения запроса {exc}")
-            logging.debug(f"какой-то код {self.status_code}, какой-то ответ сервиса {self.response}")
+                logger_podeli.debug(f"ошибка исполнения запроса {exc}")
+            logger_podeli.debug(f"какой-то код {self.status_code}, какой-то ответ сервиса {self.response}")
             self.result_text.see(tk.END)
             if self.status_code in STATUS_EXIT_FORM:
                 self.result_text.insert(tk.END, "Форма закрывается по успешному ответу\n")
-                logging.debug(f"Форма закрывается по успешному ответу {self.status_code}")
+                logger_podeli.debug(f"Форма закрывается по успешному ответу {self.status_code}")
                 break
             # Обновление прогресс-бара
             elapsed_time = time.time() - start_time
