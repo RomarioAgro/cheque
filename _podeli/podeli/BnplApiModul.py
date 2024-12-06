@@ -259,18 +259,23 @@ class BnplApi:
         """
         url = self.BaseUrl + path
         if method == "POST":
-            r = requests.post(url=url,
-                              json=data,
-                              headers=headers,
-                              auth=(self.login, self.password),
-                              cert=(self.cert_file, self.cert_key),
-                              timeout=30,
-                              verify=self.verify_ssl,
-                              proxies=self.proxy
-                             )
+            try:
+                r = requests.post(url=url,
+                                  json=data,
+                                  headers=headers,
+                                  auth=(self.login, self.password),
+                                  cert=(self.cert_file, self.cert_key),
+                                  timeout=30,
+                                  verify=self.verify_ssl,
+                                  proxies=self.proxy
+                                 )
+            except Exception as exc:
+                logger_podeli.debug(f'ошибка POST запроса к подели {exc}')
+                exit(1)
             return r
         elif method == "GET":
-            return requests.get(url,
+            try:
+                r = requests.get(url,
                                 params=data,
                                 headers=headers,
                                 auth=(self.login, self.password),
@@ -279,6 +284,9 @@ class BnplApi:
                                 verify=False,
                                 proxies=self.proxy
                                 )
+            except Exception as exc:
+                logger_podeli.debug(f'ошибка GET запроса к подели {exc}')
+            return r
         else:
             raise ValueError(
                 "http method must be `GET` or `POST`"
