@@ -21,21 +21,19 @@ from _podeli.podeli.model.RefundOrderRequest import RefundOrderRequest, RefundIn
 from _podeli.podeli.model.RefundOrderResponse import RefundOrderResponse
 from _podeli.podeli.model.RegistryOrderRequest import ReconciliationOrderRequest
 from _podeli.podeli.model.RegistryOrderResponse import ReconciliationOrderResponse
+# from _podeli.podeli.model.SafeRequestWith import SafeRequest
+import http.client as http_client
 
 
 script_name = os.path.splitext(os.path.basename(__file__))[0]
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-
-# logging.basicConfig(
-#     filename=f'd:\\files\\{script_name}_{current_time}_.log',
-#     filemode='a',
-#     level=logging.DEBUG,
-#     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-#     datefmt='%H:%M:%S')
-
 logger_podeli: logging.Logger = logging.getLogger('check')
 logger_podeli.setLevel(logging.DEBUG)
 logger_podeli.debug('start podeli')
+
+http_client.HTTPConnection.debuglevel = 1
+logging.getLogger("urllib3").setLevel(logging.DEBUG)
+
 
 
 class BnplApi:
@@ -171,10 +169,10 @@ class BnplApi:
             auth=self.auth
         )
         response = self.request_api(refund)
-        logger_podeli.debug(f"самый первый ответ возврата{response.json()}")
+        logger_podeli.debug(f"самый первый ответ возврата{response.text}")
         result = self.__check_response(response)
         logger_podeli.debug(f'респонзе {response}')
-        logger_podeli.debug(f'результ {result}')
+        logger_podeli.debug(f'результат {result}')
         return RefundOrderResponse.from_response(result)
 
     def get_order_info(
@@ -203,7 +201,7 @@ class BnplApi:
             response = error_text
         result = self.__check_response(response)
         logger_podeli.debug(f'респонзе {response}')
-        logger_podeli.debug(f'результ из респонзе {result}')
+        logger_podeli.debug(f'результат из респонзе {result}')
         return InfoOrderResponse.from_response(result)
 
     @staticmethod
@@ -267,11 +265,18 @@ class BnplApi:
                                   cert=(self.cert_file, self.cert_key),
                                   timeout=30,
                                   verify=self.verify_ssl,
-                                  proxies=self.proxy
+                                  proxies=self.proxy,
                                  )
+            except requests.exceptions.RequestException as exc:
+                logger_podeli.debug(f"Ошибка запроса POST: {exc}", exc_info=True)
             except Exception as exc:
-                logger_podeli.debug(f'ошибка POST запроса к подели {exc}')
+                logger_podeli.debug(f'ошибка POST запроса к подели {exc}', exc_info=True)
                 exit(1)
+            try:
+                response_data = r.json()
+            except ValueError as exc:
+                logger_podeli.error("Ошибка парсинга JSON", exc_info=True)
+                response_data = {}
             return r
         elif method == "GET":
             try:
@@ -284,8 +289,15 @@ class BnplApi:
                                 verify=False,
                                 proxies=self.proxy
                                 )
+            except requests.exceptions.RequestException as exc:
+                logger_podeli.debug(f"Ошибка запроса POST: {exc}", exc_info=True)
             except Exception as exc:
-                logger_podeli.debug(f'ошибка GET запроса к подели {exc}')
+                logger_podeli.debug(f'ошибка GET запроса к подели {exc}', exc_info=True)
+            try:
+                response_data = r.json()
+            except ValueError as exc:
+                logger_podeli.debug("Ошибка парсинга JSON", exc_info=True)
+                response_data = {}
             return r
         else:
             raise ValueError(
