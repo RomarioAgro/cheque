@@ -46,7 +46,10 @@ class App:
         # Привязка обработчика закрытия окна
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         # для отладки надо каментить выполнение в другом потоке
-        threading.Thread(target=self.run_form).start()
+        try:
+            threading.Thread(target=self.run_form).start()
+        except Exception as exc:
+            logger_podeli.debug(f"запуск формы окочился ошибкой {exc}", exc_info=True)
         # self.run_form()
 
     def on_close(self):
