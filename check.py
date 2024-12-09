@@ -362,7 +362,7 @@ def main() -> Tuple:
         if podeli_text:
             text_for_print = podeli_text.split(o_shtrih.cash_receipt['cutter'])
             for i, elem in enumerate(text_for_print):
-                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ3']))
+                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ4']))
                 if i == 0:
                     o_shtrih.cut_print()
                     if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
