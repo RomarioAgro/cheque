@@ -9,8 +9,7 @@ from _podeli.podeli.model.BnplOrderItem import BnplOrderItem
 from _podeli.podeli.model.RefundOrderRequest import RefundInfo, RefundItem
 import logging
 from simple_dialog import get_user_id
-from waiting_gui_form import App
-import tkinter as tk
+from waiting_podeli_sg import App
 from shtrih_OOP import format_string
 
 
@@ -207,26 +206,22 @@ def create_sale_waiting_pay_podeli(o_shtrih: Shtrih):
         api.cancel_order(order_id=order.id, x_correlation_id=x_correlation_id, initiator='shop')
         exit(exit_code)
     logger_check.debug(f'результат создания заказа {result}')
-    # Инициализация GUI (главное окно tkinter)
-    try:
-        root = tk.Tk()
-    except Exception as exc:
-        logger_check.debug(f'ошибка создания основного окна графического интерфейса (GUI) в библиотеке tkinter. {exc}')
     try:
         # Создаем форму с длительностью, например, 10 минут (600 секунд)
-        app = App(root, api.get_order_info, order.id, x_correlation_id, duration=DURATION_PAYMENT)
+        app = App(api.get_order_info, order.id, x_correlation_id, duration=DURATION_PAYMENT, timeout=3000)
     except Exception as exc:
         logger_check.debug(f'ошибка экземпляра класса App и инициализация gui формы оплаты {exc}')
     try:
-        root.mainloop()
+        app.waiting_payment()
     except Exception as exc:
         logger_check.debug(f'ошибка запуска основного цикла приложения gui формы оплаты {exc}')
+
     if app.status_code == 'COMPLETED':
         podeli_text = text_receipt_for_bayer(app.response, x_correlation_id, client.id)
         return podeli_text
     else:
         exit_code = 9989
-        logger_check.debug(f'статус заказа: {app.status_code}, текстовое описание: {app.response} код выхода {exit_code}')
+        logger_check.debug(f'статус заказа: {app.status_code}, код выхода {exit_code}')
         logger_check.debug(f'будем аннулировать заказ')
         api.cancel_order(order_id=order.id, x_correlation_id=x_correlation_id, initiator='shop')
         exit(exit_code)
