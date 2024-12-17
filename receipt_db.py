@@ -2,6 +2,7 @@ import sqlite3
 import logging
 import json
 import os
+from datetime import datetime
 from typing import Dict, List
 from shtrih.sql_script_for_receipt_db import \
     (SQL_DROP_TABLE, sql_make_db,
@@ -79,7 +80,7 @@ class Receiptinsql():
                        j_receipt.get('number_receipt'),
                        date_time,
                        j_receipt.get('shop_id', 0),
-                       j_receipt.get('sum', 0.0) + j_receipt.get('summ16', 0.0),
+                       j_receipt.get('sum', 0),
                        j_receipt.get('sum', 0) + j_receipt.get('total-discount', 0),
                        str(j_receipt.get('clientID', 'имя дал python')),
                        str(j_receipt.get('inn_pman', 'имя дал python')),
