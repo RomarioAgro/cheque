@@ -176,17 +176,17 @@ def get_name_export():
     if month >= 10:
         month_letter = chr(ord('A') + month - 10)
         ex_name = ex_name.replace(str(month), month_letter, 1)
-    return ex_name
+    return ex_name.upper()
 
 
 def dbf_z(i_path, name_export, my_rec, id_number):
-    full_path = i_path + name_export + 'z.dbf'
+    full_path = i_path + name_export + 'Z.dbf'
     make_record_Z(data_dict=my_rec, id=str(id_number))
     dbf_add_record(full_path, heading)
 
 
 def dbf_n(i_path, name_export, my_rec, id_number):
-    full_path = i_path + name_export + 'n.dbf'
+    full_path = i_path + name_export + 'N.dbf'
     make_dbf(i_path=full_path)
     make_record_N(my_rec=my_rec, id=str(id_number), f_path=full_path)
 
@@ -195,7 +195,7 @@ def main(my_rec):
     name_export = get_name_export()
     logger_make_dbf.info(my_rec)
     i_path = config('path_export', 'e:\\inbox\\export\\')
-    full_path = i_path + name_export + 'z.dbf'
+    full_path = i_path + name_export + 'Z.dbf'
     id_number = make_dbf(i_path=full_path)
     start: float = time.time()
     threads1 = threading.Thread(target=dbf_z, args=(i_path, name_export, my_rec, id_number))
