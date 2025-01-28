@@ -634,21 +634,21 @@ class Shtrih(object):
         else:
             list_about_fr.append('ШИРИНА ЛЕНТЫ ШИРОКАЯ')
         self.drv.FNGetInfoExchangeStatus()
-        try:
-            screen_width, screen_height = pyautogui.size()
-            list_about_fr.append('SCREEN_RESOLUTION: {sw}x{sh}'.format(sw=screen_width, sh=screen_height))
-        except Exception as exc:
-            logging.debug(exc)
-        try:
-            memory = ram_memory()
-            list_about_fr.append('MEMORY: {mem}Mb'.format(mem=memory))
-        except Exception as exc:
-            logging.debug(exc)
-        try:
-            display_qr = mini_display_qr()
-            list_about_fr.append('MINIDISPLAYQR: {0}'.format(display_qr))
-        except Exception as exc:
-            logging.debug(exc)
+        # try:
+        #     screen_width, screen_height = pyautogui.size()
+        #     list_about_fr.append('SCREEN_RESOLUTION: {sw}x{sh}'.format(sw=screen_width, sh=screen_height))
+        # except Exception as exc:
+        #     logging.debug(exc)
+        # try:
+        #     memory = ram_memory()
+        #     list_about_fr.append('MEMORY: {mem}Mb'.format(mem=memory))
+        # except Exception as exc:
+        #     logging.debug(exc)
+        # try:
+        #     display_qr = mini_display_qr()
+        #     list_about_fr.append('MINIDISPLAYQR: {0}'.format(display_qr))
+        # except Exception as exc:
+        #     logging.debug(exc)
 
         today = datetime.datetime.today().date()
         datenotsend_date = self.drv.Date.date()
