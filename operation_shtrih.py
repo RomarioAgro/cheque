@@ -145,10 +145,25 @@ def main():
         i_shtrih.print_pinpad(sber_pinpad.text)
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
-        i_shtrih.x_otchet()
-        logging.debug(i_shtrih.error_analysis_soft())
-        list_aboutfr = i_shtrih.about_me()
-        save_about_fr(list_aboutfr)
+        try:
+            i_shtrih.x_otchet()
+        except Exception as exc:
+            logging.debug(f'печать Х отчета закончилась ошибкой {exc}')
+        try:
+            logging.debug(i_shtrih.error_analysis_soft())
+        except Exception as exc:
+            logging.debug(f'анализ состояния кассы завершился ошибкой {exc}')
+        logging.debug(f'распечатали Х отчет, опросили кассу насчет ошибок')
+        try:
+            logging.debug(f'сейчас будет опрос данных кассы i_shtrih.about_me()')
+            list_aboutfr = i_shtrih.about_me()
+        except Exception as exc:
+            logging.debug(f'опрос данных кассы закончился ошибкой {exc}')
+        try:
+            save_about_fr(list_aboutfr)
+        except Exception as exc:
+            logging.debug(f'сохранение данных кассы закончилось ошибкой {exc}')
+        logging.debug(f'X отчет распечатали ошибок нет')
     if comp_rec['operationtype'] == 'z_otchet':
         i_shtrih.z_otchet()
         # сохраняем фио кассира в таблице драйвера кассы
