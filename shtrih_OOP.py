@@ -1,7 +1,7 @@
 import logging
 import datetime
 from sys import argv, exit
-
+from typing import Dict
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 
 import win32com.client
@@ -28,6 +28,7 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'z_otchet': 6000}
 
 CUTTER = '~S'
+PROGID = ('Addin.DRvFR', 'Addin.KKTDrv')
 logging.basicConfig(
     filename='D:\\files\\' + argv[2] + "_" + current_time + '.log',
     filemode='a',
@@ -63,18 +64,44 @@ class Shtrih(object):
         prn - объект драйвера штриха
  
         """
+        self.cash_receipt = self.make_dict_receipt(i_path=i_path, i_file_name=i_file_name)
+        self.drv = self.make_com_object_progid()
+
+    def make_com_object_progid(self):
+        """
+        создаем COM обеъкт драйвера кассы, они могут отличаться
+        по имени, создасться тот у которого драйвер стоит с системе
+        :return:
+        """
+        for progid in PROGID:
+            try:
+                drv = win32com.client.Dispatch(progid)
+                break
+            except Exception as exc:
+                logging.debug(f'не удалось создалть COM объект драйвера {progid}')
+        logging.debug(f'создали COM объект драйвера {drv}')
+        return drv
+
+    def make_dict_receipt(self,
+                          i_path: str = 'd:\\files',
+                          i_file_name: str = '1111') -> Dict:
+        """
+        создаем словарь параметров чека
+        :param i_path: str путь до json
+        :param i_file_name: str имя json
+        :return:
+        """
         file_json_name = i_path + '\\' + i_file_name + '.json'
         if os.path.exists(file_json_name):
             try:
                 with open(file_json_name, 'r') as json_file:
-                    self.cash_receipt = json.load(json_file)
+                    cash_receipt = json.load(json_file)
             except Exception as exs:
-                logging.debug('при чтении json чека произошла ошибка\n{0}'.format(exs))
+                logging.debug(f'при чтении json чека произошла ошибка\n{exs}')
                 exit(1)
         else:
-            self.cash_receipt = None
-        self.drv = win32com.client.Dispatch('Addin.DRvFR')
-        logging.debug('создали объект чека' + str(self.cash_receipt))
+            cash_receipt = None
+        return cash_receipt
 
     def shtrih_repeat_receipt(self, fd):
         """

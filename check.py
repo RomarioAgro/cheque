@@ -176,7 +176,7 @@ def check_KM_in_honeist_sign(o_shtrih):
     # my_list = o_shtrih.cash_receipt.get('km', None)
     not_checking = {'', STOP_WORD}
     names = [item["name"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
-    km_for_checking = [item["qr"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
+    km_for_checking = [item["qr"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking and (item["marktip"] != '5000' and item["marktip"] != '9999')]
     if not km_for_checking:
         logger_check.debug(f'нет КМ для проверки, выходим из этой функции')
         return 0, 'good', 12345678
@@ -206,8 +206,15 @@ def main() -> Tuple:
     :return: int код ошибки
     """
     logger_check.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
-    o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
-    o_shtrih.preparation_for_work()
+    try:
+        o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
+    except Exception as exc:
+        logger_check.debug(f'ошибка создания объекта печати чека {exc}')
+    logger_check.debug(f'создали объект печати o_shtrih')
+    try:
+        o_shtrih.preparation_for_work()
+    except Exception as exc:
+        logger_check.debug(f'ошибка подгтовки кассы к работе {exc}')
     status_code, status_description = o_shtrih.error_analysis_hard()
     if status_code != 0:
         Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
@@ -460,5 +467,6 @@ if __name__ == '__main__':
             receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
             receipt_to_1C.add_document(cash_rec)
     except Exception as exc:
-        logger_check.debug(exc)
+        logger_check.debug(f'ошибка {exc}')
+    logger_check.debug(f'закончили печать чека выходим {code_error_main}')
     exit(code_error_main)
