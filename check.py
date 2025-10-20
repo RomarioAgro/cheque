@@ -6,8 +6,6 @@ import datetime
 from decouple import Config, RepositoryEnv
 from typing import Tuple
 from correct_email import sanitize_email, is_valid_email
-from multiprocessing import Process
-import dbf_make
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
@@ -212,7 +210,7 @@ def main() -> Tuple:
         o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     except Exception as exc:
         logger_check.debug(f'ошибка создания объекта печати чека {exc}')
-    logger_check.debug(f'создали объект печати o_shtrih')
+    logger_check.debug(f'создали объект печати o_shtrih {o_shtrih.cash_receipt}')
     try:
         o_shtrih.preparation_for_work()
     except Exception as exc:
@@ -416,7 +414,7 @@ def main() -> Tuple:
                     # на случай дробных оплат купоны обнуляем
                     o_shtrih.cash_receipt['kupon'] = None
                 #печать номера чека
-                o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 3)
+                o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 2)
                 # печать бонусов
                 if o_shtrih.cash_receipt.get('bonusi', None):
                     for item in o_shtrih.cash_receipt['bonusi']:
@@ -453,50 +451,21 @@ def main() -> Tuple:
     else:
         return pin_error, None, 'nothing'
 
-def _run_dbf_make(rec):
-    # отдельный процесс: не блокирует основной поток и доживёт после exit()
-    try:
-        dbf_make.main(rec)
-    except Exception as exc:
-        # у дочернего процесса нет твоего логгера по умолчанию — перехватываем, чтобы не терять ошибку
-        try:
-            logger_check.debug(f'dbf_make failed: {exc}')
-        except Exception:
-            pass
-
-def _run_receipt_to_1C(rec):
-    # отдельный процесс: не блокирует основной поток и доживёт после exit()
-    receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
-    try:
-        receipt_to_1C.add_document(rec)
-    except Exception as exc:
-        # у дочернего процесса нет твоего логгера по умолчанию — перехватываем, чтобы не терять ошибку
-        try:
-            logger_check.debug(f'receipt_to_1C failed: {exc}')
-        except Exception:
-            pass
-
 
 if __name__ == '__main__':
     code_error_main, cash_rec, fpd = main()  #возвращаем, код ошибки, словарь документа, Фискальный Признак Документа
-    # #########################################
-    # o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
-    # code_error_main = 0
-    # cash_rec = o_shtrih.make_dict_receipt(i_path=argv[1], i_file_name=argv[2])
-    # fpd = '0'
-    # #########################################
     try:
         if code_error_main == 0 and cash_rec is not None:
+            import dbf_make
             save_FiscalSign(i_path=argv[1], i_file=argv[2] + '_fpd', i_fp=fpd)
-            p = Process(target=_run_dbf_make, args=(cash_rec,), daemon=False)
-            p.start()
+            dbf_make.main(cash_rec)
     except Exception as exc:
         logger_check.debug(exc)
     try:
         if cash_rec.get('operationtype', 'sale') == 'sale' or \
                 cash_rec.get('operationtype', 'sale') == 'return_sale':
-            p2 = Process(target=_run_receipt_to_1C, args=(cash_rec,), daemon=False)
-            p2.start()
+            receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
+            receipt_to_1C.add_document(cash_rec)
     except Exception as exc:
         logger_check.debug(f'ошибка {exc}')
     logger_check.debug(f'закончили печать чека выходим {code_error_main}')
