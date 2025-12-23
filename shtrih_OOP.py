@@ -3,7 +3,6 @@ import datetime
 from sys import argv, exit
 from typing import Dict
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-
 import win32com.client
 import json
 from typing import Tuple, List, Any
@@ -26,6 +25,9 @@ DICT_OPERATION_CHECK = {'sale': 0,
                         'x_otchet': 7004,
                         'open_box': 6002,
                         'z_otchet': 6000}
+
+# список операций при которых потребуется включить НДС20
+NDS20 = (2, 128, 130)
 
 CUTTER = '~S'
 PROGID = ('Addin.DRvFR', 'Addin.KKTDrv')
@@ -73,12 +75,13 @@ class Shtrih(object):
         по имени, создасться тот у которого драйвер стоит с системе
         :return:
         """
+        drv = None
         for progid in PROGID:
             try:
                 drv = win32com.client.Dispatch(progid)
                 break
             except Exception as exc:
-                logging.debug(f'не удалось создалть COM объект драйвера {progid}')
+                logging.debug(f'не удалось создалть COM объект драйвера {exc} **** {progid}')
         logging.debug(f'создали COM объект драйвера {drv}')
         return drv
 
@@ -398,9 +401,39 @@ class Shtrih(object):
         130 ЭТО ЧЕК КОРРЕКЦИИ ВОЗВРАТ'
         """
         self.drv.CheckType = DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype'])
+        d1 = self.cash_receipt.get('initial_sale_date', None)
+        d2 = "01.01.26"
+        initial_date = datetime.datetime.strptime(d1, "%d.%m.%y")
+        countdown_date_nds22 = datetime.datetime.strptime(d2, "%d.%m.%y")
+        a = initial_date < countdown_date_nds22
+        if (self.drv.CheckType in NDS20
+                and initial_date < countdown_date_nds22):
+            self.nds_return_20()
         self.drv.Password = 1
         self.drv.OpenCheck()
         self.drv.UseReceiptRibbon = "TRUE"
+
+    def nds_return_20(self):
+        """
+        метод переключения на НДС20 на 1 документ
+        в кассах штрих это 71 ячейка в 17 таблице
+        0 - НДС 20%
+        1 - НДС 22%
+        в кассах РР это 69 ячейка в 17 таблице
+        1 - НДС 20%
+        0 - НДС 22%
+
+        """
+        self.drv.Password = 30
+        self.drv.TableNumber = 17
+        self.drv.GetFieldStruct()
+        self.drv.RowNumber = 1
+        self.drv.FieldNumber = 71
+        self.drv.ValueOfFieldInteger = 0
+        if 'РР-01Ф' in self.drv.UDescription:
+            self.drv.FieldNumber = 69
+            self.drv.ValueOfFieldInteger = 1
+        self.drv.WriteTable()
 
     def print_QR(self, item: str = 'nothing'):
         """
@@ -517,7 +550,6 @@ class Shtrih(object):
                 self.print_advertisement(kupon_text_list)
             if kupon.get("cut", 0) != 0:
                 self.cut_print(cut_type=kupon.get("cut", 0), feed=7)
-
 
     def get_info_about_FR(self):
         """
