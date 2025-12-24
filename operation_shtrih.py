@@ -1,3 +1,6 @@
+import struct, sys
+print("python:", sys.executable)
+print("bitness:", struct.calcsize("P") * 8)
 import logging
 import os
 import socket
@@ -94,6 +97,13 @@ def main():
     logging.debug(comp_rec['operationtype'])
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
     i_shtrih.print_on()
+    if comp_rec['operationtype'] == 'z_otchet_only':
+        logging.debug('сейчас будет запуск команды Z отчета')
+        i_shtrih.z_otchet()
+        logging.debug('Z отчет отработал, выходим')
+        list_aboutfr = i_shtrih.about_me()
+        save_about_fr(list_aboutfr)
+        exit(0)
     if comp_rec['operationtype'] == 'repeat':
         repeat_rec(i_shtrih, i_data=comp_rec)
         exit(0)
@@ -165,7 +175,9 @@ def main():
             logging.debug(f'сохранение данных кассы закончилось ошибкой {exc}')
         logging.debug(f'X отчет распечатали ошибок нет')
     if comp_rec['operationtype'] == 'z_otchet':
+        logging.debug('сейчас будет запуск команды Z отчета')
         i_shtrih.z_otchet()
+        logging.debug('Z отчет отработал')
         # сохраняем фио кассира в таблице драйвера кассы
         i_shtrih.drv.TableNumber = 2
         i_shtrih.drv.RowNumber = 30
