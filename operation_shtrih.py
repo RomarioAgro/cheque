@@ -117,43 +117,6 @@ def main():
         # list_aboutfr = i_shtrih.about_me()
         # save_about_fr(list_aboutfr)
         exit(0)
-    # печать отчета СБП
-    if comp_rec.get('SBP', 0) == 1:
-        str_registry_SBP = 'по СБП нет данных'
-        if comp_rec.get('SBP-type', 'sber') == 'sber':
-            i_sbp = SBP()
-            try:
-                str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
-            except Exception as exc:
-                logging.debug(exc)
-                str_registry_SBP += '\n' + str(exc)
-            i_shtrih.print_pinpad(str_registry_SBP)
-            i_shtrih.drv.StringQuantity = 3
-            i_shtrih.drv.FeedDocument()
-    # печать отчета подели
-    if comp_rec.get('podeli', 0) == 1:
-        podeli_text = None
-        try:
-            from podeli import reconciliation_of_orders
-        except Exception as exc:
-            logging.debug(f'проблема импорта reconciliation_of_orders {exc}')
-            podeli_text = "ошибка импорта модуля подели"
-        if podeli_text is None:
-            podeli_text = reconciliation_of_orders(delta_start=0,
-                                                   delta_end=0,
-                                                   detailing=True,
-                                                   rn=i_shtrih.cash_receipt.get('rn', 'unknown_number')
-                                                   )
-        i_shtrih.print_pinpad(podeli_text)
-        i_shtrih.drv.StringQuantity = 3
-        i_shtrih.drv.FeedDocument()
-
-    # печать отчета эквайринга
-    if comp_rec.get('PinPad', 0) == 1:
-        sber_pinpad = PinPad()
-        sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
-        i_shtrih.print_pinpad(sber_pinpad.text)
-    # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
         try:
             i_shtrih.x_otchet()
@@ -196,6 +159,43 @@ def main():
         logging.debug(i_shtrih.error_analysis_soft())
         list_aboutfr = i_shtrih.about_me()
         save_about_fr(list_aboutfr)
+    # печать отчета СБП
+    if comp_rec.get('SBP', 0) == 1:
+        str_registry_SBP = 'по СБП нет данных'
+        if comp_rec.get('SBP-type', 'sber') == 'sber':
+            i_sbp = SBP()
+            try:
+                str_registry_SBP = i_sbp.make_registry_for_print_on_fr(i_sbp.registry())
+            except Exception as exc:
+                logging.debug(exc)
+                str_registry_SBP += '\n' + str(exc)
+            i_shtrih.print_pinpad(str_registry_SBP)
+            i_shtrih.drv.StringQuantity = 3
+            i_shtrih.drv.FeedDocument()
+    # печать отчета подели
+    if comp_rec.get('podeli', 0) == 1:
+        podeli_text = None
+        try:
+            from podeli import reconciliation_of_orders
+        except Exception as exc:
+            logging.debug(f'проблема импорта reconciliation_of_orders {exc}')
+            podeli_text = "ошибка импорта модуля подели"
+        if podeli_text is None:
+            podeli_text = reconciliation_of_orders(delta_start=0,
+                                                   delta_end=0,
+                                                   detailing=True,
+                                                   rn=i_shtrih.cash_receipt.get('rn', 'unknown_number')
+                                                   )
+        i_shtrih.print_pinpad(podeli_text)
+        i_shtrih.drv.StringQuantity = 3
+        i_shtrih.drv.FeedDocument()
+    # печать отчета эквайринга
+    if comp_rec.get('PinPad', 0) == 1:
+        sber_pinpad = PinPad()
+        sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
+        i_shtrih.print_pinpad(sber_pinpad.text)
+    # печать отчета штрих
+    if comp_rec['operationtype'] == 'z_otchet':
         i_shtrih.drv.RebootKKT()
 
 
