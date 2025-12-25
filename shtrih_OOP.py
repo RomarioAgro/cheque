@@ -359,6 +359,7 @@ class Shtrih(object):
                 break
             else:
                 logging.debug('режим не рабочий {0}, запускаем {1}'.format(ecr_mode, dict_of_command_ecr_mode))
+                # если тут запуск Z отчета если смена 24 часа кончилась
                 dict_of_command_ecr_mode.get(ecr_mode, self.i_dont_know)()
 
     def open_box(self):
@@ -374,9 +375,22 @@ class Shtrih(object):
         метод закрытия смены
         """
         self.drv.Password = 30
-        self.drv.FNBeginCloseSession()
-        self.send_tag_1021_1203()
-        self.drv.FNCloseSession()
+
+        try:
+            logging.debug(f'сейчас будет начало закрытия смены')
+            self.drv.FNBeginCloseSession()
+        except Exception as exc:
+            logging.debug(f'ошибка начала закрытия смены {exc}')
+        try:
+            logging.debug(f'сейчас будет отправка тэгов кассира {self.cash_receipt["tag1021"]} {self.cash_receipt["tag1203"]}')
+            self.send_tag_1021_1203()
+        except Exception as exc:
+            logging.debug(f'ошибка отправки тэгов кассира{exc}')
+        try:
+            logging.debug(f'сейчас будет конец закрытия смены')
+            self.drv.FNCloseSession()
+        except Exception as exc:
+            logging.debug(f'ошибка конца закрытия смены {exc}')
         self.drv.WaitForPrinting()
         return self.drv.ECRMode, self.drv.ECRModeDescription
 
