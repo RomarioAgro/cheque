@@ -1,4 +1,6 @@
 import struct, sys
+import time
+
 print("python:", sys.executable)
 print("bitness:", struct.calcsize("P") * 8)
 import logging
@@ -107,7 +109,6 @@ def main():
     if comp_rec['operationtype'] == 'repeat':
         repeat_rec(i_shtrih, i_data=comp_rec)
         exit(0)
-
     if comp_rec['operationtype'] == 'about':
         list_aboutfr = i_shtrih.about_me()
         save_about_fr(list_aboutfr)
@@ -117,48 +118,6 @@ def main():
         # list_aboutfr = i_shtrih.about_me()
         # save_about_fr(list_aboutfr)
         exit(0)
-    if comp_rec['operationtype'] == 'x_otchet':
-        try:
-            i_shtrih.x_otchet()
-        except Exception as exc:
-            logging.debug(f'печать Х отчета закончилась ошибкой {exc}')
-        try:
-            logging.debug(i_shtrih.error_analysis_soft())
-        except Exception as exc:
-            logging.debug(f'анализ состояния кассы завершился ошибкой {exc}')
-        logging.debug(f'распечатали Х отчет, опросили кассу насчет ошибок')
-        try:
-            logging.debug(f'сейчас будет опрос данных кассы i_shtrih.about_me()')
-            list_aboutfr = i_shtrih.about_me()
-        except Exception as exc:
-            logging.debug(f'опрос данных кассы закончился ошибкой {exc}')
-        try:
-            save_about_fr(list_aboutfr)
-        except Exception as exc:
-            logging.debug(f'сохранение данных кассы закончилось ошибкой {exc}')
-        logging.debug(f'X отчет распечатали ошибок нет')
-    if comp_rec['operationtype'] == 'z_otchet':
-        logging.debug('сейчас будет запуск команды Z отчета')
-        i_shtrih.z_otchet()
-        logging.debug('Z отчет отработал')
-        # сохраняем фио кассира в таблице драйвера кассы
-        i_shtrih.drv.TableNumber = 2
-        i_shtrih.drv.RowNumber = 30
-        i_shtrih.drv.FieldNumber = 2
-        i_shtrih.drv.ValueOfFieldString = i_shtrih.cash_receipt.get('tag1021', 'кассир')
-        i_shtrih.drv.WriteTable()
-        # сохраняем настройку драйвера печатать реквизиты пользователя
-        i_shtrih.drv.RowNumber = 1
-        i_shtrih.drv.FieldNumber = 12
-        i_shtrih.drv.ValueOfFieldInteger = 63
-        i_shtrih.drv.GetFieldStruct()
-        i_shtrih.drv.WriteTable()
-        # правим время
-        i_shtrih.drv.Time = datetime.datetime.now().time().strftime("%H:%M:%S")
-        i_shtrih.drv.SetTime()
-        logging.debug(i_shtrih.error_analysis_soft())
-        list_aboutfr = i_shtrih.about_me()
-        save_about_fr(list_aboutfr)
     # печать отчета СБП
     if comp_rec.get('SBP', 0) == 1:
         str_registry_SBP = 'по СБП нет данных'
@@ -195,7 +154,49 @@ def main():
         sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
         i_shtrih.print_pinpad(sber_pinpad.text)
     # печать отчета штрих
+    if comp_rec['operationtype'] == 'x_otchet':
+        try:
+            i_shtrih.x_otchet()
+        except Exception as exc:
+            logging.debug(f'печать Х отчета закончилась ошибкой {exc}')
+        try:
+            logging.debug(i_shtrih.error_analysis_soft())
+        except Exception as exc:
+            logging.debug(f'анализ состояния кассы завершился ошибкой {exc}')
+        logging.debug(f'распечатали Х отчет, опросили кассу насчет ошибок')
+        try:
+            logging.debug(f'сейчас будет опрос данных кассы i_shtrih.about_me()')
+            list_aboutfr = i_shtrih.about_me()
+        except Exception as exc:
+            logging.debug(f'опрос данных кассы закончился ошибкой {exc}')
+        try:
+            save_about_fr(list_aboutfr)
+        except Exception as exc:
+            logging.debug(f'сохранение данных кассы закончилось ошибкой {exc}')
+        logging.debug(f'X отчет распечатали ошибок нет')
     if comp_rec['operationtype'] == 'z_otchet':
+        time.sleep(5)
+        logging.debug('сейчас будет запуск команды Z отчета')
+        i_shtrih.z_otchet()
+        logging.debug('Z отчет отработал')
+        # сохраняем фио кассира в таблице драйвера кассы
+        i_shtrih.drv.TableNumber = 2
+        i_shtrih.drv.RowNumber = 30
+        i_shtrih.drv.FieldNumber = 2
+        i_shtrih.drv.ValueOfFieldString = i_shtrih.cash_receipt.get('tag1021', 'кассир')
+        i_shtrih.drv.WriteTable()
+        # сохраняем настройку драйвера печатать реквизиты пользователя
+        i_shtrih.drv.RowNumber = 1
+        i_shtrih.drv.FieldNumber = 12
+        i_shtrih.drv.ValueOfFieldInteger = 63
+        i_shtrih.drv.GetFieldStruct()
+        i_shtrih.drv.WriteTable()
+        # правим время
+        i_shtrih.drv.Time = datetime.datetime.now().time().strftime("%H:%M:%S")
+        i_shtrih.drv.SetTime()
+        logging.debug(i_shtrih.error_analysis_soft())
+        list_aboutfr = i_shtrih.about_me()
+        save_about_fr(list_aboutfr)
         i_shtrih.drv.RebootKKT()
 
 
