@@ -155,6 +155,7 @@ def main():
         i_shtrih.print_pinpad(sber_pinpad.text)
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
+        time.sleep(5)
         try:
             i_shtrih.x_otchet()
         except Exception as exc:
