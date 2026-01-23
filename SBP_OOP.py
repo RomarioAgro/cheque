@@ -1,5 +1,4 @@
 import base64
-import random
 import uuid
 import datetime
 import json
@@ -7,12 +6,12 @@ from requests_pkcs12 import post
 from enum import Enum
 import logging
 import http.client
-import PySimpleGUI as sg
-import ctypes
 import os
 import socket
 import getpass
 from dotenv import load_dotenv
+import tkinter as tk
+from tkinter import ttk
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 
@@ -39,18 +38,6 @@ def httpclient_logging_patch(level=logging.DEBUG):
     http.client.print = httpclient_log
     # enable debugging
     http.client.HTTPConnection.debuglevel = 1
-
-def event_pyament(count_i, event, ):
-    if count_i > TIMEOUT_BANK:
-        i_title = 'Время вышло'
-        i_text_error = 'Истекло время ожидания оплаты' + '\nделайте новый чек'
-        ctypes.windll.user32.MessageBoxW(0, i_text_error, i_title, 4096 + 16)
-        logging.debug('событие = {0}'.format(i_text_error))
-        return 2000
-    if event == 'Cancel' or event is None or event == sg.WIN_CLOSED:
-        logging.debug('событие = {0}'.format(event))
-        return 2000
-
 
 class Scope(Enum):
     """
@@ -205,7 +192,8 @@ class SBP(object):
             headers=headers,
             verify='russian-trusted-cacert.pem',
             pkcs12_filename=self.sert_name,
-            pkcs12_password=self.sert_pass
+            pkcs12_password=self.sert_pass,
+            timeout=20
         )
         logging.debug('answer= ' + str(r.text))
         self.order = r.json()
@@ -246,7 +234,9 @@ class SBP(object):
                 headers=headers,
                 verify='russian-trusted-cacert.pem',
                 pkcs12_filename=self.sert_name,
-                pkcs12_password=self.sert_pass)
+                pkcs12_password=self.sert_pass,
+                timeout=7
+            )
             r.raise_for_status()
         except Exception as exc:
             logging.debug('ошибка запроса статуса оплаты {0}'.format(exc))
@@ -492,88 +482,153 @@ class SBP(object):
         }
         return error_dict.get(error_number, 'Общая ошибка')
 
-    def start_make_window_gui(self):
-        progressbar = [
-            [sg.ProgressBar(TIMEOUT_BANK, orientation='h', size=(60, 30), key='progressbar')]
-        ]
-        outputwin = [
-            [sg.Output(size=(100, 10))]
-        ]
-        layout = [
-            [sg.Frame('Progress', layout=progressbar)],
-            [sg.Frame('Output', layout=outputwin)],
-            [sg.Button('Cancel')]
-        ]
-        window = sg.Window('Связь с банком', layout, finalize=True)
-        return window
-
     def waiting_payment(self, cash_receipt: dict = None):
         """
-        метод ожидания оплаты по СБП
-        cash_receipt dict словарь нашего чека
+        Ожидание оплаты по СБП через tkinter.
+        Возвращает (i_exit, data_status).
+        i_exit: 0 - оплачено, 2000 - отмена, иначе код ошибки.
         """
-        window = self.start_make_window_gui()
-        progress_bar = window['progressbar']
-        i = 0
-        data_status = {}
-        start_time = int(datetime.datetime.now().timestamp())
-        while True:  # запускаем показ прогрессбара типа связь с банком
+        # --- локальное состояние
+        self._i = 0
+        self._data_status = {}
+        self._start_time = int(datetime.datetime.now().timestamp())
+        self._cancelled = False
+        self._result = {"code": None, "data": {}}
+
+        # --- UI
+        root = tk.Tk()
+        root.title("Связь с банком")
+        root.resizable(False, False)
+
+        # Важно: корректно закрываем окно (как Cancel)
+        def on_close():
+            self._cancelled = True
+            self._result["code"] = 2000
+            self._result["data"] = self._data_status
+            root.quit()
+
+        root.protocol("WM_DELETE_WINDOW", on_close)
+
+        frm = ttk.Frame(root, padding=10)
+        frm.grid(row=0, column=0, sticky="nsew")
+
+        # Прогресс
+        ttk.Label(frm, text="Progress").grid(row=0, column=0, sticky="w")
+        progress = ttk.Progressbar(frm, orient="horizontal", length=480, mode="determinate")
+        progress.grid(row=1, column=0, sticky="we", pady=(5, 10))
+
+        # Настройки прогресса: 0..TIMEOUT_BANK
+        # TIMEOUT_BANK и TOKEN_LIFE должны быть у вас определены так же, как раньше
+        progress["maximum"] = TIMEOUT_BANK
+        progress["value"] = 0
+
+        # Output (лог статусов)
+        ttk.Label(frm, text="Output").grid(row=2, column=0, sticky="w")
+        text = tk.Text(frm, width=80, height=10, wrap="word")
+        text.grid(row=3, column=0, sticky="we")
+        text.configure(state="disabled")
+
+        scroll = ttk.Scrollbar(frm, orient="vertical", command=text.yview)
+        scroll.grid(row=3, column=1, sticky="ns")
+        text["yscrollcommand"] = scroll.set
+
+        # Cancel
+        btn_cancel = ttk.Button(frm, text="Cancel", command=on_close)
+        btn_cancel.grid(row=4, column=0, sticky="e", pady=(10, 0))
+
+        frm.columnconfigure(0, weight=1)
+
+        def log_line(s: str):
+            text.configure(state="normal")
+            text.insert("end", s + "\n")
+            text.see("end")
+            text.configure(state="disabled")
+
+        def tick():
+            """Одна итерация: проверка статуса + обновление UI + планирование следующей."""
+            if self._cancelled:
+                return
+
+            # Обновление токена статуса по времени жизни
             now_time = int(datetime.datetime.now().timestamp())
-            if now_time - start_time > TOKEN_LIFE:
+            if now_time - self._start_time > TOKEN_LIFE:
                 self.status_order_token = None
-                start_time = now_time
-                logging.debug('обнулили токен статуса оплаты')
-            event, values = window.read(timeout=1000)
-            logging.debug(event)
-            # регистрируем событие выхода
-            i_exit = event_pyament(i, event)
-            if i_exit == 2000:
-                print('exit')
-                logging.debug('выход {0}'.format(event))
-                return i_exit, data_status
-            # здесь посылаем запрос в сбербанк о статусе заказа
-            # TODO подумай как еще можно сократить код
-            data_status = self.status_order(
-                order_id=self.order['order_id'],
-                partner_order_number=cash_receipt['number_receipt'])
-            print('Запрос состояния заказа {number_order}, сумма {summ_order} руб. '
-                  'Попытка запроса № {try_count}. Статус заказа {status_order}'.
-                  format(summ_order=str(cash_receipt['summ3']),
-                         try_count=i + 1,
-                         status_order=data_status['order_state'],
-                         number_order=cash_receipt['number_receipt']))
-            logging.debug('data_status= {0}'.format(data_status))
-            if data_status['order_state'] == 'PAID':
-                # если оплатили, то начинаем печатать ответ сервера
-                logging.debug(data_status)
-                i_exit = 0  # ошибка выхода 0 - нет ошибок
-                return i_exit, data_status
-                # break
-            if data_status['order_state'] == 'DECLINED':
-                logging.debug(data_status)
-                error_code = data_status.get('order_operation_params', None)[0].get('response_code', 'код ошибки')
-                i_title = 'Ошибка {}'.format(error_code)
-                i_text_error = self.error_code(error_number=error_code) + '\nделайте новый чек'
-                ctypes.windll.user32.MessageBoxW(0, i_text_error + '\nделайте новый чек', i_title, 4096 + 16)
-                logging.debug(i_title + ' ' + ' ' + i_text_error)
-                i_exit = int(error_code)  # ошибка выхода
-                if i_exit == 0:
-                    i_exit = 96
-                    logging.debug('заказ отменен, код выхода не может быть 0, поэтому поменяли на {0}'.format(i_exit))
-                return i_exit, data_status
-            if data_status['order_state'] == 'REVOKED':
-                logging.debug(data_status)
-                error_code = '97'
-                i_title = 'Ошибка {}'.format(error_code)
-                i_text_error = self.error_code(error_number=error_code)
-                logging.debug(i_title + ' ' + ' ' + i_text_error)
-                ctypes.windll.user32.MessageBoxW(0, i_text_error + '\nделайте новый чек', i_title, 4096 + 16)
-                i_exit = int(error_code)  # ошибка выхода
+                self._start_time = now_time
+                logging.debug("обнулили токен статуса оплаты")
+                log_line("Токен статуса обновлен (истек срок).")
+
+            # Прогресс по времени (или по попыткам, как у вас было)
+            # Если TIMEOUT_BANK у вас в секундах, то удобно: value = seconds_elapsed
+            elapsed = now_time - int(self._start_time)
+            # Но у вас прогресс ранее был по i (попыткам). Сохраним “попытки”,
+            # а максимум оставим TIMEOUT_BANK. Если TIMEOUT_BANK = секунды, можно иначе.
+            if self._i <= TIMEOUT_BANK:
+                progress["value"] = self._i
+            else:
+                progress["value"] = TIMEOUT_BANK
+
+            # Запрос статуса заказа
+            try:
+                self._data_status = self.status_order(
+                    order_id=self.order["order_id"],
+                    partner_order_number=cash_receipt["number_receipt"]
+                )
+            except Exception as exc:
+                # Если сеть/сервер упали: не подвешиваем окно, а пишем в лог и продолжаем
+                logging.exception(exc)
+                log_line(f"Ошибка запроса статуса: {exc!r}")
+                self._i += 1
+                root.after(1000, tick)
+                return
+
+            state = self._data_status.get("order_state", "UNKNOWN")
+
+            msg = (
+                f"Запрос состояния заказа {cash_receipt['number_receipt']}, "
+                f"сумма {cash_receipt['summ3']} руб. "
+                f"Попытка № {self._i + 1}. Статус: {state}"
+            )
+            logging.debug("data_status= %s", self._data_status)
+            log_line(msg)
+
+            # Разбор состояний
+            if state == "PAID":
+                self._result["code"] = 0
+                self._result["data"] = self._data_status
+                root.quit()
+                return
+
+            if state == "DECLINED":
+                # В tkinter вместо ctypes MessageBox используем messagebox
+                from tkinter import messagebox
+                error_code = (
+                    self._data_status.get("order_operation_params", [{}])[0]
+                    .get("response_code", "96")
+                )
+                title = f"Ошибка {error_code}"
+                text_error = self.error_code(error_number=error_code) + "\nделайте новый чек"
+                messagebox.showerror(title, text_error)
+
+                code = int(error_code) if str(error_code).isdigit() else 96
+                if code == 0:
+                    code = 96
+                self._result["code"] = code
+                self._result["data"] = self._data_status
+                root.quit()
+                return
+
+            if state == "REVOKED":
+                from tkinter import messagebox
+                error_code = "97"
+                title = f"Ошибка {error_code}"
+                text_error = self.error_code(error_number=error_code)
+                messagebox.showerror(title, text_error + "\nделайте новый чек")
+                self._result["code"] = int(error_code)
+                self._result["data"] = self._data_status
                 f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
                 my_dict = {
                     'shop': f_name,
-                    'text': 'проблема оплаты СБП Сбербанк{0}, статус заказа {1}'.format(i_text_error,
-                                                                                        data_status['order_state']),
+                    'text': f'проблема оплаты СБП Сбербанк{self._result["data"]}, статус заказа {state}',
                     'number': cash_receipt['number_receipt'],
                     'summ': cash_receipt['sum-cash'] + cash_receipt['sum-cashless'] + cash_receipt['summ3']
                 }
@@ -583,13 +638,35 @@ class SBP(object):
                     logging.debug('отправили в телегу сообщение')
                 except Exception as exc:
                     logging.debug(exc)
-                return i_exit, data_status
-                # break
-            progress_bar.UpdateBar(i + 1)
-            i += 1
-        window.close()
-        print('окно закрылось')
-        return i_exit, data_status
+
+                root.quit()
+                return
+
+            # Следующая итерация
+            self._i += 1
+
+            # Если у вас TIMEOUT_BANK реально означает таймаут ожидания (в секундах/попытках)
+            # можно завершать по достижению:
+            if self._i > TIMEOUT_BANK:
+                self._result["code"] = 2001  # например "timeout"
+                self._result["data"] = self._data_status
+                log_line("Таймаут ожидания оплаты.")
+                root.quit()
+                return
+
+            root.after(3000, tick)
+
+        # стартуем цикл без блокировок
+        root.after(0, tick)
+        root.mainloop()
+        root.destroy()
+
+        # итог
+        if self._result["code"] is None:
+            # на всякий случай
+            return 2000, self._data_status
+        return self._result["code"], self._result["data"]
+
 
 
 def print_registry_on_fr(registry_dict: dict = {}) -> list:
