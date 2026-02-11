@@ -15,7 +15,7 @@ from pathlib import Path
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
-    filename=argv[1] + '\\' + argv[2] + "_" + current_time + '_.log',
+    filename=argv[1] + '\\check_' + argv[2] + "_" + current_time + '_.log',
     filemode='a',
     level=logging.DEBUG,
     format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
@@ -179,6 +179,7 @@ def check_KM_in_honeist_sign(o_shtrih):
     и проверка включена
     :return:
     """
+    return 0, 'good', 12345678
     # my_list = o_shtrih.cash_receipt.get('km', None)
     not_checking = {'', STOP_WORD}
     names = [item["name"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]

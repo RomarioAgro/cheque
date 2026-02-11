@@ -13,7 +13,8 @@ from pathlib import Path
 
 
 logger_make_dbf: logging.Logger = logging.getLogger(__name__)
-logger_make_dbf.setLevel(logging.DEBUG)
+current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
+logger_make_dbf.setLevel(logging.INFO)
 formatter = logging.Formatter(fmt="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
                               datefmt='%H:%M:%S')
 heading = {}
@@ -28,6 +29,20 @@ DICT_FIELDS = {
          'BONUSAKC C(8);SHKPROIZV N(20,0);OTKL N(5,0);PODOKUMENT N(5,0);NAIMVIDNOM C(100);KODVIDNOME C(20);KODMARK C(255);'
          'KODSTATUS C(9);MARKTIP C(20);BONUSSPIS N(6,0);BONUSNACH N(6,0)'
 }
+
+def setup_logger_for_run(rec_id: str):
+    safe_id = rec_id.replace('/', '_')
+
+    log_dir = Path(r'd:\files')
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_file = log_dir / f"dbf_make_{safe_id}_{current_time}.log"
+
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setFormatter(formatter)
+
+    logger_make_dbf.addHandler(file_handler)
+    logger_make_dbf.propagate = False
 
 
 def dbf_add_record(f_name: str = 'e:\\inbox\\export\\new.dbf',
@@ -201,28 +216,41 @@ def cli():
     main(rec)
 
 def main(my_rec):
-    name_export = get_name_export()
-    logger_make_dbf.info(my_rec)
-    i_path = config('path_export', 'e:\\inbox\\export\\')
-    full_path = i_path + name_export + 'Z.dbf'
-    id_number = make_dbf(i_path=full_path)
-    start: float = time.time()
-    logger_make_dbf.info(f'создаем поток z файла')
-    threads1 = threading.Thread(target=dbf_z, args=(i_path, name_export, my_rec, id_number))
-    logger_make_dbf.info(f'создаем поток n файла')
-    threads2 = threading.Thread(target=dbf_n, args=(i_path, name_export, my_rec, id_number))
-    logger_make_dbf.info(f'старт z файла')
-    threads1.start()
-    logger_make_dbf.info(f'старт n файла')
-    threads2.start()
-    logger_make_dbf.info(f'join z файла')
-    threads1.join()
-    logger_make_dbf.info(f'конец z файла')
-    logger_make_dbf.info(f'join n файла')
-    threads2.join()
-    logger_make_dbf.info(f'конец n файла')
-    end: float = time.time()
-    logger_make_dbf.info('Done multithreading in {:.4}'.format(end - start))
+    try:
+        rec_id = my_rec.get('id', 'noid')
+        setup_logger_for_run(rec_id)
+
+        logger_make_dbf.info(f"Старт обработки ID={rec_id}")
+        logger_make_dbf.info(my_rec)
+        name_export = get_name_export()
+
+        logger_make_dbf.info(my_rec)
+        i_path = config('path_export', 'e:\\inbox\\export\\')
+        full_path = i_path + name_export + 'Z.dbf'
+        id_number = make_dbf(i_path=full_path)
+        start: float = time.time()
+        logger_make_dbf.info(f'создаем поток z файла')
+        threads1 = threading.Thread(target=dbf_z, args=(i_path, name_export, my_rec, id_number))
+        logger_make_dbf.info(f'создаем поток n файла')
+        threads2 = threading.Thread(target=dbf_n, args=(i_path, name_export, my_rec, id_number))
+        logger_make_dbf.info(f'старт z файла')
+        threads1.start()
+        logger_make_dbf.info(f'старт n файла')
+        threads2.start()
+        logger_make_dbf.info(f'join z файла')
+        threads1.join()
+        logger_make_dbf.info(f'конец z файла')
+        logger_make_dbf.info(f'join n файла')
+        threads2.join()
+        logger_make_dbf.info(f'конец n файла')
+        end: float = time.time()
+        logger_make_dbf.info('Done multithreading in {:.4}'.format(end - start))
+    except BaseException:
+        logger_make_dbf.exception("Поймали BaseException")
+        raise
+    except Exception:
+        logger_make_dbf.exception("Поймали BaseException")
+        raise
 
 
 if __name__ == '__main__':
