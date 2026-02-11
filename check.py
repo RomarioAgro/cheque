@@ -179,7 +179,6 @@ def check_KM_in_honeist_sign(o_shtrih):
     и проверка включена
     :return:
     """
-    return 0, 'good', 12345678
     # my_list = o_shtrih.cash_receipt.get('km', None)
     not_checking = {'', STOP_WORD}
     names = [item["name"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
