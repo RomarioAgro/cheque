@@ -6,6 +6,12 @@ import datetime
 from decouple import Config, RepositoryEnv
 from typing import Tuple
 from correct_email import sanitize_email, is_valid_email
+import subprocess
+import sys
+import json
+import tempfile
+from pathlib import Path
+
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logging.basicConfig(
@@ -451,16 +457,39 @@ def main() -> Tuple:
     else:
         return pin_error, None, 'nothing'
 
+def run_make_dbf_detached(cash_rec: dict):
+    # 1) складываем входные данные во временный json
+    jpath = cash_rec.get('id','noid').replace('/','_')
+    tmp = Path(tempfile.gettempdir()) / f"cashrec_{jpath}.json"
+    tmp.write_text(json.dumps(cash_rec, ensure_ascii=False), encoding="utf-8")
 
+    # 2) стартуем отдельный процесс и НЕ ждём его
+    DETACHED_PROCESS = 0x00000008
+    CREATE_NEW_PROCESS_GROUP = 0x00000200
+    script = Path(__file__).with_name("dbf_make.py")  # абсолютный путь к dbf_make.py
+    logfile = Path(__file__).with_name("dbf_make_subprocess.log")
+    logfile = Path(r"d:\files") / "dbf_make_subprocess.log"
+    with logfile.open("a", encoding="utf-8") as log:
+        subprocess.Popen(
+            [sys.executable, str(script), "--input", str(tmp)],
+            cwd=str(script.parent),  # важно: правильная рабочая папка
+            stdout=log,
+            stderr=log,
+            text=True,
+            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        )
 if __name__ == '__main__':
     code_error_main, cash_rec, fpd = main()  #возвращаем, код ошибки, словарь документа, Фискальный Признак Документа
+    logger_check.debug(f'закончили печать code_error_main={code_error_main}, fpd={fpd}')
     try:
         if code_error_main == 0 and cash_rec is not None:
-            import dbf_make
-            save_FiscalSign(i_path=argv[1], i_file=argv[2] + '_fpd', i_fp=fpd)
-            dbf_make.main(cash_rec)
+            pass
+            logger_check.debug(f'закончили печать code_error_main={code_error_main}, fpd={fpd}')
+            logger_check.debug(f'сейчас будет запуск dbf_make')
+            run_make_dbf_detached(cash_rec)
     except Exception as exc:
-        logger_check.debug(exc)
+        logger_check.debug(f"ошибка создания dbf {exc}")
+        code_error_main = 0
     try:
         if cash_rec.get('operationtype', 'sale') == 'sale' or \
                 cash_rec.get('operationtype', 'sale') == 'return_sale':

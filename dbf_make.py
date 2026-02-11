@@ -8,6 +8,9 @@ from typing import Dict
 import threading
 import time
 import logging
+import argparse, json
+from pathlib import Path
+
 
 logger_make_dbf: logging.Logger = logging.getLogger(__name__)
 logger_make_dbf.setLevel(logging.DEBUG)
@@ -190,6 +193,12 @@ def dbf_n(i_path, name_export, my_rec, id_number):
     make_dbf(i_path=full_path)
     make_record_N(my_rec=my_rec, id=str(id_number), f_path=full_path)
 
+def cli():
+    p = argparse.ArgumentParser()
+    p.add_argument("--input", required=True)
+    args = p.parse_args()
+    rec = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    main(rec)
 
 def main(my_rec):
     name_export = get_name_export()
@@ -198,16 +207,25 @@ def main(my_rec):
     full_path = i_path + name_export + 'Z.dbf'
     id_number = make_dbf(i_path=full_path)
     start: float = time.time()
+    logger_make_dbf.info(f'создаем поток z файла')
     threads1 = threading.Thread(target=dbf_z, args=(i_path, name_export, my_rec, id_number))
+    logger_make_dbf.info(f'создаем поток n файла')
     threads2 = threading.Thread(target=dbf_n, args=(i_path, name_export, my_rec, id_number))
+    logger_make_dbf.info(f'старт z файла')
     threads1.start()
+    logger_make_dbf.info(f'старт n файла')
     threads2.start()
+    logger_make_dbf.info(f'join z файла')
     threads1.join()
+    logger_make_dbf.info(f'конец z файла')
+    logger_make_dbf.info(f'join n файла')
     threads2.join()
+    logger_make_dbf.info(f'конец n файла')
     end: float = time.time()
     logger_make_dbf.info('Done multithreading in {:.4}'.format(end - start))
 
 
 if __name__ == '__main__':
-    from my_rec import my_rec
-    main(my_rec)
+    # from my_rec import my_rec
+    # main(my_rec)
+    cli()
