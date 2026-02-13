@@ -8,6 +8,7 @@ sql_make_db = """
                 id VARCHAR(20) PRIMARY KEY,
                 number_receipt VARCHAR(20),
                 date_create VARCHAR(8),
+                date_create_sbis VARCHAR(8),
                 shop_id INTEGER,
                 sum REAL,
                 SumBeforeSale INTEGER,
@@ -18,18 +19,28 @@ sql_make_db = """
                 bonus_dec INTEGER,
                 bonus_begin VARCHAR(8),
                 bonus_end VARCHAR(8),
-                operation_type VARCHAR(12)
+                operation_type VARCHAR(12),
+                prim VARCHAR(50)
             );
             CREATE TABLE IF NOT EXISTS items (
                 id VARCHAR(20),
                 nn VARCHAR(20),
                 barcode VARCHAR(31),
-                artname VARCHAR(255), 
                 name VARCHAR(255),
+                katnom VARCHAR(3),
+                katname VARCHAR(100),
+                artnom VARCHAR(3),
+                artname VARCHAR(255),
                 modification VARCHAR(254),
                 quantity INTEGER,
                 price REAL,
                 fullprice REAL,
+                cena2 REAL,
+                nds INTEGER,
+                gtd VARCHAR(255),
+                country VARCHAR(50),
+                bonus_add INTEGER,
+                bonus_dec INTEGER,
                 seller VARCHAR(20),
                 comment VARCHAR(20),
                 FOREIGN KEY (id) REFERENCES 'receipt' (id)
@@ -68,6 +79,7 @@ sql_add_document = """
                 id,
                 number_receipt,
                 date_create,
+                date_create_sbis,
                 shop_id,
                 sum,
                 SumBeforeSale,
@@ -78,7 +90,8 @@ sql_add_document = """
                 bonus_dec,
                 bonus_begin,
                 bonus_end,
-                operation_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                operation_type,
+                prim) VALUES (?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_item = """
@@ -88,12 +101,21 @@ sql_add_item = """
                 barcode,
                 artname,
                 name,
+                katnom,
+                katname,
+                artnom,
                 modification,
                 quantity,
                 price,
                 fullprice,
+                cena2,
+                nds,
+                gtd,
+                country,
+                bonus_add,
+                bonus_dec,
                 seller,
-                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_bonusi = f"""

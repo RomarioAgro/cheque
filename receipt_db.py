@@ -53,7 +53,7 @@ class Receiptinsql():
         """
         try:
             cursor = self.conn.cursor()
-            cursor.executescript(sql_update_db_items)
+            # cursor.executescript(sql_update_db_items)
         except Exception as exc:
             logging.debug(f'ошибка обновления базы данных{exc}')
 
@@ -76,9 +76,11 @@ class Receiptinsql():
         """
         rec_id = j_receipt.get('id') + '_' + id_operation.get(j_receipt.get("operationtype", 'sale'), 's')
         date_time = j_receipt.get('date_create') + j_receipt.get('mtime', None).replace(':', '')
+        date_time_sbis = j_receipt.get('date_create') + j_receipt.get('stime', None).replace(':', '')
         param_tuple = (rec_id,
                        j_receipt.get('number_receipt'),
                        date_time,
+                       date_time_sbis,
                        j_receipt.get('shop_id', 0),
                        j_receipt.get('sum', 0),
                        j_receipt.get('sum', 0) + j_receipt.get('total-discount', 0),
@@ -89,8 +91,8 @@ class Receiptinsql():
                        j_receipt.get('bonus_dec', 0),
                        j_receipt.get('bonus_begin', ''),
                        j_receipt.get('bonus_end', ''),
-                       j_receipt.get('operationtype', 'sale'))
-
+                       j_receipt.get('operationtype', 'sale'),
+                       j_receipt.get('note', ''))
 
         self.conn.cursor().execute(sql_add_document, param_tuple)
         logging.debug('записали чек в БД {0}'.format(param_tuple))
@@ -102,10 +104,19 @@ class Receiptinsql():
                            item.get('barcode', ''),
                            item.get('artname', ''),
                            item.get('name', ''),
+                           item.get('katnom', ''),
+                           item.get('katname', ''),
+                           item.get('artnom', ''),
                            item.get('modification', ''),
                            item.get('quantity'),
                            item.get('price', 0.0),
                            item.get('fullprice', 0.0),
+                           item.get('cena2', 0.0),
+                           item.get('nds', 0.0),
+                           item.get('gtd', 0.0),
+                           item.get('country'),
+                           item.get('bonusaccrual'),
+                           item.get('bonuswritedown'),
                            item.get('seller'),
                            item.get('comment'))
                 goods.append(product)
@@ -174,7 +185,7 @@ class Receiptinsql():
 
 
 def main():
-    file_json_name = 'd:\\files\\5026_01_sale.json'
+    file_json_name = 'd:\\files\\5532_02_sale.json'
     if os.path.exists(file_json_name):
         with open(file_json_name, 'r', encoding='cp1251') as json_file:
             i_json = json.load(json_file)
