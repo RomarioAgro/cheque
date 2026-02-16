@@ -100,7 +100,6 @@ sql_add_document = """
                 beznalsumm,
                 nomprod,
                 dateprod,
-
                 prim) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
@@ -109,6 +108,7 @@ sql_add_item = """
                 id,
                 nn,
                 barcode,
+                marktip,
                 artname,
                 name,
                 katnom,
@@ -125,7 +125,7 @@ sql_add_item = """
                 bonus_add,
                 bonus_dec,
                 seller,
-                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_bonusi = f"""

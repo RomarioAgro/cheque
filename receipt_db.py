@@ -112,6 +112,7 @@ class Receiptinsql():
                 product = (rec_id,
                            item.get('nn', ''),
                            item.get('barcode', ''),
+                           item.get('marktip', ''),
                            item.get('artname', ''),
                            item.get('name', ''),
                            item.get('katnom', ''),
