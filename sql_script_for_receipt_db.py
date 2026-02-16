@@ -20,6 +20,10 @@ sql_make_db = """
                 bonus_begin VARCHAR(8),
                 bonus_end VARCHAR(8),
                 operation_type VARCHAR(12),
+                tipoplati VARCHAR(1),
+                beznalsumm real,
+                nomprod VARCHAR(20),
+                dateprod VARCHAR(8),
                 prim VARCHAR(50)
             );
             CREATE TABLE IF NOT EXISTS items (
@@ -133,7 +137,8 @@ sql_delete_document = """
 sql_get_document = """
             SELECT id, 
             number_receipt, 
-            date_create, 
+            date_create,
+            date_create_sbis,
             shop_id, 
             sum, 
             SumBeforeSale, 
@@ -144,7 +149,8 @@ sql_get_document = """
             bonus_dec,
             bonus_begin,
             bonus_end,
-            operation_type
+            operation_type,
+            prim,
             FROM receipt
             LIMIT 10;
 """
