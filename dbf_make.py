@@ -249,7 +249,7 @@ def main(my_rec):
         logger_make_dbf.exception("Поймали BaseException")
         raise
     except Exception:
-        logger_make_dbf.exception("Поймали BaseException")
+        logger_make_dbf.exception("Поймали Exception")
         raise
 
 
