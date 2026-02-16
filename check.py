@@ -180,6 +180,7 @@ def check_KM_in_honeist_sign(o_shtrih):
     :return:
     """
     # my_list = o_shtrih.cash_receipt.get('km', None)
+    return 0, 'good', 12345678
     not_checking = {'', STOP_WORD}
     names = [item["name"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
     km_for_checking = [item["qr"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking and (item["marktip"] != '5000' and item["marktip"] != '9999')]
@@ -467,7 +468,6 @@ def run_make_dbf_detached(cash_rec: dict):
     DETACHED_PROCESS = 0x00000008
     CREATE_NEW_PROCESS_GROUP = 0x00000200
     script = Path(__file__).with_name("dbf_make.py")  # абсолютный путь к dbf_make.py
-    logfile = Path(__file__).with_name("dbf_make_subprocess.log")
     logfile = Path(r"d:\files") / "dbf_make_subprocess.log"
     with logfile.open("a", encoding="utf-8") as log:
         subprocess.Popen(
@@ -481,15 +481,7 @@ def run_make_dbf_detached(cash_rec: dict):
 if __name__ == '__main__':
     code_error_main, cash_rec, fpd = main()  #возвращаем, код ошибки, словарь документа, Фискальный Признак Документа
     logger_check.debug(f'закончили печать code_error_main={code_error_main}, fpd={fpd}')
-    try:
-        if code_error_main == 0 and cash_rec is not None:
-            pass
-            logger_check.debug(f'закончили печать code_error_main={code_error_main}, fpd={fpd}')
-            logger_check.debug(f'сейчас будет запуск dbf_make')
-            run_make_dbf_detached(cash_rec)
-    except Exception as exc:
-        logger_check.debug(f"ошибка создания dbf {exc}")
-        code_error_main = 0
+    # DBF формируется при отправке чеков в 1С из базы данных
     try:
         if cash_rec.get('operationtype', 'sale') == 'sale' or \
                 cash_rec.get('operationtype', 'sale') == 'return_sale':

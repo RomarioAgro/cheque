@@ -21,7 +21,7 @@ sql_make_db = """
                 bonus_end VARCHAR(8),
                 operation_type VARCHAR(12),
                 tipoplati VARCHAR(1),
-                beznalsumm real,
+                beznalsumm REAL,
                 nomprod VARCHAR(20),
                 dateprod VARCHAR(8),
                 prim VARCHAR(50)
@@ -109,11 +109,11 @@ sql_add_item = """
                 nn,
                 barcode,
                 marktip,
-                artname,
                 name,
                 katnom,
                 katname,
                 artnom,
+                artname,
                 modification,
                 quantity,
                 price,
@@ -156,12 +156,35 @@ sql_get_document = """
             bonus_begin,
             bonus_end,
             operation_type,
-            prim,
+            beznalsumm,
+            nomprod,
+            dateprod,           
+            prim
             FROM receipt
             LIMIT 10;
 """
 sql_get_items = """
-            SELECT id, nn, barcode, artname, name, modification, quantity, price, fullprice, seller, comment
+            SELECT id,
+            nn,
+            barcode,
+            marktip,
+            name,
+            katnom,
+            katname,
+            artnom,
+            artname,
+            modification,
+            quantity,
+            price,
+            fullprice,
+            cena2,
+            nds,
+            gtd,
+            country,
+            bonus_add,
+            bonus_dec,
+            seller,
+            comment
             FROM items
             WHERE id = ?;
 """

@@ -78,11 +78,11 @@ class Receiptinsql():
         date_time = j_receipt.get('date_create') + j_receipt.get('mtime', None).replace(':', '')
         date_time_sbis = j_receipt.get('date_create') + j_receipt.get('stime', None).replace(':', '')
         tipoplati = 0
-        beznalsum = ''
+        beznalsum = 0
         if j_receipt.get('sum-cashless', 0) > 0:
-            beznalsum = str(j_receipt.get('sum-cashless', 0))
-        if j_receipt.get('sum-summ3', 0) > 0:
-            beznalsum = str(j_receipt.get('summ3', 0))
+            beznalsum = float(j_receipt.get('sum-cashless', 0))
+        if j_receipt.get('summ3', 0) > 0:
+            beznalsum = float(j_receipt.get('summ3', 0))
         param_tuple = (rec_id,
                        j_receipt.get('number_receipt'),
                        date_time,

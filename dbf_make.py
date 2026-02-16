@@ -25,7 +25,7 @@ DICT_FIELDS = {
          'PTIP C(20);PRIM C(50);BONUSNACH C(4);BONUSSPIS C(4);BONUSVHOD C(4);SF C(255);POSTAV C(255);' \
          'INNPOST C(15);TIPOPLATI C(8);OPERATION C(8);BEZNALSUM C(8);NOMPROD C(14);DATEPROD C(14);PERVVZNOS C(8)',
     'N': 'ID C(8);IDN C(8);DAT C(8);NN C(13);NAIM C(255);KOL C(6);NCEN C(7);SUM C(9);PROD C(35);OTDEL C(30);KOM C(50);'
-         'CENA2 C(20);CENA3 C(20);ARTNAME C(50);ARTNOM C(30);KATNAME C(50);KATNOM C(30);NDS C(20);GTD C(255);COUNTRY C(50);'
+         'CENA2 C(20);CENA3 C(20);ARTNAME C(50);ARTNOM C(30);KATNAME C(50);KATNOM C(30);NDS N(2, 0);GTD C(255);COUNTRY C(50);'
          'BONUSAKC C(8);SHKPROIZV N(20,0);OTKL N(5,0);PODOKUMENT N(5,0);NAIMVIDNOM C(100);KODVIDNOME C(20);KODMARK C(255);'
          'KODSTATUS C(9);MARKTIP C(20);BONUSSPIS N(6,0);BONUSNACH N(6,0)'
 }
@@ -92,9 +92,9 @@ def make_record_Z(data_dict: Dict = {}, id: str = '1'):
     total_count = negative * (len(data_dict.get('items', [])) - 1)
     heading['SUM'] = str(total_amount)
     heading['KOL'] = str(total_count)
-    heading['FIO'] = data_dict.get('fio', 'Покупатель')
+    # heading['FIO'] = data_dict.get('fio', 'Покупатель')
     heading['INN'] = data_dict.get('inn_pman', 'XЧЛ')
-    heading['NZ'] = data_dict.get('nz_pman', 'Покупатель')
+    # heading['NZ'] = data_dict.get('nz_pman', 'Покупатель')
     heading['SSKID'] = data_dict.get('total-discount', 0)
     if total_amount + int(float(data_dict.get('total-discount', 0))) != 0:
         heading['PSKID'] = float(100 * heading['SSKID']) // (
@@ -230,26 +230,28 @@ def main(my_rec):
         id_number = make_dbf(i_path=full_path)
         start: float = time.time()
         logger_make_dbf.info(f'создаем поток z файла')
-        threads1 = threading.Thread(target=dbf_z, args=(i_path, name_export, my_rec, id_number))
-        logger_make_dbf.info(f'создаем поток n файла')
-        threads2 = threading.Thread(target=dbf_n, args=(i_path, name_export, my_rec, id_number))
-        logger_make_dbf.info(f'старт z файла')
-        threads1.start()
-        logger_make_dbf.info(f'старт n файла')
-        threads2.start()
-        logger_make_dbf.info(f'join z файла')
-        threads1.join()
-        logger_make_dbf.info(f'конец z файла')
-        logger_make_dbf.info(f'join n файла')
-        threads2.join()
-        logger_make_dbf.info(f'конец n файла')
+        dbf_z(i_path, name_export, my_rec, id_number)
+        dbf_n(i_path, name_export, my_rec, id_number)
+        # threads1 = threading.Thread(target=dbf_z, args=(i_path, name_export, my_rec, id_number))
+        # logger_make_dbf.info(f'создаем поток n файла')
+        # threads2 = threading.Thread(target=dbf_n, args=(i_path, name_export, my_rec, id_number))
+        # logger_make_dbf.info(f'старт z файла')
+        # threads1.start()
+        # logger_make_dbf.info(f'старт n файла')
+        # threads2.start()
+        # logger_make_dbf.info(f'join z файла')
+        # threads1.join()
+        # logger_make_dbf.info(f'конец z файла')
+        # logger_make_dbf.info(f'join n файла')
+        # threads2.join()
+        # logger_make_dbf.info(f'конец n файла')
         end: float = time.time()
         logger_make_dbf.info('Done multithreading in {:.4}'.format(end - start))
-    except BaseException:
-        logger_make_dbf.exception("Поймали BaseException")
+    except BaseException as exc:
+        logger_make_dbf.exception(f"Поймали {exc}")
         raise
-    except Exception:
-        logger_make_dbf.exception("Поймали Exception")
+    except Exception as exc:
+        logger_make_dbf.exception(f"Поймали {exc}")
         raise
 
 
