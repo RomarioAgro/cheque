@@ -77,6 +77,12 @@ class Receiptinsql():
         rec_id = j_receipt.get('id') + '_' + id_operation.get(j_receipt.get("operationtype", 'sale'), 's')
         date_time = j_receipt.get('date_create') + j_receipt.get('mtime', None).replace(':', '')
         date_time_sbis = j_receipt.get('date_create') + j_receipt.get('stime', None).replace(':', '')
+        tipoplati = 0
+        beznalsum = ''
+        if j_receipt.get('sum-cashless', 0) > 0:
+            beznalsum = str(j_receipt.get('sum-cashless', 0))
+        if j_receipt.get('sum-summ3', 0) > 0:
+            beznalsum = str(j_receipt.get('summ3', 0))
         param_tuple = (rec_id,
                        j_receipt.get('number_receipt'),
                        date_time,
@@ -92,6 +98,10 @@ class Receiptinsql():
                        j_receipt.get('bonus_begin', ''),
                        j_receipt.get('bonus_end', ''),
                        j_receipt.get('operationtype', 'sale'),
+                       tipoplati,
+                       beznalsum,
+                       j_receipt.get('initial_sale_number', ''),
+                       j_receipt.get('initial_sale_date', ''),
                        j_receipt.get('note', ''))
 
         self.conn.cursor().execute(sql_add_document, param_tuple)

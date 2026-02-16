@@ -95,7 +95,12 @@ sql_add_document = """
                 bonus_begin,
                 bonus_end,
                 operation_type,
-                prim) VALUES (?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                tipoplati,
+                beznalsumm,
+                nomprod,
+                dateprod,
+
+                prim) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 """
 sql_add_item = """
