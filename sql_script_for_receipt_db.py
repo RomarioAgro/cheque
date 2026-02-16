@@ -30,6 +30,7 @@ sql_make_db = """
                 id VARCHAR(20),
                 nn VARCHAR(20),
                 barcode VARCHAR(31),
+                marktip VARCHAR(4),
                 name VARCHAR(255),
                 katnom VARCHAR(3),
                 katname VARCHAR(100),
