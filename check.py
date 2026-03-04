@@ -62,9 +62,10 @@ def safe_import(module_name, class_name, error_exit_code):
 
 Shtrih = safe_import('shtrih_OOP', 'Shtrih', 9998)
 PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
-HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
-SBP = safe_import('SBP_OOP', 'SBP', 9995)
-Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
+# импорт модулей СБП перевенес непосредственно перед их вызовом
+# HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
+# SBP = safe_import('SBP_OOP', 'SBP', 9995)
+# Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
 Receiptinsql = safe_import('receipt_db', 'Receiptinsql', 9993)
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -180,7 +181,6 @@ def check_KM_in_honeist_sign(o_shtrih):
     :return:
     """
     # my_list = o_shtrih.cash_receipt.get('km', None)
-    return 0, 'good', 12345678
     not_checking = {'', STOP_WORD}
     names = [item["name"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking]
     km_for_checking = [item["qr"] for item in o_shtrih.cash_receipt.get("items") if item["qr"] not in not_checking and (item["marktip"] != '5000' and item["marktip"] != '9999')]
@@ -260,7 +260,13 @@ def main() -> Tuple:
             and o_shtrih.cash_receipt.get('summ3', 0) != 0:
         logger_check.debug('зашли в СБП')
         try:
+            # import клаасов СБП
             # это у нас печать QR сбп для разных банков
+            HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
+            SBP = safe_import('SBP_OOP', 'SBP', 9995)
+            # SBP = safe_import('SBP_OOP_PySimpleGui', 'SBP', 9995)
+            Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
+
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
                 sbp_qr = SBP()
             elif o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'alfabank_bank':

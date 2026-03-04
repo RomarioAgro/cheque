@@ -1048,7 +1048,29 @@ def Mbox(title, text, style):
         ##  6 : Cancel | Try Again | Continue
 
     """
-    return ctypes.windll.user32.MessageBoxW(0, text, title, style)
+    import tkinter as tk
+
+    # Создаем окно
+    root = tk.Tk()
+    root.attributes("-fullscreen", True)  # Полный экран
+    root.attributes("-topmost", True)  # Поверх всех окон
+    root.configure(bg="red")  # Красный фон
+
+    # Текст
+    label = tk.Label(
+        root,
+        text=f"{text}\nесли вы видите это окно, то продажа скорее всего не состоялась ",
+        font=("Arial", 40, "bold"),
+        bg="red",
+        fg="white",
+        justify="center"
+    )
+    label.pack(expand=True)
+    # Закрытие по Esc или клику мышью
+    root.bind("<Escape>", lambda e: root.destroy())
+    root.bind("<Button-1>", lambda e: root.destroy())
+    root.mainloop()
+    # return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
 
 def preparation_km_off(in_km: str) -> str:
