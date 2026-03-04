@@ -5,7 +5,6 @@ import json
 from requests_pkcs12 import post
 from enum import Enum
 import logging
-import http.client
 import os
 import socket
 import getpass
@@ -27,17 +26,6 @@ except Exception as exc:
 TIMEOUT_BANK = 600  #время жизни окна проверки статуса оплаты
 TOKEN_LIFE = 30  #время жизни токена сбербанка
 
-httpclient_logger = logging.getLogger("http.client")
-
-def httpclient_logging_patch(level=logging.DEBUG):
-    """Enable HTTPConnection debug logging to the logging framework"""
-    def httpclient_log(*args):
-        httpclient_logger.log(level, " ".join(args))
-    # mask the print() built-in in the http.client module to use
-    # logging instead
-    http.client.print = httpclient_log
-    # enable debugging
-    http.client.HTTPConnection.debuglevel = 1
 
 class Scope(Enum):
     """
@@ -321,7 +309,6 @@ class SBP(object):
         j_data = json.dumps(param)
         logging.debug('HEADERS ' + str(headers))
         logging.debug('DATA ' + str(param))
-        httpclient_logging_patch()
         r = post(
             url=url,
             data=j_data,
@@ -365,7 +352,6 @@ class SBP(object):
         }
         logging.debug('HEADERS ' + str(headers))
         logging.debug('DATA ' + str(param))
-        httpclient_logging_patch()
         j_data = json.dumps(param)
         r = post(
             url=url,
