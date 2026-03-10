@@ -1049,13 +1049,19 @@ def Mbox(title, text, style):
 
     """
     import tkinter as tk
-
+    from tkinter import font
     # Создаем окно
     root = tk.Tk()
-    root.attributes("-fullscreen", True)  # Полный экран
+    #размер окна
+    w = 800
+    h = 600
+    ws = root.winfo_screenwidth()
+    hs = root.winfo_screenheight()
+    x = (ws // 2) - (w // 2)
+    y = (hs // 2) - (h // 2)
+    root.geometry(f"{w}x{h}+{x}+{y}")
     root.attributes("-topmost", True)  # Поверх всех окон
     root.configure(bg="red")  # Красный фон
-
     # Текст
     label = tk.Label(
         root,
@@ -1063,9 +1069,24 @@ def Mbox(title, text, style):
         font=("Arial", 40, "bold"),
         bg="red",
         fg="white",
+        wraplength=w,  # перенос текста
         justify="center"
     )
     label.pack(expand=True)
+
+    def fit_text():
+        max_size = 100
+        min_size = 10
+
+        for size in range(max_size, min_size, -1):
+            f = font.Font(family="Arial", size=size, weight="bold")
+            label.config(font=f)
+            root.update_idletasks()
+
+            if label.winfo_reqwidth() <= w and label.winfo_reqheight() <= h:
+                break
+
+    root.after(100, fit_text)
     # Закрытие по Esc или клику мышью
     root.bind("<Escape>", lambda e: root.destroy())
     root.bind("<Button-1>", lambda e: root.destroy())
