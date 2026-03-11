@@ -10,6 +10,7 @@ DICT_OPERATION_CHECK = {'sale': 4000,
                         'correct_sale': 128,
                         'correct_return_sale': 130,
                         'x_otchet': 7004,
+                        'reconciliation': 7004,
                         'full_otchet': 6002,
                         'z_otchet': 6000}
 
