@@ -495,5 +495,12 @@ if __name__ == '__main__':
             receipt_to_1C.add_document(cash_rec)
     except Exception as exc:
         logger_check.debug(f'ошибка {exc}')
+    try:
+        if code_error_main == 0:
+            f_name=f"{cash_rec.get('id', '0000000').replace('/','_')}_fpd"
+            save_FiscalSign(i_path=argv[1], i_file=f_name, i_fp=fpd)
+    except Exception as exc:
+        logger_check.debug(f'ошибка сохранения фпд {exc}')
+
     logger_check.debug(f'закончили печать чека выходим {code_error_main}')
     exit(code_error_main)
