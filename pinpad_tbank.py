@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import configparser
+import logging
 import time
 import uuid
 import re
@@ -101,6 +102,7 @@ class Tbank:
         base_url: Optional[str] = None,
         tid: Optional[str] = None,
         encoding: str = "windows-1251",
+        logger: Optional[logging.Logger] = None,
     ) -> None:
         resolved_base_url = base_url or _TBANK_INI_CONFIG.get("base_url")
         resolved_terminal_id = tid
@@ -111,6 +113,13 @@ class Tbank:
         self.tid = resolved_terminal_id
         self.encoding = encoding
         self.text = None
+        self.logger = logger or logging.getLogger(__name__).getChild(self.__class__.__name__)
+        self.logger.debug(
+            "init base_url=%s tid=%s encoding=%s",
+            self.base_url,
+            self.tid,
+            self.encoding,
+        )
 
     # =========================
     # PUBLIC API
@@ -122,6 +131,8 @@ class Tbank:
         :param amount:
         :return:
         """
+        self.logger.debug("pinpad_operation start operation_name=%s amount=%s", operation_name, amount)
+
         if operation_name in ("sale", "1"):
             return self.operation("sale", amount)
 
@@ -137,6 +148,7 @@ class Tbank:
         if operation_name == "z_otchet":
             return self.reconcile_totals()
 
+        self.logger.error("unsupported pinpad operation: %s", operation_name)
         raise ValueError(f"Unsupported pinpad operation: {operation_name}")
 
 
@@ -147,6 +159,7 @@ class Tbank:
         # terminal_id: Optional[str] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
     ) -> OperationResult:
+        self.logger.debug("operation start type=%s amount=%s timeout=%s", operation_type, amount, timeout_seconds)
         op = (operation_type or "").strip().lower()
         if op in ("sale", OperationCode.SALE):
             operation_code = OperationCode.SALE
@@ -164,13 +177,21 @@ class Tbank:
             "25": operation_code,
             "27": self.tid,
         }
-        return self._send_request(fields, timeout_seconds)
+        result = self._send_request(fields, timeout_seconds)
+        self.logger.debug(
+            "operation finish status=%s host_code=%s rrn=%s",
+            result.status,
+            result.response_code_host,
+            result.reference_number,
+        )
+        return result
 
     def reconcile_totals(
         self,
         terminal_id: Optional[str] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
+        self.logger.debug("reconcile_totals start terminal_id=%s timeout=%s", terminal_id, timeout_seconds)
         fields = {
             "04": DEFAULT_CURRENCY_CODE,
             "21": self._now_terminal_datetime(),
@@ -181,7 +202,9 @@ class Tbank:
         if effective_terminal_id:
             fields["27"] = effective_terminal_id
 
-        return self._send_request(fields, timeout_seconds)
+        result = self._send_request(fields, timeout_seconds)
+        self.logger.debug("reconcile_totals finish status=%s host_code=%s", result.status, result.response_code_host)
+        return result
 
     def user_command(
         self,
@@ -193,6 +216,12 @@ class Tbank:
         Operation 65: execute a user command.
 
         """
+        self.logger.debug(
+            "user_command start command_code=%s terminal_id=%s timeout=%s",
+            command_code,
+            terminal_id,
+            timeout_seconds,
+        )
         fields = {
             "04": DEFAULT_CURRENCY_CODE,
             "21": self._now_terminal_datetime(),
@@ -204,7 +233,14 @@ class Tbank:
         if effective_terminal_id:
             fields["27"] = effective_terminal_id
 
-        return self._send_request(fields, timeout_seconds)
+        result = self._send_request(fields, timeout_seconds)
+        self.logger.debug(
+            "user_command finish command_code=%s status=%s host_code=%s",
+            command_code,
+            result.status,
+            result.response_code_host,
+        )
+        return result
 
     def short_report(
         self,
@@ -228,46 +264,16 @@ class Tbank:
             timeout_seconds=timeout_seconds,
         )
 
-    def receipt_copy(
-        self,
-        receipt_number: str,
-        receipt_date: Optional[str] = None,
-        terminal_id: Optional[str] = None,
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-    ) -> OperationResult:
-        """
-        Operation 63 / command 22 (receipt copy).
-        Exact extra fields depend on host configuration.
-        Safe baseline:
-        - 80 = 22
-        - 81 = receipt number
-        - 06 or 21 may carry receipt date/time if required by host
-        """
-        fields = {
-            "04": DEFAULT_CURRENCY_CODE,
-            "21": self._now_terminal_datetime(),
-            "25": OperationCode.USER_COMMAND,
-            "80": UserCommandCode.RECEIPT_COPY,
-            "81": receipt_number,
-        }
-
-        if receipt_date:
-            fields["06"] = receipt_date  # YYYYMMDDHHMMSS if required by host
-
-        effective_terminal_id = terminal_id or self.tid
-        if effective_terminal_id:
-            fields["27"] = effective_terminal_id
-
-        return self._send_request(fields, timeout_seconds)
-
     def close_open_connection(self, terminal_id: str) -> requests.Response:
         url = f"{self.base_url}/command/closeOpenConnection"
+        self.logger.debug("close_open_connection start terminal_id=%s", terminal_id)
         response = requests.post(
             url,
             params={"TerminalId": terminal_id},
             timeout=15,
         )
         response.raise_for_status()
+        self.logger.debug("close_open_connection finish status_code=%s", response.status_code)
         return response
 
     # =========================
@@ -277,27 +283,55 @@ class Tbank:
     def _send_request(self, fields: Dict[str, str], timeout_seconds: int) -> OperationResult:
         session_id = self._generate_session_id()
         xml_payload = self._build_request_xml(fields, timeout_seconds, session_id)
+        self.logger.debug(
+            "send_request session_id=%s timeout=%s fields=%s",
+            session_id,
+            timeout_seconds,
+            fields,
+        )
 
         headers = {
             "Content-Type": f"text/xml; charset={self.encoding}",
             "Accept": "text/xml",
             "Accept-Charset": self.encoding,
         }
-        response = requests.post(
-            self.base_url,
-            data=xml_payload.encode(self.encoding),
-            headers=headers,
-            timeout=timeout_seconds + 10,
-        )
+        try:
+            response = requests.post(
+                self.base_url,
+                data=xml_payload.encode(self.encoding),
+                headers=headers,
+                timeout=timeout_seconds + 10,
+            )
+        except Exception:
+            self.logger.exception("http request failed session_id=%s", session_id)
+            raise
         response.raise_for_status()
+        self.logger.debug(
+            "http response session_id=%s status_code=%s bytes=%s",
+            session_id,
+            response.status_code,
+            len(response.content),
+        )
 
         raw_text = response.content.decode(self.encoding, errors="replace")
         parsed = self._parse_response_xml(raw_text)
         self.text = clean_garbage(parsed.get('90', ''))
         if "errorcode" in parsed:
+            self.logger.error(
+                "dc service error session_id=%s code=%s description=%s",
+                session_id,
+                parsed.get("errorcode"),
+                parsed.get("errordescription", ""),
+            )
             raise DualConnectorResponseError(
                 f"DC Service error {parsed.get('errorcode')}: {parsed.get('errordescription', '')}"
             )
+        self.logger.debug(
+            "parsed response session_id=%s status=%s host_code=%s",
+            session_id,
+            parsed.get("39"),
+            parsed.get("15"),
+        )
 
         return OperationResult(
             raw_xml=raw_text,
