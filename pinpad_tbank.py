@@ -15,9 +15,23 @@ import requests
 
 
 # ====== SETTINGS ======
-DC_SERVICE_URL = "http://127.0.0.1:9015"
 DEFAULT_TIMEOUT_SECONDS = 180
 DEFAULT_CURRENCY_CODE = "643"  # RUB
+
+
+def _load_tbank_ini() -> Dict[str, str]:
+    config_path = Path(__file__).with_name("tbank.ini")
+    config = configparser.ConfigParser()
+    if not config_path.exists():
+        return {}
+    config.read(config_path, encoding="utf-8")
+    if not config.has_section("tbank"):
+        return {}
+    return dict(config["tbank"])
+
+
+_TBANK_INI_CONFIG = _load_tbank_ini()
+
 
 def clean_garbage(text: str) -> str:
     """
@@ -84,17 +98,47 @@ class OperationResult:
 class Tbank:
     def __init__(
         self,
-        base_url: str = DC_SERVICE_URL,
-        default_terminal_id: Optional[str] = None,
+        base_url: Optional[str] = None,
+        tid: Optional[str] = None,
         encoding: str = "windows-1251",
     ) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.default_terminal_id = default_terminal_id
+        resolved_base_url = base_url or _TBANK_INI_CONFIG.get("base_url")
+        resolved_terminal_id = tid
+        if resolved_terminal_id is None:
+            resolved_terminal_id = _TBANK_INI_CONFIG.get("tid_kassir1")
+
+        self.base_url = resolved_base_url.rstrip("/")
+        self.tid = resolved_terminal_id
         self.encoding = encoding
+        self.text = None
 
     # =========================
     # PUBLIC API
     # =========================
+    def pinpad_operation(self, operation_name: str = 'x_otchet', amount: int = 0):
+        """
+        так сказать прокси для вызова методов
+        :param operation_name:
+        :param amount:
+        :return:
+        """
+        if operation_name in ("sale", "1"):
+            return self.operation("sale", amount)
+
+        if operation_name in ("return_sale", "refund", "4"):
+            return self.operation("refund", amount)
+
+        if operation_name in ("short_report", "x_otchet"):
+            return self.short_report()
+
+        if operation_name in ("full_report", "full_otchet"):
+            return self.full_report()
+
+        if operation_name == "z_otchet":
+            return self.reconcile_totals()
+
+        raise ValueError(f"Unsupported pinpad operation: {operation_name}")
+
 
     def operation(
         self,
@@ -118,7 +162,7 @@ class Tbank:
             "04": DEFAULT_CURRENCY_CODE,
             "21": self._now_terminal_datetime(),
             "25": operation_code,
-            "27": self.default_terminal_id,
+            "27": self.tid,
         }
         return self._send_request(fields, timeout_seconds)
 
@@ -133,7 +177,7 @@ class Tbank:
             "25": OperationCode.RECONCILE_TOTALS,
         }
 
-        effective_terminal_id = terminal_id or self.default_terminal_id
+        effective_terminal_id = terminal_id or self.tid
         if effective_terminal_id:
             fields["27"] = effective_terminal_id
 
@@ -156,7 +200,7 @@ class Tbank:
             "65": str(command_code),
         }
 
-        effective_terminal_id = terminal_id or self.default_terminal_id
+        effective_terminal_id = terminal_id or self.tid
         if effective_terminal_id:
             fields["27"] = effective_terminal_id
 
@@ -210,7 +254,7 @@ class Tbank:
         if receipt_date:
             fields["06"] = receipt_date  # YYYYMMDDHHMMSS if required by host
 
-        effective_terminal_id = terminal_id or self.default_terminal_id
+        effective_terminal_id = terminal_id or self.tid
         if effective_terminal_id:
             fields["27"] = effective_terminal_id
 
@@ -249,6 +293,7 @@ class Tbank:
 
         raw_text = response.content.decode(self.encoding, errors="replace")
         parsed = self._parse_response_xml(raw_text)
+        self.text = clean_garbage(parsed.get('90', ''))
         if "errorcode" in parsed:
             raise DualConnectorResponseError(
                 f"DC Service error {parsed.get('errorcode')}: {parsed.get('errordescription', '')}"
@@ -296,7 +341,7 @@ class Tbank:
     @staticmethod
     def _amount_to_minor_units(amount: Union[int, float, str, Decimal]) -> str:
         amount = Decimal(str(amount))
-        if amount <= 0:
+        if amount < 0:
             raise ValueError(f"Invalid amount: {amount}")
 
         return str((amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -319,16 +364,9 @@ class Tbank:
             .replace("'", "&apos;")
         )
 
-def main():
-    config_path = Path(__file__).with_name("tbank.ini")
-    config = configparser.ConfigParser()
-    config.read(config_path, encoding="utf-8")
-    tbank_config = config["tbank"] if config.has_section("tbank") else {}
 
-    client = Tbank(
-        base_url=tbank_config.get("base_url", "http://127.0.0.1:9015"),
-        default_terminal_id=tbank_config.get("default_terminal_id", None),
-    )
+def main():
+    client = Tbank()
 
     # Sale
     result = client.operation(operation_type="sale", amount=1.00)
