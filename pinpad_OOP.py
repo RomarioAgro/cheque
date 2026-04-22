@@ -22,7 +22,7 @@ class PinPad(object):
     """
     класс нашего терминала эквайринга
     operation: str наша операция, потом переведем ее в код операции
-    oper_sum: int сумма операции, у отчетов это 0
+    amount: int сумма операции, у отчетов это 0
     error: int код ошибки пинпада
     text: текст операции который возвращает пинпад
     """
@@ -34,7 +34,7 @@ class PinPad(object):
         self.text = None
         self.drv_pp = win32com.client.Dispatch('SBRFSRV.Server')
 
-    def pinpad_operation(self, operation_name: str = 'x_otchet', oper_sum: int = 0):
+    def pinpad_operation(self, operation_name: str = 'x_otchet', amount: int = 0):
         """
         метод обращения к терминалу сбербанка
         для операций
@@ -49,7 +49,7 @@ class PinPad(object):
         """
         self.operation_code = DICT_OPERATION_CHECK.get(operation_name, 7004)
         self.operation_name = operation_name
-        self.operation_sum = oper_sum * 100
+        self.operation_sum = amount * 100
         logging.debug('start operation ' + self.operation_name)
         self.drv_pp.Clear()
         self.drv_pp.SParam("Amount", self.operation_sum)
@@ -64,7 +64,7 @@ def main():
     comp_rec['sum-cashless'] = 0
     comp_rec['operationtype'] = 'x_otchet'
     i_pinpad = PinPad()
-    i_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
+    i_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], amount=comp_rec['sum-cashless'])
     print(i_pinpad.text)
     exit(i_pinpad.error)
 
