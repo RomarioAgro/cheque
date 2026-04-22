@@ -3,6 +3,7 @@ from __future__ import annotations
 import configparser
 import time
 import uuid
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
@@ -18,6 +19,19 @@ DC_SERVICE_URL = "http://127.0.0.1:9015"
 DEFAULT_TIMEOUT_SECONDS = 180
 DEFAULT_CURRENCY_CODE = "643"  # RUB
 
+def clean_garbage(text: str) -> str:
+    """
+    удаляем мусор из строки ответа тбанка
+    :param text: str кусок ответа тбанка
+    :return: str очищенный ответ от тбанка
+    """
+    patterns = [
+        r'~?0xD[EF]\^\^[^~\n]*~?0xDD\^\^/~?',  # полный блок
+        r'^\s*~?0xD[EF]\^\^\s*',  # только префикс в начале строки
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, '', text, flags=re.MULTILINE)
+    return text.rstrip()
 
 class OperationCode:
     SALE = "1"
@@ -87,8 +101,7 @@ class Tbank:
         operation_type: str,
         amount: Union[int, float, str, Decimal],
         # terminal_id: Optional[str] = None,
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-        receipt_text: Optional[str] = None,
+        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
     ) -> OperationResult:
         op = (operation_type or "").strip().lower()
         if op in ("sale", OperationCode.SALE):
@@ -107,10 +120,6 @@ class Tbank:
             "25": operation_code,
             "27": self.default_terminal_id,
         }
-
-        if receipt_text:
-            fields["90"] = str(receipt_text)
-
         return self._send_request(fields, timeout_seconds)
 
     def reconcile_totals(
@@ -240,7 +249,6 @@ class Tbank:
 
         raw_text = response.content.decode(self.encoding, errors="replace")
         parsed = self._parse_response_xml(raw_text)
-
         if "errorcode" in parsed:
             raise DualConnectorResponseError(
                 f"DC Service error {parsed.get('errorcode')}: {parsed.get('errordescription', '')}"

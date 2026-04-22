@@ -1,11 +1,14 @@
 import logging
 import os
 import time
+import re
 from sys import argv, exit
 import datetime
+import configparser
 from decouple import Config, RepositoryEnv
 from typing import Tuple
 from correct_email import sanitize_email, is_valid_email
+from pinpad_tbank import clean_garbage
 import subprocess
 import sys
 import json
@@ -205,56 +208,84 @@ def check_KM_in_honeist_sign(o_shtrih):
     else:
         return 0, 'good', 12345678
 
-def main() -> Tuple:
-    """
-    основная функция печати чека
-    создаем объекты для работы с кассой штрих, СБП, пинпад сбербанка
-    проверяем Коды Маркировки
-    :return: int код ошибки
-    """
-    logger_check.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
-    try:
-        o_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
-    except Exception as exc:
-        logger_check.debug(f'ошибка создания объекта печати чека {exc}')
-    logger_check.debug(f'создали объект печати o_shtrih {o_shtrih.cash_receipt}')
-    try:
-        o_shtrih.preparation_for_work()
-    except Exception as exc:
-        logger_check.debug(f'ошибка подгтовки кассы к работе {exc}')
-    status_code, status_description = o_shtrih.error_analysis_hard()
-    if status_code != 0:
-        Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
-        return status_code
-    o_shtrih.print_on()
-    # запрос итогов фискализации, ничего не возвращает,
-    # но после запроса у объекта o_shtrih появляются дополнительные свойства
-    o_shtrih.get_info_about_FR()
-    # в том числе и заводской номер
-    # сохраняем в нашем заказе регномер кассы
-    o_shtrih.cash_receipt['rn'] = o_shtrih.drv.KKTRegistrationNumber
-    # читаем номер ФН, его потом в ЧЗ надо отправить
-    o_shtrih.drv.FNGetSerial()
-    o_shtrih.cash_receipt['fn'] = o_shtrih.drv.SerialNumber
-    # список заводских номеров касс в которых отключена отрезка
-    fr_no_cut = o_shtrih.cash_receipt.get('no_cut', [])
-    o_shtrih.drv.ReadSerialNumber()
-    if o_shtrih.drv.SerialNumber in fr_no_cut:
-        cutter_on = False
-        o_shtrih.cutter_off()
-    else:
-        o_shtrih.cutter_on()
-        cutter_on = True
 
-    #здесь сделаем проверку КМ в ЧЗ
-    result_check_km = check_KM_in_honeist_sign(o_shtrih)
-    if result_check_km[0] != 0:
-        logger_check.debug(f'КМ не прошли проверку {result_check_km}')
-        exit(98)
-    else:
-        o_shtrih.cash_receipt['reqId'] = result_check_km[1]
-        o_shtrih.cash_receipt['reqTimestamp'] = result_check_km[2]
-    # операци по СБП, оплата или возврат
+def _process_pinpad(o_shtrih):
+    if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
+        logger_check.debug('зашли в пинпад')
+        pinpad_type = str(o_shtrih.cash_receipt.get('pinpad_type', 'sber')).lower().strip()
+        if pinpad_type == 'tbank':
+            try:
+                Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
+                config_path = Path(__file__).with_name("tbank.ini")
+                config = configparser.ConfigParser()
+                config.read(config_path, encoding="utf-8")
+                tbank_config = config["tbank"] if config.has_section("tbank") else {}
+                tbank_client = Tbank(
+                    base_url=tbank_config.get("base_url", "http://127.0.0.1:9015"),
+                    default_terminal_id=tbank_config.get("default_terminal_id", None),
+                )
+                operation_name = o_shtrih.cash_receipt.get('operationtype', 'sale')
+                if operation_name == 'sale' or operation_name == 'return_sale':
+                    result = tbank_client.operation(
+                        operation_type=operation_name,
+                        amount=o_shtrih.cash_receipt.get('sum-cashless', 0),
+                    )
+                else:
+                    logger_check.debug(f'tbank операция {operation_name} не требует оплаты по пинпаду')
+                    return 0, None
+                status_raw = (result.status or '').strip()
+                # Успех по протоколу TBank только при статусе "1".
+                if status_raw != "1":
+                    try:
+                        pin_error = int(status_raw)
+                    except Exception:
+                        pin_error = 97
+                    logger_check.debug(
+                        f'оплата по пинпаду tbank неуспешна: status={status_raw}, '
+                        f'host_code={result.response_code_host}, rrn={result.reference_number}'
+                    )
+                    return pin_error, None
+                pinpad_text = str(result.fields.get("90", "")).strip()
+                logger_check.debug(f'результат оплаты по пинпаду tbank {pinpad_text}')
+                return 0, pinpad_text
+            except Exception as exc:
+                logger_check.debug(f'ошибка оплаты по пинпаду tbank {exc}')
+                return 97, None
+        sber_pinpad = PinPad()
+        sber_pinpad.pinpad_operation(
+            operation_name=o_shtrih.cash_receipt['operationtype'],
+            oper_sum=o_shtrih.cash_receipt['sum-cashless'],
+        )
+        pin_error = sber_pinpad.error
+        pinpad_text = sber_pinpad.text
+        logger_check.debug(f'результат оплаты по пинпаду {pin_error} {pinpad_text}')
+        return pin_error, pinpad_text
+    logger_check.debug('оплаты по пинпад нет')
+    return 0, None
+
+def _print_split_payment_text(o_shtrih, payment_text: str, payment_sum):
+    text_for_print = payment_text.split(o_shtrih.cash_receipt['cutter'])
+
+    for i, elem in enumerate(text_for_print):
+        elem = clean_garbage(elem)
+        o_shtrih.print_pinpad(elem, str(payment_sum))
+        if i == 0:
+            o_shtrih.cut_print()
+            if o_shtrih.cash_receipt.get('kupon', None):
+                o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
+                o_shtrih.cash_receipt['kupon'] = None
+
+
+def _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text, podeli_text):
+    if pinpad_text:
+        _print_split_payment_text(o_shtrih, pinpad_text, o_shtrih.cash_receipt['sum-cashless'])
+    if sbp_text:
+        _print_split_payment_text(o_shtrih, sbp_text, o_shtrih.cash_receipt['summ3'])
+    if podeli_text:
+        _print_split_payment_text(o_shtrih, podeli_text, o_shtrih.cash_receipt['summ4'])
+
+
+def _process_sbp(o_shtrih):
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1 \
             and o_shtrih.cash_receipt.get('summ3', 0) != 0:
@@ -306,161 +337,203 @@ def main() -> Tuple:
             # если мы не знаем что это, то выходим
             logger_check.debug('неизвестная операция, выход')
             exit(99)
-    ## оплата подели
+    return sbp_text
+
+
+def _process_podeli(o_shtrih):
     podeli_text = None
-    if o_shtrih.cash_receipt.get('podeli', 0) == 1\
-        and o_shtrih.cash_receipt.get('summ4', 0) != 0:
-            try:
-                from podeli import create_sale_waiting_pay_podeli, refund_podeli
-            except Exception as exc:
-                import ctypes
-                ctypes.windll.user32.MessageBoxW(0, 'Ошибка модуля подели', f'ошибка {exc} модуля подели\nзвоните в ИТ отдел', 4096 + 16)
-                logger_check.debug(f'ошибка импорта подели {exc}, код выхода 9990')
-                exit(9990)
-            o_shtrih.cash_receipt['adr'] = o_shtrih.addres_fr()
-            if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
-                logger_check.debug('начинаем продажу по Подели')
-                podeli_text = create_sale_waiting_pay_podeli(o_shtrih)
-            elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
-                podeli_text = refund_podeli(o_shtrih)
-                # пока не готово
-            elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
-                # при пробитии чеков коррекции не надо деньги трогать
-                pass
-            elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_return_sale':
-                # при пробитии чеков коррекции не надо деньги трогать
-                pass
-            elif o_shtrih.cash_receipt.get('summ3', 0) == 0:
-                # за каким-то чертом кассиры делают пробитие чеков по подели
-                # с нулевой суммой, в таком случае просто не надо к подели обращаться
-                pass
-            else:
-                # если мы не знаем что это, то выходим
-                logger_check.debug('неизвестная операция, выход')
-                exit(99)
-
-
-    # операция по пинпаду
-    if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
-        logger_check.debug('зашли в пинпад')
-        sber_pinpad = PinPad()
-        sber_pinpad.pinpad_operation(operation_name=o_shtrih.cash_receipt['operationtype'],
-                                     oper_sum=o_shtrih.cash_receipt['sum-cashless'])
-        pin_error = sber_pinpad.error
-        pinpad_text = sber_pinpad.text
-        logger_check.debug('результат оплаты по пинпаду {0} {1}'.format(pin_error, pinpad_text))
-    else:
-        logger_check.debug('оплаты по пинпад нет')
-        pin_error = 0
-        pinpad_text = None
-    if pin_error == 0:
-        # печать слипа терминала
-        if pinpad_text:
-            text_for_print = pinpad_text.split(o_shtrih.cash_receipt['cutter'])
-            for i, elem in enumerate(text_for_print):
-                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['sum-cashless']))
-                if i == 0:
-                    o_shtrih.cut_print()
-                    if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
-                        o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
-                        # на случай дробных оплат купоны обнуляем
-                        o_shtrih.cash_receipt['kupon'] = None
-        # видимо когда-то подразумевалась возможность одновременной оплаты по СБП и банковской картой
-        # отсюда и задвоение кода, надо будет убрать это
-        # печать ответа от сервера СБП
-        if sbp_text:
-            text_for_print = sbp_text.split(o_shtrih.cash_receipt['cutter'])
-            for i, elem in enumerate(text_for_print):
-                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ3']))
-                if i == 0:
-                    o_shtrih.cut_print()
-                    if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
-                        o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
-                        # на случай дробных оплат купоны обнуляем
-                        o_shtrih.cash_receipt['kupon'] = None
-
-        if podeli_text:
-            text_for_print = podeli_text.split(o_shtrih.cash_receipt['cutter'])
-            for i, elem in enumerate(text_for_print):
-                o_shtrih.print_pinpad(elem, str(o_shtrih.cash_receipt['summ4']))
-                if i == 0:
-                    o_shtrih.cut_print()
-                    if o_shtrih.cash_receipt.get('kupon', None):  #так как купоны печатаем между слипами терминалов, то вот такая конструкция
-                        o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
-                        # на случай дробных оплат купоны обнуляем
-                        o_shtrih.cash_receipt['kupon'] = None
-
-
-        # печать примечаний
-        if o_shtrih.cash_receipt.get('text-basement', None):
-            lll = o_shtrih.cash_receipt.get('text-basement', None)
-            o_shtrih.print_basement(lll)
-        # печать примечаний
-        # отключение печати
-        if o_shtrih.cash_receipt.get('tag1008', None):
-            if pinpad_text or sbp_text:
-                o_shtrih.cut_print(cut_type=2, feed=2)
-                # без этой паузы не режет, уж не знаю почему, и если 1 поставить то тоже не режет
-                time.sleep(2)
-            o_shtrih.print_off()
+    if o_shtrih.cash_receipt.get('podeli', 0) == 1 \
+            and o_shtrih.cash_receipt.get('summ4', 0) != 0:
+        try:
+            from podeli import create_sale_waiting_pay_podeli, refund_podeli
+        except Exception as exc:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, 'Ошибка модуля подели', f'ошибка {exc} модуля подели\nзвоните в ИТ отдел', 4096 + 16)
+            logger_check.debug(f'ошибка импорта подели {exc}, код выхода 9990')
+            exit(9990)
+        o_shtrih.cash_receipt['adr'] = o_shtrih.addres_fr()
+        if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
+            logger_check.debug('начинаем продажу по Подели')
+            podeli_text = create_sale_waiting_pay_podeli(o_shtrih)
+        elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
+            podeli_text = refund_podeli(o_shtrih)
+            # пока не готово
+        elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
+            # при пробитии чеков коррекции не надо деньги трогать
+            pass
+        elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_return_sale':
+            # при пробитии чеков коррекции не надо деньги трогать
+            pass
+        elif o_shtrih.cash_receipt.get('summ3', 0) == 0:
+            # за каким-то чертом кассиры делают пробитие чеков по подели
+            # с нулевой суммой, в таком случае просто не надо к подели обращаться
+            pass
         else:
-            o_shtrih.print_on()
-        status_code = 1
-        while status_code != 0:
-            if status_code == 99999:
-                o_shtrih.kill_document()
-                print(o_shtrih.drv.ResultCode, o_shtrih.drv.ResultCodeDescription)
-            status_code, status_description = o_shtrih.error_analysis_hard()
+            # если мы не знаем что это, то выходим
+            logger_check.debug('неизвестная операция, выход')
+            exit(99)
+    return podeli_text
+
+
+def _prepare_shtrih(i_path: str, i_file_name: str):
+    try:
+        o_shtrih = Shtrih(i_path=i_path, i_file_name=i_file_name)
+    except Exception as exc:
+        logger_check.debug(f'ошибка создания объекта печати чека {exc}')
+    logger_check.debug(f'создали объект печати o_shtrih {o_shtrih.cash_receipt}')
+    try:
+        o_shtrih.preparation_for_work()
+    except Exception as exc:
+        logger_check.debug(f'ошибка подгтовки кассы к работе {exc}')
+    status_code, status_description = o_shtrih.error_analysis_hard()
+    if status_code != 0:
+        Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
+        return None, None, status_code
+    o_shtrih.print_on()
+    # запрос итогов фискализации, ничего не возвращает,
+    # но после запроса у объекта o_shtrih появляются дополнительные свойства
+    o_shtrih.get_info_about_FR()
+    # в том числе и заводской номер
+    # сохраняем в нашем заказе регномер кассы
+    o_shtrih.cash_receipt['rn'] = o_shtrih.drv.KKTRegistrationNumber
+    # читаем номер ФН, его потом в ЧЗ надо отправить
+    o_shtrih.drv.FNGetSerial()
+    o_shtrih.cash_receipt['fn'] = o_shtrih.drv.SerialNumber
+    # список заводских номеров касс в которых отключена отрезка
+    fr_no_cut = o_shtrih.cash_receipt.get('no_cut', [])
+    o_shtrih.drv.ReadSerialNumber()
+    if o_shtrih.drv.SerialNumber in fr_no_cut:
+        cutter_on = False
+        o_shtrih.cutter_off()
+    else:
+        o_shtrih.cutter_on()
+        cutter_on = True
+    return o_shtrih, cutter_on, 0
+
+
+def _finalize_receipt(o_shtrih, cutter_on, pinpad_text, sbp_text):
+    # печать примечаний
+    if o_shtrih.cash_receipt.get('text-basement', None):
+        lll = o_shtrih.cash_receipt.get('text-basement', None)
+        o_shtrih.print_basement(lll)
+    # печать примечаний
+    # отключение печати
+    if o_shtrih.cash_receipt.get('tag1008', None):
+        if pinpad_text or sbp_text:
+            o_shtrih.cut_print(cut_type=2, feed=2)
+            # без этой паузы не режет, уж не знаю почему, и если 1 поставить то тоже не режет
+            time.sleep(2)
+        o_shtrih.print_off()
+    else:
+        o_shtrih.print_on()
+    status_code = 1
+    while status_code != 0:
+        if status_code == 99999:
+            o_shtrih.kill_document()
+            print(o_shtrih.drv.ResultCode, o_shtrih.drv.ResultCodeDescription)
+        status_code, status_description = o_shtrih.error_analysis_hard()
+        if status_code != 0:
+            Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
+        else:
+            # если у нас возврат наличных, то сначала проверим сколько наличных в кассе, и сделаем внесение
+            if o_shtrih.cash_receipt['operationtype'] == 'return_sale' and o_shtrih.cash_receipt['sum-cash'] > 0:
+                o_shtrih.get_cash_in_shtrih()
+                if o_shtrih.drv.ContentsOfCashRegister < o_shtrih.cash_receipt['sum-cash']:
+                    o_shtrih.drv.Summ1 = o_shtrih.cash_receipt['sum-cash']
+                    o_shtrih.drv.CashIncome()
+                    logger_check.debug('сделали внесение наличных {0}'.format(o_shtrih.cash_receipt['sum-cash']))
+            #печать купонов
+            if o_shtrih.cash_receipt.get('kupon', None):
+                o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
+                # на случай дробных оплат купоны обнуляем
+                o_shtrih.cash_receipt['kupon'] = None
+            #печать номера чека
+            o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 2)
+            # печать бонусов
+            if o_shtrih.cash_receipt.get('bonusi', None):
+                for item in o_shtrih.cash_receipt['bonusi']:
+                    o_shtrih.print_str(item, 3)
+            # начало чека, в кассе создается объект "ЧЕК"
+            o_shtrih.shtrih_operation_attic()
+            # отправка чека по смс или почте
+            bayer_email = o_shtrih.cash_receipt.get('email', None)
+            if bayer_email:
+                if not is_valid_email(bayer_email):
+                    o_shtrih.cash_receipt['email'] = sanitize_email(bayer_email)
+                o_shtrih.sendcustomeremail()
+            # при операциях ФН вообще нет никакой печати и отрезки, но почему-то иногда операции ФН кончаются ошибкой отрезчика
+            # попробуем отключить отрезку перед этой операцией
+            o_shtrih.cutter_off()
+            status_code, status_code_desc = o_shtrih.shtrih_operation_fn()
+            if cutter_on:
+                o_shtrih.cutter_on()
             if status_code != 0:
-                Mbox('ошибка {0}'.format(status_code), status_description, 4096 + 16)
-            else:
-                # если у нас возврат наличных, то сначала проверим сколько наличных в кассе, и сделаем внесение
-                if o_shtrih.cash_receipt['operationtype'] == 'return_sale' and o_shtrih.cash_receipt['sum-cash'] > 0:
-                    o_shtrih.get_cash_in_shtrih()
-                    if o_shtrih.drv.ContentsOfCashRegister < o_shtrih.cash_receipt['sum-cash']:
-                        o_shtrih.drv.Summ1 = o_shtrih.cash_receipt['sum-cash']
-                        o_shtrih.drv.CashIncome()
-                        logger_check.debug('сделали внесение наличных {0}'.format(o_shtrih.cash_receipt['sum-cash']))
-                #печать купонов
-                if o_shtrih.cash_receipt.get('kupon', None):
-                    o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
-                    # на случай дробных оплат купоны обнуляем
-                    o_shtrih.cash_receipt['kupon'] = None
-                #печать номера чека
-                o_shtrih.print_str('*' * 3 + str(o_shtrih.cash_receipt['number_receipt']) + '*' * 3, 2)
-                # печать бонусов
-                if o_shtrih.cash_receipt.get('bonusi', None):
-                    for item in o_shtrih.cash_receipt['bonusi']:
-                        o_shtrih.print_str(item, 3)
-                # начало чека, в кассе создается объект "ЧЕК"
-                o_shtrih.shtrih_operation_attic()
-                # отправка чека по смс или почте
-                bayer_email = o_shtrih.cash_receipt.get('email', None)
-                if bayer_email:
-                    if not is_valid_email(bayer_email):
-                        o_shtrih.cash_receipt['email'] = sanitize_email(bayer_email)
-                    o_shtrih.sendcustomeremail()
-                # при операциях ФН вообще нет никакой печати и отрезки, но почему-то иногда операции ФН кончаются ошибкой отрезчика
-                # попробуем отключить отрезку перед этой операцией
-                o_shtrih.cutter_off()
-                status_code, status_code_desc = o_shtrih.shtrih_operation_fn()
-                if cutter_on:
-                    o_shtrih.cutter_on()
-                if status_code != 0:
-                    Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
-                    logger_check.debug('после неудачной операции ФН показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
-                # закрытие чека
-                status_code, status_code_desc = o_shtrih.shtrih_close_check()
-                if status_code != 0:
-                    Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
-                    logger_check.debug('после неудачной операции закрытия чека показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
-            # если у нас печать неудачно закончилась, то надо что-то с этим делать
-            # проверка на ошибки железа и бумаги
-            status_code, status_description = o_shtrih.error_analysis_hard()
-            if status_code == 0:
-                # открыть ящик
-                o_shtrih.open_box()
-                return status_code, o_shtrih.cash_receipt, o_shtrih.drv.FiscalSignAsString
+                Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
+                logger_check.debug('после неудачной операции ФН показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
+            # закрытие чека
+            status_code, status_code_desc = o_shtrih.shtrih_close_check()
+            if status_code != 0:
+                Mbox('ошибка {0}'.format(status_code), status_code_desc, 4096 + 16)
+                logger_check.debug('после неудачной операции закрытия чека показали сообщение кассиру {}{}'.format(status_code, status_code_desc))
+        # если у нас печать неудачно закончилась, то надо что-то с этим делать
+        # проверка на ошибки железа и бумаги
+        status_code, status_description = o_shtrih.error_analysis_hard()
+        if status_code == 0:
+            # открыть ящик
+            o_shtrih.open_box()
+            return status_code, o_shtrih.cash_receipt, o_shtrih.drv.FiscalSignAsString
+
+
+def _check_km_or_exit(o_shtrih):
+    #здесь сделаем проверку КМ в ЧЗ
+    result_check_km = check_KM_in_honeist_sign(o_shtrih)
+    if result_check_km[0] != 0:
+        logger_check.debug(f'КМ не прошли проверку {result_check_km}')
+        exit(98)
+    o_shtrih.cash_receipt['reqId'] = result_check_km[1]
+    o_shtrih.cash_receipt['reqTimestamp'] = result_check_km[2]
+
+
+def _postprocess_after_main(code_error_main, cash_rec, fpd):
+    logger_check.debug(f'закончили печать code_error_main={code_error_main}, fpd={fpd}')
+    # DBF формируется при отправке чеков в 1С из базы данных
+    try:
+        if cash_rec.get('operationtype', 'sale') == 'sale' or \
+                cash_rec.get('operationtype', 'sale') == 'return_sale':
+            receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
+            receipt_to_1C.add_document(cash_rec)
+    except Exception as exc:
+        logger_check.debug(f'ошибка {exc}')
+    try:
+        if code_error_main == 0:
+            f_name = f"{cash_rec.get('id', '0000000').replace('/','_')}_fpd"
+            save_FiscalSign(i_path=argv[1], i_file=f_name, i_fp=fpd)
+    except Exception as exc:
+        logger_check.debug(f'ошибка сохранения фпд {exc}')
+
+
+def main() -> Tuple:
+    """
+    основная функция печати чека
+    создаем объекты для работы с кассой штрих, СБП, пинпад сбербанка
+    проверяем Коды Маркировки
+    :return: int код ошибки
+    """
+    logger_check.debug('зашли в печать чека {0} - {1}'.format(argv[1], argv[2]))
+    o_shtrih, cutter_on, prep_status_code = _prepare_shtrih(argv[1], argv[2])
+    if prep_status_code != 0:
+        return prep_status_code
+
+    _check_km_or_exit(o_shtrih)
+    # операци по СБП, оплата или возврат
+    sbp_text = _process_sbp(o_shtrih)
+    podeli_text = _process_podeli(o_shtrih)
+
+
+    pin_error, pinpad_text = _process_pinpad(o_shtrih)
+    if pin_error == 0:
+        _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text, podeli_text)
+        return _finalize_receipt(o_shtrih, cutter_on, pinpad_text, sbp_text)
     else:
         return pin_error, None, 'nothing'
 
@@ -486,21 +559,7 @@ def run_make_dbf_detached(cash_rec: dict):
         )
 if __name__ == '__main__':
     code_error_main, cash_rec, fpd = main()  #возвращаем, код ошибки, словарь документа, Фискальный Признак Документа
-    logger_check.debug(f'закончили печать code_error_main={code_error_main}, fpd={fpd}')
-    # DBF формируется при отправке чеков в 1С из базы данных
-    try:
-        if cash_rec.get('operationtype', 'sale') == 'sale' or \
-                cash_rec.get('operationtype', 'sale') == 'return_sale':
-            receipt_to_1C = Receiptinsql(db_path='d:\\kassa\\db_receipt\\rec_to_1C.db')
-            receipt_to_1C.add_document(cash_rec)
-    except Exception as exc:
-        logger_check.debug(f'ошибка {exc}')
-    try:
-        if code_error_main == 0:
-            f_name=f"{cash_rec.get('id', '0000000').replace('/','_')}_fpd"
-            save_FiscalSign(i_path=argv[1], i_file=f_name, i_fp=fpd)
-    except Exception as exc:
-        logger_check.debug(f'ошибка сохранения фпд {exc}')
-
+    _postprocess_after_main(code_error_main, cash_rec, fpd)
     logger_check.debug(f'закончили печать чека выходим {code_error_main}')
     exit(code_error_main)
+
