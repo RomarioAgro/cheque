@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-import json
+import configparser
 import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Dict, Optional, Union
 from xml.etree import ElementTree as ET
 
 import requests
 
 
-# ====== НАСТРОЙКИ ======
+# ====== SETTINGS ======
 DC_SERVICE_URL = "http://127.0.0.1:9015"
 DEFAULT_TIMEOUT_SECONDS = 180
 DEFAULT_CURRENCY_CODE = "643"  # RUB
@@ -66,7 +67,7 @@ class OperationResult:
         return self.fields.get("39")
 
 
-class DualConnectorClient:
+class Tbank:
     def __init__(
         self,
         base_url: str = DC_SERVICE_URL,
@@ -78,67 +79,37 @@ class DualConnectorClient:
         self.encoding = encoding
 
     # =========================
-    # ПУБЛИЧНЫЕ МЕТОДЫ
+    # PUBLIC API
     # =========================
 
-    def sale(
+    def operation(
         self,
-        receipt_json_path: str,
-        terminal_id: Optional[str] = None,
+        operation_type: str,
+        amount: Union[int, float, str, Decimal],
+        # terminal_id: Optional[str] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-        include_receipt_field_90: bool = False,
+        receipt_text: Optional[str] = None,
     ) -> OperationResult:
-        receipt = self._load_receipt_json(receipt_json_path)
-        amount_minor = self._receipt_amount_to_minor_units(receipt)
+        op = (operation_type or "").strip().lower()
+        if op in ("sale", OperationCode.SALE):
+            operation_code = OperationCode.SALE
+        elif op in ("refund", "return_sale", OperationCode.REFUND):
+            operation_code = OperationCode.REFUND
+        else:
+            raise ValueError(f"Unsupported operation_type: {operation_type}")
+
+        amount_minor = self._amount_to_minor_units(amount)
 
         fields = {
             "00": amount_minor,
             "04": DEFAULT_CURRENCY_CODE,
             "21": self._now_terminal_datetime(),
-            "25": OperationCode.SALE,
+            "25": operation_code,
+            "27": self.default_terminal_id,
         }
 
-        effective_terminal_id = terminal_id or self.default_terminal_id
-        if effective_terminal_id:
-            fields["27"] = effective_terminal_id
-
-        if include_receipt_field_90:
-            fields["90"] = self._build_receipt_print_text(receipt)
-
-        return self._send_request(fields, timeout_seconds)
-
-    def refund(
-        self,
-        receipt_json_path: str,
-        terminal_id: Optional[str] = None,
-        original_reference_number: Optional[str] = None,
-        original_authorization_code: Optional[str] = None,
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-        include_receipt_field_90: bool = False,
-    ) -> OperationResult:
-        receipt = self._load_receipt_json(receipt_json_path)
-        amount_minor = self._receipt_amount_to_minor_units(receipt)
-
-        fields = {
-            "00": amount_minor,
-            "04": DEFAULT_CURRENCY_CODE,
-            "21": self._now_terminal_datetime(),
-            "25": OperationCode.REFUND,
-        }
-
-        effective_terminal_id = terminal_id or self.default_terminal_id
-        if effective_terminal_id:
-            fields["27"] = effective_terminal_id
-
-        # Эти поля для возврата часто нужны, но зависят от настройки терминала/хоста
-        if original_reference_number:
-            fields["14"] = original_reference_number
-
-        if original_authorization_code:
-            fields["13"] = original_authorization_code
-
-        if include_receipt_field_90:
-            fields["90"] = self._build_receipt_print_text(receipt)
+        if receipt_text:
+            fields["90"] = str(receipt_text)
 
         return self._send_request(fields, timeout_seconds)
 
@@ -166,14 +137,14 @@ class DualConnectorClient:
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
         """
-        Операция 63: выполнение пользовательской команды.
-        Код подкоманды кладём в поле 80.
+        Operation 65: execute a user command.
+
         """
         fields = {
             "04": DEFAULT_CURRENCY_CODE,
             "21": self._now_terminal_datetime(),
             "25": OperationCode.USER_COMMAND,
-            "80": str(command_code),
+            "65": str(command_code),
         }
 
         effective_terminal_id = terminal_id or self.default_terminal_id
@@ -212,12 +183,12 @@ class DualConnectorClient:
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
         """
-        Операция 63 / команда 22.
-        Формат дополнительных полей для копии чека зависит от настроек банка.
-        Ниже безопасный каркас:
+        Operation 63 / command 22 (receipt copy).
+        Exact extra fields depend on host configuration.
+        Safe baseline:
         - 80 = 22
-        - 81 = номер чека
-        - 06 или 21 можно использовать под дату, если это ожидает ваш хост
+        - 81 = receipt number
+        - 06 or 21 may carry receipt date/time if required by host
         """
         fields = {
             "04": DEFAULT_CURRENCY_CODE,
@@ -228,7 +199,7 @@ class DualConnectorClient:
         }
 
         if receipt_date:
-            fields["06"] = receipt_date  # YYYYMMDDHHMMSS, если требуется хостом
+            fields["06"] = receipt_date  # YYYYMMDDHHMMSS if required by host
 
         effective_terminal_id = terminal_id or self.default_terminal_id
         if effective_terminal_id:
@@ -247,7 +218,7 @@ class DualConnectorClient:
         return response
 
     # =========================
-    # ВНУТРЕННИЕ МЕТОДЫ
+    # INTERNALS
     # =========================
 
     def _send_request(self, fields: Dict[str, str], timeout_seconds: int) -> OperationResult:
@@ -259,7 +230,6 @@ class DualConnectorClient:
             "Accept": "text/xml",
             "Accept-Charset": self.encoding,
         }
-
         response = requests.post(
             self.base_url,
             data=xml_payload.encode(self.encoding),
@@ -303,7 +273,7 @@ class DualConnectorClient:
         try:
             root = ET.fromstring(xml_text)
         except ET.ParseError as e:
-            raise DualConnectorError(f"Ошибка парсинга XML ответа: {e}\n{xml_text}") from e
+            raise DualConnectorError(f"XML response parse error: {e}\n{xml_text}") from e
 
         result: Dict[str, str] = {}
         for child in root:
@@ -316,18 +286,10 @@ class DualConnectorClient:
         return result
 
     @staticmethod
-    def _load_receipt_json(path: str) -> Dict[str, Any]:
-        with open(path, "r", encoding="windows-1251") as f:
-            return json.load(f)
-
-    @staticmethod
-    def _receipt_amount_to_minor_units(receipt: Dict[str, Any]) -> str:
-        if "sum-cashless" not in receipt:
-            raise ValueError("В JSON нет ключа 'sum-cashless'")
-
-        amount = Decimal(str(receipt["sum-cashless"]))
+    def _amount_to_minor_units(amount: Union[int, float, str, Decimal]) -> str:
+        amount = Decimal(str(amount))
         if amount <= 0:
-            raise ValueError(f"Некорректная сумма: {amount}")
+            raise ValueError(f"Invalid amount: {amount}")
 
         return str((amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
@@ -349,56 +311,41 @@ class DualConnectorClient:
             .replace("'", "&apos;")
         )
 
-    @staticmethod
-    def _build_receipt_print_text(receipt: Dict[str, Any]) -> str:
-        lines = [
-            f"Чек № {receipt.get('number_receipt', '')}",
-            f"Дата: {receipt.get('sdate', '')} {receipt.get('stime', '')}",
-        ]
-        for item in receipt.get("items", []):
-            lines.append(str(item.get("name", "")).strip())
-            lines.append(f"{item.get('quantity', 1)} x {item.get('price', 0)}")
-        lines.append(f"ИТОГО БЕЗНАЛ: {receipt.get('sum-cashless', 0)}")
-        return "\n".join(lines)
-
-
 def main():
-    client = DualConnectorClient(
-        base_url="http://127.0.0.1:9015",
-        default_terminal_id="10736528",
+    config_path = Path(__file__).with_name("tbank.ini")
+    config = configparser.ConfigParser()
+    config.read(config_path, encoding="utf-8")
+    tbank_config = config["tbank"] if config.has_section("tbank") else {}
+
+    client = Tbank(
+        base_url=tbank_config.get("base_url", "http://127.0.0.1:9015"),
+        default_terminal_id=tbank_config.get("default_terminal_id", None),
     )
 
-    # # Продажа из вашего JSON
-    # result = client.sale("d:\\files\\CK256885_01_sale.json")
-    # print(result.raw_xml)
-    #
-    # # Возврат
-    # result = client.refund(
-    #     "d:\\files\\CK256885_01_sale.json",
-    #     original_reference_number="123456789012",
-    #     original_authorization_code="A1B2C3",
-    # )
-    # print(result.raw_xml)
+    # Sale
+    result = client.operation(operation_type="sale", amount=1.00)
+    print(result.raw_xml)
 
-    # # Краткий отчет
-    # result = client.short_report()
-    # print(result.raw_xml)
-    #
-    # # Полный отчет
-    # result = client.full_report()
-    # print(result.raw_xml)
+    # Refund
+    result = client.operation(
+        operation_type="refund",
+        amount=1.00,
+    )
+    print(result.raw_xml)
 
-    # Сверка итогов
+    # Short report
+    result = client.short_report()
+    print(result.raw_xml)
+
+    # Full report
+    result = client.full_report()
+    print(result.raw_xml)
+
+    # Reconcile totals
     result = client.reconcile_totals()
     print(result.raw_xml)
 
 
-    # Копия чека
-    result = client.receipt_copy(
-        receipt_number="256885/01",
-        receipt_date="20260413114930",
-    )
-    print(result.raw_xml)
-
 if __name__ == '__main__':
     main()
+
