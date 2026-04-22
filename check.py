@@ -1,7 +1,6 @@
 import logging
 import os
 import time
-import re
 from sys import argv, exit
 import datetime
 import configparser
@@ -66,9 +65,6 @@ def safe_import(module_name, class_name, error_exit_code):
 Shtrih = safe_import('shtrih_OOP', 'Shtrih', 9998)
 PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
 # импорт модулей СБП перевенес непосредственно перед их вызовом
-# HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
-# SBP = safe_import('SBP_OOP', 'SBP', 9995)
-# Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
 Receiptinsql = safe_import('receipt_db', 'Receiptinsql', 9993)
 # словарь операций чека
 DICT_OPERATION_CHECK = {'sale': 0,
@@ -216,14 +212,7 @@ def _process_pinpad(o_shtrih):
         if pinpad_type == 'tbank':
             try:
                 Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
-                config_path = Path(__file__).with_name("tbank.ini")
-                config = configparser.ConfigParser()
-                config.read(config_path, encoding="utf-8")
-                tbank_config = config["tbank"] if config.has_section("tbank") else {}
-                tbank_client = Tbank(
-                    base_url=tbank_config.get("base_url", "http://127.0.0.1:9015"),
-                    default_terminal_id=tbank_config.get("default_terminal_id", None),
-                )
+                tbank_client = Tbank()
                 operation_name = o_shtrih.cash_receipt.get('operationtype', 'sale')
                 if operation_name == 'sale' or operation_name == 'return_sale':
                     result = tbank_client.operation(
@@ -254,7 +243,7 @@ def _process_pinpad(o_shtrih):
         sber_pinpad = PinPad()
         sber_pinpad.pinpad_operation(
             operation_name=o_shtrih.cash_receipt['operationtype'],
-            oper_sum=o_shtrih.cash_receipt['sum-cashless'],
+            amount=o_shtrih.cash_receipt['sum-cashless'],
         )
         pin_error = sber_pinpad.error
         pinpad_text = sber_pinpad.text

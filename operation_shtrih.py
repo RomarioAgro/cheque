@@ -19,6 +19,7 @@ from shtrih_OOP import Shtrih
 
 
 
+
 CUTTER = '~S'
 
 DB_SHTRIH = 'd:\\kassa\\db_receipt\\'
@@ -150,9 +151,14 @@ def main():
         i_shtrih.drv.FeedDocument()
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:
-        sber_pinpad = PinPad()
-        sber_pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], oper_sum=comp_rec['sum-cashless'])
-        i_shtrih.print_pinpad(sber_pinpad.text)
+        pinpad_type = str(comp_rec.get('pinpad_type', 'sber')).lower().strip()
+        if pinpad_type == 'tbank':
+            from pinpad_tbank import Tbank
+            pinpad = Tbank()
+        else:
+            pinpad = PinPad()
+        pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], amount=comp_rec['sum-cashless'])
+        i_shtrih.print_pinpad(pinpad.text)
     # печать отчета штрих
     if comp_rec['operationtype'] == 'x_otchet':
         time.sleep(5)
