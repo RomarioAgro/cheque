@@ -1,3 +1,8 @@
+import sys
+
+print(sys.executable)
+print(sys.version)
+
 import logging
 import os
 import time
@@ -215,8 +220,8 @@ def _process_pinpad(o_shtrih):
                 tbank_client = Tbank()
                 operation_name = o_shtrih.cash_receipt.get('operationtype', 'sale')
                 if operation_name == 'sale' or operation_name == 'return_sale':
-                    result = tbank_client.operation(
-                        operation_type=operation_name,
+                    result = tbank_client.pinpad_operation(
+                        operation_name=operation_name,
                         amount=o_shtrih.cash_receipt.get('sum-cashless', 0),
                     )
                 else:

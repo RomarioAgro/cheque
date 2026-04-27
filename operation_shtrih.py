@@ -11,6 +11,8 @@ import json
 from sys import argv, exit
 import datetime
 import sqlite3
+from pathlib import Path
+from logger_config import get_logger
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 from SBP_OOP import SBP
@@ -24,12 +26,10 @@ CUTTER = '~S'
 
 DB_SHTRIH = 'd:\\kassa\\db_receipt\\'
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-logging.basicConfig(
-    filename='D:\\files\\' + argv[2] + "_" + current_time + '.log',
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
+logger_operation_shtrih: logging.Logger = get_logger(
+    __name__,
+    log_file=Path(r'D:\files') / f'{argv[2]}_{current_time}.log',
+)
 
 
 class PaymentProcessor:

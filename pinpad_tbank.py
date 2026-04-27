@@ -80,7 +80,10 @@ class OperationResult:
 
     @property
     def receipt(self) -> Optional[str]:
-        return self.fields.get("90") or self.raw_response.get("ReceiptData")
+        receipt = self.fields.get("90") or self.raw_response.get("ReceiptData")
+        if receipt:
+            return clean_garbage(receipt)
+        return receipt
 
     @property
     def status(self) -> Optional[str]:
@@ -172,8 +175,9 @@ class TbankDC1:
         self.logger.debug("%s %s", title, snapshot)
 
     def pinpad_operation(self,
-                         operation_name: str = "x_otchet",
-                         amount: Union[int, float, str, Decimal] = 0):
+                  operation_name: str = "x_otchet",
+                  amount: Union[int, float, str, Decimal] = 0
+                  ):
         operation = (operation_name or "").strip().lower()
 
         if operation in ("sale", "payment", "oplata", "1"):
@@ -284,7 +288,9 @@ class TbankDC1:
         request.CurrencyCode = DEFAULT_CURRENCY_CODE
         request.OperationCode = OperationCode.USER_COMMAND
         request.TerminalID = self.tid
-        request.CommandMode = command_code
+        # User command code must be sent in field 65. CommandMode serializes to field 64,
+        # which does not trigger report operations on this terminal profile.
+        request.SetFieldInt(65, int(command_code))
         self._log_packet_snapshot(request, "request prepared")
         return self._exchange(request, timeout_seconds)
 
@@ -480,7 +486,8 @@ def main() -> None:
     logger = get_logger(__name__)
     parser = _build_arg_parser()
     args = parser.parse_args()
-
+    # refund - -amount 1.00
+    # sale - -amount 1.00
     client = TbankDC1(ini_section=args.section, logger=logger.getChild("TbankDC1"))
     operation_map = {
         "payment": lambda: client.payment(args.amount, timeout_seconds=args.timeout),
