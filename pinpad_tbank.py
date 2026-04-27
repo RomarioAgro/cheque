@@ -1,38 +1,25 @@
 from __future__ import annotations
 
+import argparse
 import configparser
 import logging
-import time
-import uuid
-import re
 from dataclasses import dataclass
-from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Dict, Optional, Union
-from xml.etree import ElementTree as ET
 
-import requests
+import pythoncom
+import win32com.client
+import win32com.client.dynamic
+
+from logger_config import get_logger
+import getpass
+import re
 
 
-# ====== SETTINGS ======
 DEFAULT_TIMEOUT_SECONDS = 180
-DEFAULT_CURRENCY_CODE = "643"  # RUB
-
-
-def _load_tbank_ini() -> Dict[str, str]:
-    config_path = Path(__file__).with_name("tbank.ini")
-    config = configparser.ConfigParser()
-    if not config_path.exists():
-        return {}
-    config.read(config_path, encoding="utf-8")
-    if not config.has_section("tbank"):
-        return {}
-    return dict(config["tbank"])
-
-
-_TBANK_INI_CONFIG = _load_tbank_ini()
-
+DEFAULT_CURRENCY_CODE = "643"
+DEFAULT_INI_SECTION = "kassir1"
 
 def clean_garbage(text: str) -> str:
     """
@@ -49,16 +36,15 @@ def clean_garbage(text: str) -> str:
     return text.rstrip()
 
 class OperationCode:
-    SALE = "1"
-    REFUND = "4"
-    RECONCILE_TOTALS = "59"
-    USER_COMMAND = "63"
+    SALE = 1
+    REFUND = 4
+    RECONCILE_TOTALS = 59
+    USER_COMMAND = 63
 
 
 class UserCommandCode:
-    SHORT_REPORT = "20"
-    FULL_REPORT = "21"
-    RECEIPT_COPY = "22"
+    SHORT_REPORT = 20
+    FULL_REPORT = 21
 
 
 class DualConnectorError(Exception):
@@ -71,361 +57,458 @@ class DualConnectorResponseError(DualConnectorError):
 
 @dataclass
 class OperationResult:
-    raw_xml: str
+    exchange_result: int
     fields: Dict[str, str]
     session_id: str
+    raw_response: Dict[str, str]
 
     @property
     def response_code_host(self) -> Optional[str]:
-        return self.fields.get("15")
+        return self.fields.get("15") or self.raw_response.get("ResponseCodeHost")
 
     @property
     def authorization_code(self) -> Optional[str]:
-        return self.fields.get("13")
+        return self.fields.get("13") or self.raw_response.get("AuthorizationCode")
 
     @property
     def reference_number(self) -> Optional[str]:
-        return self.fields.get("14")
+        return self.fields.get("14") or self.raw_response.get("ReferenceNumber")
 
     @property
     def text_response(self) -> Optional[str]:
-        return self.fields.get("19")
+        return self.fields.get("19") or self.raw_response.get("TextResponse")
+
+    @property
+    def receipt(self) -> Optional[str]:
+        return self.fields.get("90") or self.raw_response.get("ReceiptData")
 
     @property
     def status(self) -> Optional[str]:
-        return self.fields.get("39")
+        return self.fields.get("39") or self.raw_response.get("Status")
 
 
-class Tbank:
+def _load_ini_section(section_name: str = DEFAULT_INI_SECTION) -> Dict[str, str]:
+    config_path = Path(__file__).with_name("tbank.ini")
+    config = configparser.ConfigParser()
+    if not config_path.exists():
+        return {}
+    config.read(config_path, encoding="utf-8")
+    if not config.has_section(section_name):
+        return {}
+    return dict(config[section_name])
+
+def get_cashier():
+    """
+    получаем имя юзера, по этому имени
+    в ini файле есть секция с параметрами
+    :return:
+    """
+    cashier = getpass.getuser().lower()
+    if 'kassir' in cashier:
+        return cashier
+    else:
+        return 'kassir1'
+
+class TbankDC1:
     def __init__(
         self,
         base_url: Optional[str] = None,
         tid: Optional[str] = None,
+        ini_section: str = get_cashier(),
         encoding: str = "windows-1251",
         logger: Optional[logging.Logger] = None,
     ) -> None:
-        resolved_base_url = base_url or _TBANK_INI_CONFIG.get("base_url")
-        resolved_terminal_id = tid
-        if resolved_terminal_id is None:
-            resolved_terminal_id = _TBANK_INI_CONFIG.get("tid_kassir1")
 
-        self.base_url = resolved_base_url.rstrip("/")
-        self.tid = resolved_terminal_id
+        ini_config = _load_ini_section(ini_section)
+        resolved_tid = (tid or ini_config.get("tid", "")).strip()
+
+        if not resolved_tid:
+            raise ValueError(f"Terminal ID is not configured in tbank.ini section [{ini_section}]")
+
+        self.base_url = (base_url or ini_config.get("url", "")).strip()
+        self.tid = resolved_tid
+        self.ini_section = ini_section
         self.encoding = encoding
-        self.text = None
-        self.logger = logger or logging.getLogger(__name__).getChild(self.__class__.__name__)
+        self.logger = logger or get_logger(f"{__name__}.{self.__class__.__name__}")
+
+        self.error = 0
+        self.text: Optional[str] = None
+        self.last_result: Optional[OperationResult] = None
+
+        self._com_initialized = False
+        self._resources_initialized = False
+        self._dc = None
+
         self.logger.debug(
-            "init base_url=%s tid=%s encoding=%s",
-            self.base_url,
+            "init tid=%s ini_section=%s encoding=%s",
             self.tid,
+            self.ini_section,
             self.encoding,
         )
 
-    # =========================
-    # PUBLIC API
-    # =========================
-    def pinpad_operation(self, operation_name: str = 'x_otchet', amount: int = 0):
-        """
-        так сказать прокси для вызова методов
-        :param operation_name:
-        :param amount:
-        :return:
-        """
-        self.logger.debug("pinpad_operation start operation_name=%s amount=%s", operation_name, amount)
+    def _log_packet_snapshot(self, packet, title: str) -> None:
+        interesting_properties = (
+            "Amount",
+            "CurrencyCode",
+            "OperationCode",
+            "TerminalID",
+            "CommandMode",
+            "Status",
+            "ResponseCodeHost",
+            "TextResponse",
+            "ReferenceNumber",
+            "AuthorizationCode",
+            "ReceiptData",
+        )
+        snapshot: Dict[str, str] = {}
+        for property_name in interesting_properties:
+            try:
+                value = getattr(packet, property_name)
+            except Exception as exc:
+                snapshot[property_name] = f"<error: {exc}>"
+                continue
+            if value not in (None, "", -1):
+                snapshot[property_name] = str(value)
+        self.logger.debug("%s %s", title, snapshot)
 
-        if operation_name in ("sale", "1"):
-            return self.operation("sale", amount)
+    def pinpad_operation(self,
+                         operation_name: str = "x_otchet",
+                         amount: Union[int, float, str, Decimal] = 0):
+        operation = (operation_name or "").strip().lower()
 
-        if operation_name in ("return_sale", "refund", "4"):
-            return self.operation("refund", amount)
-
-        if operation_name in ("short_report", "x_otchet"):
+        if operation in ("sale", "payment", "oplata", "1"):
+            return self.payment(amount)
+        if operation in ("return_sale", "refund", "vozvrat", "4"):
+            return self.refund(amount)
+        if operation in ("x_otchet", "short_report", "kratkiy_otchet"):
             return self.short_report()
-
-        if operation_name in ("full_report", "full_otchet"):
+        if operation in ("full_otchet", "full_report", "polniy_otchet"):
             return self.full_report()
-
-        if operation_name == "z_otchet":
+        if operation in ("z_otchet", "reconciliation", "reconcile_totals", "sverka_itogov"):
             return self.reconcile_totals()
 
-        self.logger.error("unsupported pinpad operation: %s", operation_name)
         raise ValueError(f"Unsupported pinpad operation: {operation_name}")
 
-
-    def operation(
+    def payment(
         self,
-        operation_type: str,
         amount: Union[int, float, str, Decimal],
-        # terminal_id: Optional[str] = None,
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
-    ) -> OperationResult:
-        self.logger.debug("operation start type=%s amount=%s timeout=%s", operation_type, amount, timeout_seconds)
-        op = (operation_type or "").strip().lower()
-        if op in ("sale", OperationCode.SALE):
-            operation_code = OperationCode.SALE
-        elif op in ("refund", "return_sale", OperationCode.REFUND):
-            operation_code = OperationCode.REFUND
-        else:
-            raise ValueError(f"Unsupported operation_type: {operation_type}")
-
-        amount_minor = self._amount_to_minor_units(amount)
-
-        fields = {
-            "00": amount_minor,
-            "04": DEFAULT_CURRENCY_CODE,
-            "21": self._now_terminal_datetime(),
-            "25": operation_code,
-            "27": self.tid,
-        }
-        result = self._send_request(fields, timeout_seconds)
-        self.logger.debug(
-            "operation finish status=%s host_code=%s rrn=%s",
-            result.status,
-            result.response_code_host,
-            result.reference_number,
-        )
-        return result
-
-    def reconcile_totals(
-        self,
-        terminal_id: Optional[str] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
-        self.logger.debug("reconcile_totals start terminal_id=%s timeout=%s", terminal_id, timeout_seconds)
-        fields = {
-            "04": DEFAULT_CURRENCY_CODE,
-            "21": self._now_terminal_datetime(),
-            "25": OperationCode.RECONCILE_TOTALS,
-        }
+        return self._financial_operation(OperationCode.SALE, amount, timeout_seconds)
 
-        effective_terminal_id = terminal_id or self.tid
-        if effective_terminal_id:
-            fields["27"] = effective_terminal_id
-
-        result = self._send_request(fields, timeout_seconds)
-        self.logger.debug("reconcile_totals finish status=%s host_code=%s", result.status, result.response_code_host)
-        return result
-
-    def user_command(
+    def refund(
         self,
-        command_code: str,
-        terminal_id: Optional[str] = None,
+        amount: Union[int, float, str, Decimal],
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
-        """
-        Operation 65: execute a user command.
+        return self._financial_operation(OperationCode.REFUND, amount, timeout_seconds)
 
-        """
-        self.logger.debug(
-            "user_command start command_code=%s terminal_id=%s timeout=%s",
-            command_code,
-            terminal_id,
-            timeout_seconds,
-        )
-        fields = {
-            "04": DEFAULT_CURRENCY_CODE,
-            "21": self._now_terminal_datetime(),
-            "25": OperationCode.USER_COMMAND,
-            "65": str(command_code),
-        }
+    def reconcile_totals(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+        request = self._create_packet()
+        request.CurrencyCode = DEFAULT_CURRENCY_CODE
+        request.OperationCode = OperationCode.RECONCILE_TOTALS
+        request.TerminalID = self.tid
+        return self._exchange(request, timeout_seconds)
 
-        effective_terminal_id = terminal_id or self.tid
-        if effective_terminal_id:
-            fields["27"] = effective_terminal_id
+    def short_report(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+        return self._user_command(UserCommandCode.SHORT_REPORT, timeout_seconds)
 
-        result = self._send_request(fields, timeout_seconds)
-        self.logger.debug(
-            "user_command finish command_code=%s status=%s host_code=%s",
-            command_code,
-            result.status,
-            result.response_code_host,
-        )
-        return result
+    def full_report(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+        return self._user_command(UserCommandCode.FULL_REPORT, timeout_seconds)
 
-    def short_report(
+    def oplata(
         self,
-        terminal_id: Optional[str] = None,
+        amount: Union[int, float, str, Decimal],
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
-        return self.user_command(
-            command_code=UserCommandCode.SHORT_REPORT,
-            terminal_id=terminal_id,
-            timeout_seconds=timeout_seconds,
-        )
+        return self.payment(amount, timeout_seconds)
 
-    def full_report(
+    def vozvrat(
         self,
-        terminal_id: Optional[str] = None,
+        amount: Union[int, float, str, Decimal],
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
-        return self.user_command(
-            command_code=UserCommandCode.FULL_REPORT,
-            terminal_id=terminal_id,
-            timeout_seconds=timeout_seconds,
-        )
+        return self.refund(amount, timeout_seconds)
 
-    def close_open_connection(self, terminal_id: str) -> requests.Response:
-        url = f"{self.base_url}/command/closeOpenConnection"
-        self.logger.debug("close_open_connection start terminal_id=%s", terminal_id)
-        response = requests.post(
-            url,
-            params={"TerminalId": terminal_id},
-            timeout=15,
-        )
-        response.raise_for_status()
-        self.logger.debug("close_open_connection finish status_code=%s", response.status_code)
-        return response
+    def sverka_itogov(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+        return self.reconcile_totals(timeout_seconds)
 
-    # =========================
-    # INTERNALS
-    # =========================
+    def kratkiy_otchet(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+        return self.short_report(timeout_seconds)
 
-    def _send_request(self, fields: Dict[str, str], timeout_seconds: int) -> OperationResult:
-        session_id = self._generate_session_id()
-        xml_payload = self._build_request_xml(fields, timeout_seconds, session_id)
-        self.logger.debug(
-            "send_request session_id=%s timeout=%s fields=%s",
-            session_id,
-            timeout_seconds,
-            fields,
-        )
+    def polniy_otchet(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+        return self.full_report(timeout_seconds)
 
-        headers = {
-            "Content-Type": f"text/xml; charset={self.encoding}",
-            "Accept": "text/xml",
-            "Accept-Charset": self.encoding,
-        }
-        try:
-            response = requests.post(
-                self.base_url,
-                data=xml_payload.encode(self.encoding),
-                headers=headers,
-                timeout=timeout_seconds + 10,
-            )
-        except Exception:
-            self.logger.exception("http request failed session_id=%s", session_id)
-            raise
-        response.raise_for_status()
-        self.logger.debug(
-            "http response session_id=%s status_code=%s bytes=%s",
-            session_id,
-            response.status_code,
-            len(response.content),
-        )
+    def close(self) -> None:
+        if self._dc is not None and self._resources_initialized:
+            try:
+                self.logger.debug("FreeResources start")
+                _ = self._dc.FreeResources
+                self.logger.debug("FreeResources finish")
+            finally:
+                self._resources_initialized = False
 
-        raw_text = response.content.decode(self.encoding, errors="replace")
-        parsed = self._parse_response_xml(raw_text)
-        self.text = clean_garbage(parsed.get('90', ''))
-        if "errorcode" in parsed:
-            self.logger.error(
-                "dc service error session_id=%s code=%s description=%s",
-                session_id,
-                parsed.get("errorcode"),
-                parsed.get("errordescription", ""),
-            )
-            raise DualConnectorResponseError(
-                f"DC Service error {parsed.get('errorcode')}: {parsed.get('errordescription', '')}"
-            )
-        self.logger.debug(
-            "parsed response session_id=%s status=%s host_code=%s",
-            session_id,
-            parsed.get("39"),
-            parsed.get("15"),
-        )
+        self._dc = None
+        if self._com_initialized:
+            self.logger.debug("CoUninitialize start")
+            pythoncom.CoUninitialize()
+            self._com_initialized = False
+            self.logger.debug("CoUninitialize finish")
 
-        return OperationResult(
-            raw_xml=raw_text,
-            fields=parsed,
-            session_id=session_id,
-        )
+    def close_open_connection(self) -> None:
+        raise NotImplementedError("close_open_connection is not used in COM mode")
 
-    def _build_request_xml(
+    def get_receipt_bytes(self, result: Optional[OperationResult] = None) -> bytes:
+        operation_result = result or self.last_result
+        if operation_result is None:
+            return b""
+        receipt = operation_result.receipt or ""
+        return receipt.encode(self.encoding, errors="replace")
+
+    def _financial_operation(
         self,
-        fields: Dict[str, str],
+        operation_code: int,
+        amount: Union[int, float, str, Decimal],
         timeout_seconds: int,
-        session_id: str,
-    ) -> str:
-        parts = ['<?xml version="1.0" encoding="windows-1251"?>', "<request>"]
+    ) -> OperationResult:
+        request = self._create_packet()
+        request.Amount = self._amount_to_minor_units(amount)
+        request.CurrencyCode = DEFAULT_CURRENCY_CODE
+        request.OperationCode = operation_code
+        request.TerminalID = self.tid
+        self._log_packet_snapshot(request, "request prepared")
+        return self._exchange(request, timeout_seconds)
 
-        for field_id, value in fields.items():
-            parts.append(f'<field id="{field_id}">{self._xml_escape(str(value))}</field>')
+    def _user_command(self, command_code: int, timeout_seconds: int) -> OperationResult:
+        request = self._create_packet()
+        request.CurrencyCode = DEFAULT_CURRENCY_CODE
+        request.OperationCode = OperationCode.USER_COMMAND
+        request.TerminalID = self.tid
+        request.CommandMode = command_code
+        self._log_packet_snapshot(request, "request prepared")
+        return self._exchange(request, timeout_seconds)
 
-        parts.append(f"<timeout>{int(timeout_seconds)}</timeout>")
-        parts.append(f"<sessionID>{self._xml_escape(session_id)}</sessionID>")
-        parts.append("</request>")
-        return "".join(parts)
+    def _exchange(self, request, timeout_seconds: int) -> OperationResult:
+        self.logger.debug("create response packet start")
+        response = self._create_packet()
+        self.logger.debug("create response packet finish")
+        self._log_packet_snapshot(response, "response initial")
+
+        self.logger.debug("create/get dclink start")
+        dc = self._get_or_create_dclink()
+        self.logger.debug("create/get dclink finish")
+
+        self.logger.debug("InitResources ensure start")
+        self._ensure_resources(dc)
+        self.logger.debug("InitResources ensure finish")
+        timeout_ms = int(timeout_seconds * 1000)
+
+        self.logger.debug(
+            "exchange start operation=%s terminal_id=%s amount=%s command=%s timeout_seconds=%s timeout_ms=%s",
+            getattr(request, "OperationCode", None),
+            getattr(request, "TerminalID", None),
+            getattr(request, "Amount", None),
+            getattr(request, "CommandMode", None),
+            timeout_seconds,
+            timeout_ms,
+        )
+
+        exchange_result = dc.Exchange(request, response, timeout_ms)
+        self.logger.debug(
+            "exchange raw finish result=%s error_code=%s error_description=%s",
+            exchange_result,
+            getattr(dc, "ErrorCode", None),
+            getattr(dc, "ErrorDescription", None),
+        )
+        self._log_packet_snapshot(response, "response after exchange")
+        fields = self._extract_fields(response)
+        raw_response = self._extract_response_properties(response)
+        self.logger.debug("response fields=%s", fields)
+        self.logger.debug("response raw_properties=%s", raw_response)
+        result = OperationResult(
+            exchange_result=exchange_result,
+            fields=fields,
+            session_id="",
+            raw_response=raw_response,
+        )
+
+        self.last_result = result
+        self.text = result.receipt or result.text_response or ""
+        self.error = self._resolve_error_code(result)
+
+        self.logger.debug(
+            "exchange finish exchange_result=%s status=%s host_code=%s text=%s",
+            exchange_result,
+            result.status,
+            result.response_code_host,
+            result.text_response,
+        )
+
+        if exchange_result != 0:
+            raise DualConnectorResponseError(
+                f"Exchange failed: {exchange_result}, status={result.status}, text={result.text_response or ''}"
+            )
+
+        return result
+
+    def _get_or_create_dclink(self):
+        if not self._com_initialized:
+            self.logger.debug("CoInitialize start")
+            pythoncom.CoInitialize()
+            self._com_initialized = True
+            self.logger.debug("CoInitialize finish")
+
+        if self._dc is None:
+            self.logger.debug("DCLink create start")
+            self._dc = win32com.client.dynamic.Dispatch("DualConnector.DCLink")
+            self.logger.debug("DCLink create finish type=%s", type(self._dc))
+
+        return self._dc
+
+    def _ensure_resources(self, dc) -> None:
+        if not self._resources_initialized:
+            init_result = dc.InitResources
+            self.logger.debug(
+                "InitResources result=%s error_code=%s error_description=%s",
+                init_result,
+                getattr(dc, "ErrorCode", None),
+                getattr(dc, "ErrorDescription", None),
+            )
+            if init_result != 0:
+                error_text = getattr(dc, "ErrorDescription", "")
+                raise DualConnectorError(f"InitResources failed: {init_result} - {error_text}")
+            self._resources_initialized = True
 
     @staticmethod
-    def _parse_response_xml(xml_text: str) -> Dict[str, str]:
-        try:
-            root = ET.fromstring(xml_text)
-        except ET.ParseError as e:
-            raise DualConnectorError(f"XML response parse error: {e}\n{xml_text}") from e
+    def _create_packet():
+        return win32com.client.dynamic.Dispatch("DualConnector.SAPacket")
 
+    @staticmethod
+    def _extract_fields(packet) -> Dict[str, str]:
+        fields: Dict[str, str] = {}
+        for field_id in ("13", "14", "15", "19", "39", "90"):
+            try:
+                value = packet.GetField(int(field_id))
+            except Exception:
+                value = None
+            if value not in (None, ""):
+                fields[field_id] = str(value)
+        return fields
+
+    @staticmethod
+    def _extract_response_properties(packet) -> Dict[str, str]:
+        property_names = (
+            "AuthorizationCode",
+            "ReferenceNumber",
+            "ResponseCodeHost",
+            "TextResponse",
+            "ReceiptData",
+            "Status",
+            "TerminalID",
+            "OperationCode",
+            "CommandMode",
+            "SlipNumber",
+            "TerminalTrxID",
+            "HostTrxID",
+            "Acquirer",
+        )
         result: Dict[str, str] = {}
-        for child in root:
-            if child.tag.lower() == "field":
-                field_id = child.attrib.get("id")
-                if field_id:
-                    result[field_id] = child.text or ""
-            else:
-                result[child.tag.lower()] = child.text or ""
+        for property_name in property_names:
+            try:
+                value = getattr(packet, property_name)
+            except Exception:
+                continue
+            if value not in (None, ""):
+                result[property_name] = str(value)
         return result
 
     @staticmethod
     def _amount_to_minor_units(amount: Union[int, float, str, Decimal]) -> str:
-        amount = Decimal(str(amount))
-        if amount < 0:
+        decimal_amount = Decimal(str(amount))
+        if decimal_amount < 0:
             raise ValueError(f"Invalid amount: {amount}")
-
-        return str((amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-
-    @staticmethod
-    def _now_terminal_datetime() -> str:
-        return datetime.now().strftime("%Y%m%d%H%M%S")
+        return str((decimal_amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
     @staticmethod
-    def _generate_session_id() -> str:
-        return f"{int(time.time())}{uuid.uuid4().hex[:8]}"
+    def _resolve_error_code(result: OperationResult) -> int:
+        if result.exchange_result != 0:
+            return int(result.exchange_result)
+        host_code = result.response_code_host
+        if host_code and host_code.lstrip("-").isdigit():
+            return int(host_code)
+        return 0
 
-    @staticmethod
-    def _xml_escape(value: str) -> str:
-        return (
-            value.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&apos;")
-        )
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
-def main():
-    client = Tbank()
+class Tbank(TbankDC1):
+    pass
 
-    # Sale
-    result = client.operation(operation_type="sale", amount=1.00)
-    print(result.raw_xml)
 
-    # Refund
-    result = client.operation(
-        operation_type="refund",
-        amount=1.00,
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Manual test client for T-Bank Dual Connector DC1 COM mode")
+    parser.add_argument(
+        "operation",
+        choices=["payment", "refund", "reconcile_totals", "short_report", "full_report"],
+        help="Terminal operation to execute",
     )
-    print(result.raw_xml)
+    parser.add_argument(
+        "--amount",
+        type=Decimal,
+        default=Decimal("0"),
+        help="Amount in rubles for payment/refund operations",
+    )
+    parser.add_argument(
+        "--section",
+        default=DEFAULT_INI_SECTION,
+        help="INI section name in tbank.ini",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help="Operation timeout in seconds",
+    )
+    return parser
 
-    # Short report
-    result = client.short_report()
-    print(result.raw_xml)
 
-    # Full report
-    result = client.full_report()
-    print(result.raw_xml)
+def main() -> None:
+    logger = get_logger(__name__)
+    parser = _build_arg_parser()
+    args = parser.parse_args()
 
-    # Reconcile totals
-    result = client.reconcile_totals()
-    print(result.raw_xml)
+    client = TbankDC1(ini_section=args.section, logger=logger.getChild("TbankDC1"))
+    operation_map = {
+        "payment": lambda: client.payment(args.amount, timeout_seconds=args.timeout),
+        "refund": lambda: client.refund(args.amount, timeout_seconds=args.timeout),
+        "reconcile_totals": lambda: client.reconcile_totals(timeout_seconds=args.timeout),
+        "short_report": lambda: client.short_report(timeout_seconds=args.timeout),
+        "full_report": lambda: client.full_report(timeout_seconds=args.timeout),
+    }
 
+    if args.operation in {"payment", "refund"} and args.amount <= 0:
+        parser.error("--amount must be greater than 0 for payment/refund")
 
-if __name__ == '__main__':
+    try:
+        result = operation_map[args.operation]()
+    finally:
+        client.close()
+
+    print(f"exchange_result: {result.exchange_result}")
+    print(f"status: {result.status}")
+    print(f"host_code: {result.response_code_host}")
+    print(f"auth_code: {result.authorization_code}")
+    print(f"rrn: {result.reference_number}")
+    print(f"text: {result.text_response or ''}")
+    print(f"receipt: {result.receipt or ''}")
+    print("raw_response:")
+    for key, value in result.raw_response.items():
+        print(f"  {key}: {value}")
+
+# refund --amount 1.00
+if __name__ == "__main__":
     main()
-
