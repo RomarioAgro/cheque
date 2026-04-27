@@ -483,6 +483,10 @@ class Shtrih(object):
         i_text = i_str.split('\n')
         count_cutter = 0
         cut_yes_no = self.cash_receipt.get('cutter', CUTTER)
+        fr_no_cut = self.cash_receipt.get('no_cut', [])
+        self.drv.ReadSerialNumber()
+        if self.drv.SerialNumber in fr_no_cut:
+            cut_yes_no = 'pfkegf'
         for i_line in i_text:
             line = i_line.strip('\r')
             is_phone_number = re.search(phone_number_pattern, line.strip())
