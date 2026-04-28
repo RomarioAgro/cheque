@@ -480,6 +480,7 @@ class Shtrih(object):
         """
         logging.debug(i_str)
         phone_number_pattern = r'т..((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}$'
+        summ_pattern = r'^\s*СУММА\s*(?:\(\s*РУБ\.?\s*\))?\s*:?\s*([0-9]+(?:\s[0-9]{3})*(?:[.,][0-9]{2})?)\s*(?:РУБ\.?)?\s*$'
         i_text = i_str.split('\n')
         count_cutter = 0
         cut_yes_no = self.cash_receipt.get('cutter', CUTTER)
@@ -502,13 +503,12 @@ class Shtrih(object):
                         # сам символ отрезки печатать не надо
                         pass
                     else:
-                        if line.find(sum_operation) != -1:
-                            if line.strip().startswith(sum_operation) is True:
-                                self.print_str(i_str=line, i_font=2)
-                            else:
-                                self.print_str(i_str='Сумма (Руб):', i_font=5)
-                                self.print_str(i_str=sum_operation, i_font=2)
-
+                        sum_re = re.compile(summ_pattern, re.IGNORECASE)
+                        match = sum_re.match(line)
+                        if match:
+                            amount = match.group(1)
+                            self.print_str(i_str='Сумма (Руб):', i_font=5)
+                            self.print_str(i_str=amount, i_font=2)
                         else:
                             self.print_str(i_str=line, i_font=5)
             else:
