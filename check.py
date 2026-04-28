@@ -239,7 +239,7 @@ def _process_pinpad(o_shtrih):
                         f'host_code={result.response_code_host}, rrn={result.reference_number}'
                     )
                     return pin_error, None
-                pinpad_text = str(result.fields.get("90", "")).strip()
+                pinpad_text = (result.receipt or result.text_response or "").strip()
                 logger_check.debug(f'результат оплаты по пинпаду tbank {pinpad_text}')
                 return 0, pinpad_text
             except Exception as exc:
