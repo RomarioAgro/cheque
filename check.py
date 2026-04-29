@@ -1,35 +1,31 @@
-import sys
-
-print(sys.executable)
-print(sys.version)
-
 import logging
 import os
+import datetime
+import sys
 import time
 from sys import argv, exit
-import datetime
-import configparser
-from decouple import Config, RepositoryEnv
 from typing import Tuple
-from correct_email import sanitize_email, is_valid_email
-from pinpad_tbank import clean_garbage
 import subprocess
-import sys
 import json
 import tempfile
 from pathlib import Path
 
+from decouple import Config, RepositoryEnv
+
+from logger_config import build_check_log_file, configure_logging, get_logger
+
+
+print(sys.executable)
+print(sys.version)
 
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
-logging.basicConfig(
-    filename=argv[1] + '\\check_' + argv[2] + "_" + current_time + '_.log',
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
 
-logger_check: logging.Logger = logging.getLogger(__name__)
-logger_check.setLevel(logging.DEBUG)
+configure_logging(log_file=build_check_log_file(argv[2], current_time))
+
+from correct_email import sanitize_email, is_valid_email
+from pinpad_tbank import clean_garbage
+
+logger_check: logging.Logger = get_logger(__name__)
 logger_check.debug('start')
 
 

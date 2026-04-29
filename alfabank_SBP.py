@@ -15,21 +15,18 @@ from typing import Dict, Tuple
 from hlynov_sql import DocumentsDB
 import getpass
 import socket
+from pathlib import Path
+from logger_config import get_logger
 
 
 os.chdir('d:\\kassa\\script_py\\shtrih\\')
 script_name = os.path.splitext(os.path.basename(__file__))[0]
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 
-logging.basicConfig(
-    filename=f'd:\\files\\{script_name}_{current_time}_.log',
-    filemode='a',
-    level=logging.DEBUG,
-    format="%(asctime)s - %(filename)s - %(funcName)s: %(lineno)d - %(message)s",
-    datefmt='%H:%M:%S')
-
-logger_check: logging.Logger = logging.getLogger(__name__)
-logger_check.setLevel(logging.DEBUG)
+logger_check: logging.Logger = get_logger(
+    __name__,
+    log_file=Path(r'd:\files') / f'{script_name}_{current_time}_.log',
+)
 logger_check.debug('start')
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(dotenv_path=env_path)
@@ -108,6 +105,8 @@ class Scope(Enum):
     status = 'GetQRCstatus'
     possibility_refund = 'GetQRCreversalData'
     refund = 'QRCreversal'
+    changeacc = 'ChangeAccForCashQRc'
+    changetermnoforcashqrc = 'ChangeTermNoForCashQRc'
 
 
 
@@ -126,7 +125,7 @@ class Alfa_SBP(object):
         self.token = None
         self.tls_cert = (os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_tls_crt'))),
                          os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_tls_key'))))
-        self.root_cert = False
+        self.root_cert = os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_root')))
 
         self.error_code = None
         self.payrrn = None
@@ -172,7 +171,10 @@ class Alfa_SBP(object):
         return encoded_data_str
 
 
-    def registaration_cash_link(self, my_order=None, kassa: str = '', qrcid: str = ''):
+    def registaration_cash_link(self, my_order=None,
+                                kassa: str = '',
+                                qrcid: str = '',
+                                termn: str = ''):
         """
         метод регистрации кассовой ссылки, делается 1 раз
         kassa: str это имя переменнои из .env файла в которой хранится номер терминала с системе СБП, строка
@@ -180,9 +182,9 @@ class Alfa_SBP(object):
         :return:
         """
         order_data = {
-            "TermNo": os.getenv(kassa),
+            "TermNo": termn,
             "command": Scope.registration.value,
-            "qrcId": os.getenv(qrcid)
+            "qrcId": qrcid
         }
         self.order = order_data
         token = self._get_token(Scope.registration)
@@ -195,8 +197,9 @@ class Alfa_SBP(object):
         }
         data = _make_order_body(request_data=self.order)
         r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert)
+        print(r.status_code)
         logger_check.debug(f'регистрация кассовой ссылки {r.text}')
-        make_picture_qr_code(str_base64=r.json()['content'], f_name=kassa)
+        # make_picture_qr_code(str_base64=r.json()['content'], f_name=kassa)
 
     def create_order(self, my_order=None):
         """
@@ -472,6 +475,55 @@ class Alfa_SBP(object):
         logging.debug('окончательный статус = {0}, ответ сервера = {1}'.format(i_exit, data_status))
         return i_exit, data_status
 
+    def changeaccforcashqrc(self):
+        """
+        Смена номера терминала по зарегистрированной Кассовой ссылке СБП/NFC-табличке
+        :return:
+        """
+        order_data = {
+            "command": Scope.changeacc.value,
+            "NewTermNo": "45250772",  # новый терминал
+            "TermNo": "45063844",  #старый терминал
+            "NewMerchantId": "MA0004392392",
+            "qrcId": "BS1F007P47B37CJI9AK99IJL1BD930T0",
+            "account": "40802810829820005199"  #счет ип попов
+        }
+        self.order = order_data
+        token = self._get_token(Scope.changeacc)
+        url = os.getenv('alfa_sbp_url')
+        header = {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "key-name": self.alias,
+            "Authorization": token
+        }
+        data = _make_order_body(request_data=self.order)
+        r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert)
+        logger_check.debug(f'привязка кассовой ссылки к терминалу ИП Попов в jb {r.text}')
+        # make_picture_qr_code(str_base64=r.json()['content'], f_name=kassa)
+
+    def changetermnoforcashqrc(self):
+        """
+        Смена номера терминала по зарегистрированной Кассовой ссылке СБП/NFC-табличке
+        :return:
+        """
+        order_data = {
+            "command": Scope.changetermnoforcashqrc.value,
+            "TermNo": "45497993",  #терминал
+            "qrcId": "BS1F005P356JRCMI9OB9JHFN8E3D8LO1"
+        }
+        self.order = order_data
+        token = self._get_token(Scope.changetermnoforcashqrc)
+        url = os.getenv('alfa_sbp_url')
+        header = {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "key-name": self.alias,
+            "Authorization": token
+        }
+        data = _make_order_body(request_data=self.order)
+        r = requests.post(url=url, headers=header, data=data, cert=self.tls_cert, verify=self.root_cert)
+        logger_check.debug(f'привязка кассовой ссылки к терминалу ИП Чащина в PR {r.text}')
 
 def main():
 
@@ -496,9 +548,16 @@ def main():
     # qrcid = 'alfa_qrcid_kassir1'
     # kassa - это номер терминала
     # qrcid - это id qr с таблички альфабанка
-    kassa = 'alfa_temno_kassir_KB'
-    qrcid = 'alfa_qrcid_kassir_KB'
-    sbp_qr.registaration_cash_link(kassa=kassa, qrcid=qrcid)
+    # kassa = 'alfa_temno_kassir1'
+    # qrcid = 'alfa_temno_kassir1'
+    sbp_qr.registaration_cash_link(termn='45499351',
+                                   qrcid='BS1F000HGHGM9UMV8DO80OGETFC4F8ID')
+
+
+
+
+    # sbp_qr.changeaccforcashqrc()
+    # sbp_qr.changetermnoforcashqrc()
     # payrrn = sbp_qr.create_order(my_order=my_order)
     # payrrn = '000706732453'
     # my_order = {
@@ -510,6 +569,8 @@ def main():
     #     sbp_qr.status_order(payrrn=payrrn)
     #     sleep(3)
     # print('конец')
+
+
 
 
 if __name__ == '__main__':
