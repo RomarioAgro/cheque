@@ -209,50 +209,30 @@ def check_KM_in_honeist_sign(o_shtrih):
 def _process_pinpad(o_shtrih):
     if o_shtrih.cash_receipt.get('PinPad', 0) == 1 and o_shtrih.cash_receipt.get('sum-cashless', 0) > 0:
         logger_check.debug('зашли в пинпад')
+        operation_name = str(o_shtrih.cash_receipt.get('operationtype', 'sale')).lower().strip()
         pinpad_type = str(o_shtrih.cash_receipt.get('pinpad_type', 'sber')).lower().strip()
         if pinpad_type == 'tbank':
             Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
             sber_pinpad = Tbank()
+            logger_check.debug('создали объект Tbank()')
         else:
             PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
             sber_pinpad = PinPad()
-        #     try:
-        #         Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
-        #         tbank_client = Tbank()
-        #         operation_name = o_shtrih.cash_receipt.get('operationtype', 'sale')
-        #         if operation_name == 'sale' or operation_name == 'return_sale':
-        #             result = tbank_client.pinpad_operation(
-        #                 operation_name=operation_name,
-        #                 amount=o_shtrih.cash_receipt.get('sum-cashless', 0),
-        #             )
-        #         else:
-        #             logger_check.debug(f'tbank операция {operation_name} не требует оплаты по пинпаду')
-        #             return 0, None
-        #         status_raw = (result.status or '').strip()
-        #         # Успех по протоколу TBank только при статусе "1".
-        #         if status_raw != "1":
-        #             try:
-        #                 pin_error = int(status_raw)
-        #             except Exception:
-        #                 pin_error = 97
-        #             logger_check.debug(
-        #                 f'оплата по пинпаду tbank неуспешна: status={status_raw}, '
-        #                 f'host_code={result.response_code_host}, rrn={result.reference_number}'
-        #             )
-        #             return pin_error, None
-        #         pinpad_text = (result.receipt or result.text_response or "").strip()
-        #         logger_check.debug(f'результат оплаты по пинпаду tbank {pinpad_text}')
-        #         return 0, pinpad_text
-        #     except Exception as exc:
-        #         logger_check.debug(f'ошибка оплаты по пинпаду tbank {exc}')
-        #         return 97, None
-        # sber_pinpad = PinPad()
-        sber_pinpad.pinpad_operation(
-            operation_name=o_shtrih.cash_receipt['operationtype'],
-            amount=o_shtrih.cash_receipt['sum-cashless'],
-        )
-        pin_error = sber_pinpad.error
-        pinpad_text = sber_pinpad.text
+            logger_check.debug('создали объект сбербанк PinPad()')
+        try:
+            sber_pinpad.pinpad_operation(
+                operation_name=o_shtrih.cash_receipt['operationtype'],
+                amount=o_shtrih.cash_receipt['sum-cashless'],
+            )
+            pin_error = sber_pinpad.error
+            pinpad_text = sber_pinpad.text
+        except Exception as exc:
+            logger_check.debug(f'ошибка оплаты по пинпаду {pinpad_type} {exc}', exc_info=True)
+            pin_error = int(getattr(exc, 'code', 97) or 97)
+            pinpad_text = getattr(exc, 'message', None) or str(exc)
+
+        if operation_name in {'sale', 'return_sale'} and pin_error != 0:
+            Mbox(f'Ошибка {pin_error}', pinpad_text or 'Операция не выполнена', 4096 + 16)
         logger_check.debug(f'результат оплаты по пинпаду {pin_error} {pinpad_text}')
         return pin_error, pinpad_text
     logger_check.debug('оплаты по пинпад нет')
