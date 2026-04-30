@@ -3,7 +3,10 @@ from __future__ import annotations
 import argparse
 import configparser
 import logging
+import sys
 import socket
+import tkinter as tk
+from tkinter import simpledialog
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -99,6 +102,51 @@ class DualConnectorResponseError(DualConnectorError):
 
 class PosGuiError(DualConnectorError):
     pass
+
+
+class UserCancelledOperationError(DualConnectorError):
+    def __init__(self, message: str = "Операция отменена пользователем", code: int = 2000) -> None:
+        super().__init__(message)
+        self.code = int(code)
+        self.message = message
+
+
+class RefundRrnDialog(simpledialog.Dialog):
+    def __init__(self, parent, title: str) -> None:
+        self.result_value: Optional[str] = None
+        super().__init__(parent, title)
+
+    def body(self, master):
+        self.geometry("640x220")
+        self.title_font = ("Arial", 20, "bold")
+        self.entry_font = ("Arial", 20, "bold")
+        tk.Label(
+            master,
+            text="Введите номер ссылки rrn",
+            font=self.title_font,
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(18, 10))
+        self.entry = tk.Entry(master, width=40, font=self.entry_font)
+        self.entry.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16)
+        master.grid_columnconfigure(0, weight=1)
+        master.grid_columnconfigure(1, weight=1)
+        return self.entry
+
+    def buttonbox(self):
+        box = tk.Frame(self)
+        button_font = ("Arial", 20, "bold")
+        ok_btn = tk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE, font=button_font)
+        ok_btn.pack(side=tk.LEFT, padx=10, pady=16)
+        cancel_btn = tk.Button(box, text="Cancel", width=10, command=self.cancel, font=button_font)
+        cancel_btn.pack(side=tk.LEFT, padx=10, pady=16)
+        box.pack()
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.cancel())
+
+    def apply(self) -> None:
+        self.result_value = self.entry.get()
+
+    def cancel(self, event=None) -> None:
+        super().cancel(event)
 
 
 @dataclass
@@ -564,7 +612,13 @@ class TbankDC1:
         amount: Union[int, float, str, Decimal],
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> OperationResult:
-        return self._financial_operation(OperationCode.REFUND, amount, timeout_seconds)
+        rrn = self._request_refund_rrn()
+        return self._financial_operation(
+            OperationCode.REFUND,
+            amount,
+            timeout_seconds,
+            reference_number=rrn,
+        )
 
     def reconcile_totals(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
         request = self._create_packet()
@@ -688,12 +742,15 @@ class TbankDC1:
         operation_code: int,
         amount: Union[int, float, str, Decimal],
         timeout_seconds: int,
+        reference_number: Optional[str] = None,
     ) -> OperationResult:
         request = self._create_packet()
         request.Amount = self._amount_to_minor_units(amount)
         request.CurrencyCode = DEFAULT_CURRENCY_CODE
         request.OperationCode = operation_code
         request.TerminalID = self.tid
+        if reference_number:
+            request.ReferenceNumber = reference_number
         self._log_packet_snapshot(request, "request prepared")
         return self._exchange(request, timeout_seconds)
 
@@ -707,6 +764,31 @@ class TbankDC1:
         request.SetFieldInt(65, int(command_code))
         self._log_packet_snapshot(request, "request prepared")
         return self._exchange(request, timeout_seconds)
+
+    def _request_refund_rrn(self) -> Optional[str]:
+        title = "Введите номер ссылки rrn"
+        self.logger.debug("refund rrn dialog shown title=%r", title)
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            dialog = RefundRrnDialog(root, title)
+            rrn = dialog.result_value
+        finally:
+            root.destroy()
+
+        self.logger.debug("refund rrn dialog response rrn=%r", rrn)
+
+        if rrn is None:
+            self.logger.warning("refund rrn dialog cancelled")
+            raise UserCancelledOperationError()
+
+        rrn = rrn.strip()
+        if rrn:
+            self.logger.debug("refund rrn prompt accepted rrn=%r", rrn)
+            return rrn
+
+        self.logger.debug("refund rrn prompt accepted with empty rrn")
+        return None
 
     def _exchange(self, request, timeout_seconds: int) -> OperationResult:
         self.logger.debug("create response packet start")
@@ -1087,6 +1169,10 @@ def main() -> None:
 
     try:
         result = operation_map[args.operation]()
+    except UserCancelledOperationError as exc:
+        print(f"error_code: {exc.code}")
+        print(f"error: {exc.message}")
+        sys.exit(1)
     finally:
         client.close()
 
