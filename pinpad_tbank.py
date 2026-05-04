@@ -1060,6 +1060,13 @@ class TbankDC1:
     def _resolve_error_code(result: OperationResult) -> int:
         if result.exchange_result != 0:
             return int(result.exchange_result)
+
+        status = (result.status or "").strip()
+        if status == "1":
+            return 0
+        if status.isdigit():
+            return int(status)
+
         host_code = result.response_code_host
         if host_code and host_code.lstrip("-").isdigit():
             return int(host_code)
@@ -1186,6 +1193,7 @@ def main() -> None:
     print("raw_response:")
     for key, value in result.raw_response.items():
         print(f"  {key}: {value}")
+    sys.exit(client.error)
 
 # refund --amount 1.00
 if __name__ == "__main__":
