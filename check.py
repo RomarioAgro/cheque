@@ -268,16 +268,14 @@ def _process_sbp(o_shtrih):
         try:
             # import клаасов СБП
             # это у нас печать QR сбп для разных банков
-            HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
-            SBP = safe_import('SBP_OOP', 'SBP', 9995)
-            # SBP = safe_import('SBP_OOP_PySimpleGui', 'SBP', 9995)
-            Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
-
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
+                SBP = safe_import('SBP_OOP', 'SBP', 9995)
                 sbp_qr = SBP()
             elif o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'alfabank_bank':
+                Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
                 sbp_qr = Alfa_SBP()
             else:
+                HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
                 sbp_qr = HlynovSBP()
         except Exception as exc:
             Mbox('ошибка модуля СБП', str(exc), 4096 + 16)

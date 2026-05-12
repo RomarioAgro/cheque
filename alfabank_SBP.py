@@ -125,8 +125,8 @@ class Alfa_SBP(object):
         self.token = None
         self.tls_cert = (os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_tls_crt'))),
                          os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_tls_key'))))
-        self.root_cert = os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_root')))
-
+        self.root_cert = False
+        # self.root_cert = os.path.normpath(os.path.join(os.path.dirname(__file__), os.getenv('alfa_root')))
         self.error_code = None
         self.payrrn = None
         # от имени юзера зависит имя переменной в которой хранится номер терминала и код кассовой ссылки
