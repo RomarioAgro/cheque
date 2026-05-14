@@ -1061,6 +1061,17 @@ class TbankDC1:
         if result.exchange_result != 0:
             return int(result.exchange_result)
 
+        text_response = (result.text_response or "").strip().lower()
+        if text_response and any(
+            marker in text_response
+            for marker in (
+                "таймаут",
+                "time out",
+                "timeout",
+            )
+        ):
+            return 2000
+
         status = (result.status or "").strip()
         if status == "1":
             return 0
