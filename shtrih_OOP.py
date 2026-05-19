@@ -123,7 +123,7 @@ class Shtrih(object):
         # уточняем по какому ФФД работает касса 1.05 или 1.2
         error_code = 1000
         error_code_desc = 'ошибка нет артикулов в документе json'
-        for item in self.cash_receipt['items']:
+        for index, item in enumerate(self.cash_receipt['items']):
             if item['quantity'] != 0:
                 self.print_str(i_str='_' * 30, i_font=2)
                 if (DICT_OPERATION_CHECK.get(self.cash_receipt['operationtype']) == 0 or
@@ -150,6 +150,8 @@ class Shtrih(object):
                 error_code_desc = self.drv.ResultCodeDescription
                 if len(item['qr']) > 30:
                     self.drv.DivisionalQuantity = False
+                    self.drv.FNGetMarkingCodeWorkStatus()
+                    count_km_a = self.drv.MCCheckResultSavedCount
                     self.drv.BarCode = preparation_km(item['qr'])
                     self.drv.FNSendItemBarcode()
                     # отправляем данные проверки КМ для разрешительного режима
@@ -162,19 +164,22 @@ class Shtrih(object):
                                             tag_number=1265,
                                             tag_type=7
                                             )
+                    self.drv.FNGetMarkingCodeWorkStatus()
+                    count_km_b = self.drv.MCCheckResultSavedCount
+                    if count_km_a == count_km_b:
+                        mess_error = f'ошибка в позиции {index}: ___BUG___ FN артикул {item["name"]}\n'
+                        logging.debug(mess_error)
+                        Mbox('ошибка', mess_error, 4096 + 16)
+
                 self.drv.WaitForPrinting()
                 if item.get('fullprice', None) is not None:
                     self.print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
-                    logging.debug('печать Первоначальная розничная цена')
                 if item.get('discount', None) is not None:
                     self.print_str(i_str='Скидка = ' + str(item.get('discount', '0')), i_font=1)
-                    logging.debug('печать Скидка = ')
                 if item.get('bonuswritedown', None) is not None:
                     self.print_str(i_str='Бонусов списано = ' + str(item.get('bonuswritedown', '0')), i_font=1)
-                    logging.debug('печать Бонусов списано = ')
                 if item.get('bonusaccrual', None) is not None:
                     self.print_str(i_str='Бонусов начислено = ' + str(item.get('bonusaccrual', '0')), i_font=1)
-                    logging.debug('печать Бонусов начислено = ')
         logging.debug('FNOperation= {0}, описание ошибки: {1}'.format(error_code, error_code_desc))
 
         return error_code, error_code_desc
