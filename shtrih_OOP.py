@@ -167,7 +167,7 @@ class Shtrih(object):
                     self.drv.FNGetMarkingCodeWorkStatus()
                     count_km_b = self.drv.MCCheckResultSavedCount
                     if count_km_a == count_km_b:
-                        mess_error = f'ошибка в позиции {index}: ___BUG___ FN артикул {item["name"]}\n'
+                        mess_error = f'ошибка в позиции {index + 1}: ___BUG___ FN\n артикул: {item["name"]}\n'
                         logging.debug(mess_error)
                         Mbox('ошибка', mess_error, 4096 + 16)
 
@@ -1047,15 +1047,6 @@ def print_operation_SBP_REFUND(operation_dict: dict = {}) -> str:
 
 def Mbox(title, text, style):
     """
-        ##  Styles:
-        ##  0 : OK
-        ##  1 : OK | Cancel
-        ##  2 : Abort | Retry | Ignore
-        ##  3 : Yes | No | Cancel
-        ##  4 : Yes | No
-        ##  5 : Retry | Cancel
-        ##  6 : Cancel | Try Again | Continue
-
     """
     import tkinter as tk
     from tkinter import font
@@ -1075,16 +1066,16 @@ def Mbox(title, text, style):
     label = tk.Label(
         root,
         text=f"{text}\nесли вы видите это окно, то продажа скорее всего не состоялась ",
-        font=("Arial", 40, "bold"),
+        font=("Arial", 20, "bold"),
         bg="red",
         fg="white",
-        wraplength=w,  # перенос текста
+        wraplength=w - 40,  # перенос текста
         justify="center"
     )
     label.pack(expand=True)
 
     def fit_text():
-        max_size = 100
+        max_size = 30
         min_size = 10
 
         for size in range(max_size, min_size, -1):
