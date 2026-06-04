@@ -25,12 +25,12 @@ import re
 DEFAULT_TIMEOUT_SECONDS = 180
 DEFAULT_CURRENCY_CODE = "643"
 DEFAULT_INI_SECTION = "kassir1"
+DEFAULT_TIMEOUT_SECTION = "timeout"
 DEFAULT_POSGUI_ADDR = "127.0.0.1:6000"
 DEFAULT_POSGUI_CODEPAGE = "windows-1251"
 DEFAULT_POSGUI_CONNECT_TIMEOUT_SECONDS = 1.0
 DEFAULT_POSGUI_RESPONSE_TIMEOUT_PADDING_SECONDS = 5.0
 DEFAULT_POSGUI_MANUAL_DIALOGS = True
-DEFAULT_POSGUI_OPERATION_DIALOG_TIMEOUT_SECONDS = 60
 DEFAULT_POSGUI_RESULT_DIALOG_TIMEOUT_SECONDS = 3
 
 def clean_garbage(text: str) -> str:
@@ -467,6 +467,19 @@ def _load_ini_section(section_name: str = DEFAULT_INI_SECTION) -> Dict[str, str]
         return {}
     return dict(config[section_name])
 
+
+def _load_timeout_config() -> Dict[str, str]:
+    return _load_ini_section(DEFAULT_TIMEOUT_SECTION)
+
+
+def _parse_int(value: Optional[object], default: int) -> int:
+    if value is None:
+        return int(default)
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return int(default)
+
 def get_cashier():
     """
     получаем имя юзера, по этому имени
@@ -495,6 +508,7 @@ class TbankDC1:
     ) -> None:
 
         ini_config = _load_ini_section(ini_section)
+        timeout_config = _load_timeout_config()
         resolved_tid = (tid or ini_config.get("tid", "")).strip()
 
         if not resolved_tid:
@@ -530,6 +544,14 @@ class TbankDC1:
             if posgui_manual_dialogs is not None
             else _parse_bool(ini_config.get("posgui_manual_dialogs"), DEFAULT_POSGUI_MANUAL_DIALOGS)
         )
+        self.operation_timeout_seconds = _parse_int(
+            timeout_config.get("operation_timeout_seconds"),
+            DEFAULT_TIMEOUT_SECONDS,
+        )
+        self.posgui_result_dialog_timeout_seconds = _parse_int(
+            timeout_config.get("posgui_result_dialog_timeout_seconds"),
+            DEFAULT_POSGUI_RESULT_DIALOG_TIMEOUT_SECONDS,
+        )
         self.logger = logger or get_logger(f"{__name__}.{self.__class__.__name__}")
 
         self.error = 0
@@ -547,13 +569,15 @@ class TbankDC1:
         )
 
         self.logger.debug(
-            "init tid=%s ini_section=%s encoding=%s posgui_enabled=%s posgui_addr=%s posgui_manual_dialogs=%s",
+            "init tid=%s ini_section=%s encoding=%s posgui_enabled=%s posgui_addr=%s posgui_manual_dialogs=%s operation_timeout_seconds=%s posgui_result_dialog_timeout_seconds=%s",
             self.tid,
             self.ini_section,
             self.encoding,
             self.posgui_enabled,
             self.posgui_addr,
             self.posgui_manual_dialogs,
+            self.operation_timeout_seconds,
+            self.posgui_result_dialog_timeout_seconds,
         )
 
     def _log_packet_snapshot(self, packet, title: str) -> None:
@@ -603,57 +627,70 @@ class TbankDC1:
     def payment(
         self,
         amount: Union[int, float, str, Decimal],
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+        timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
-        return self._financial_operation(OperationCode.SALE, amount, timeout_seconds)
+        return self._financial_operation(
+            OperationCode.SALE,
+            amount,
+            timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
+        )
 
     def refund(
         self,
         amount: Union[int, float, str, Decimal],
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+        timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
         rrn = self._request_refund_rrn()
         return self._financial_operation(
             OperationCode.REFUND,
             amount,
-            timeout_seconds,
+            timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
             reference_number=rrn,
         )
 
-    def reconcile_totals(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+    def reconcile_totals(self, timeout_seconds: Optional[int] = None) -> OperationResult:
         request = self._create_packet()
         request.CurrencyCode = DEFAULT_CURRENCY_CODE
         request.OperationCode = OperationCode.RECONCILE_TOTALS
         request.TerminalID = self.tid
-        return self._exchange(request, timeout_seconds)
+        return self._exchange(
+            request,
+            timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
+        )
 
-    def short_report(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
-        return self._user_command(UserCommandCode.SHORT_REPORT, timeout_seconds)
+    def short_report(self, timeout_seconds: Optional[int] = None) -> OperationResult:
+        return self._user_command(
+            UserCommandCode.SHORT_REPORT,
+            timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
+        )
 
-    def full_report(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
-        return self._user_command(UserCommandCode.FULL_REPORT, timeout_seconds)
+    def full_report(self, timeout_seconds: Optional[int] = None) -> OperationResult:
+        return self._user_command(
+            UserCommandCode.FULL_REPORT,
+            timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
+        )
 
     def oplata(
         self,
         amount: Union[int, float, str, Decimal],
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+        timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
         return self.payment(amount, timeout_seconds)
 
     def vozvrat(
         self,
         amount: Union[int, float, str, Decimal],
-        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+        timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
         return self.refund(amount, timeout_seconds)
 
-    def sverka_itogov(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+    def sverka_itogov(self, timeout_seconds: Optional[int] = None) -> OperationResult:
         return self.reconcile_totals(timeout_seconds)
 
-    def kratkiy_otchet(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+    def kratkiy_otchet(self, timeout_seconds: Optional[int] = None) -> OperationResult:
         return self.short_report(timeout_seconds)
 
-    def polniy_otchet(self, timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> OperationResult:
+    def polniy_otchet(self, timeout_seconds: Optional[int] = None) -> OperationResult:
         return self.full_report(timeout_seconds)
 
     def close(self) -> None:
@@ -817,14 +854,14 @@ class TbankDC1:
             timeout_ms,
         )
 
-        self._show_operation_start_dialog(request)
+        self._show_operation_start_dialog(request, timeout_seconds)
         try:
             exchange_result = dc.Exchange(request, response, timeout_ms)
         except Exception:
             self._show_posgui_info_safe(
                 "T-Bank",
                 "Ошибка обмена с терминалом",
-                timeout_seconds=DEFAULT_POSGUI_RESULT_DIALOG_TIMEOUT_SECONDS,
+                timeout_seconds=self.posgui_result_dialog_timeout_seconds,
                 level=PosGuiMessageLevel.ERROR,
             )
             raise
@@ -885,7 +922,7 @@ class TbankDC1:
         self._posgui_checked = True
         self.logger.debug("DC PosGUI is available at %s", self.posgui_addr)
 
-    def _show_operation_start_dialog(self, request) -> None:
+    def _show_operation_start_dialog(self, request, timeout_seconds: int) -> None:
         if not self.posgui_manual_dialogs:
             return
         operation_code = self._safe_int(getattr(request, "OperationCode", None))
@@ -894,7 +931,7 @@ class TbankDC1:
         self._show_posgui_info_safe(
             title,
             message,
-            timeout_seconds=DEFAULT_POSGUI_OPERATION_DIALOG_TIMEOUT_SECONDS,
+            timeout_seconds=timeout_seconds,
             level=PosGuiMessageLevel.INFO,
         )
 
@@ -910,7 +947,7 @@ class TbankDC1:
         self._show_posgui_info_safe(
             "T-Bank",
             message,
-            timeout_seconds=DEFAULT_POSGUI_RESULT_DIALOG_TIMEOUT_SECONDS,
+            timeout_seconds=self.posgui_result_dialog_timeout_seconds,
             level=level,
         )
 
