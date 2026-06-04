@@ -1081,7 +1081,7 @@ class TbankDC1:
         host_code = result.response_code_host
         if host_code and host_code.lstrip("-").isdigit():
             return int(host_code)
-        return 0
+        return 97
 
     def __del__(self) -> None:
         try:
