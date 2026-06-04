@@ -251,15 +251,11 @@ def _print_split_payment_text(o_shtrih, payment_text: str, payment_sum):
                 o_shtrih.cash_receipt['kupon'] = None
 
 
-def _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text, podeli_text):
+def _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text):
     if pinpad_text:
         _print_split_payment_text(o_shtrih, pinpad_text, o_shtrih.cash_receipt['sum-cashless'])
     if sbp_text:
         _print_split_payment_text(o_shtrih, sbp_text, o_shtrih.cash_receipt['summ3'])
-    if podeli_text:
-        _print_split_payment_text(o_shtrih, podeli_text, o_shtrih.cash_receipt['summ4'])
-
-
 def _process_sbp(o_shtrih):
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1 \
@@ -311,41 +307,6 @@ def _process_sbp(o_shtrih):
             logger_check.debug('неизвестная операция, выход')
             exit(99)
     return sbp_text
-
-
-def _process_podeli(o_shtrih):
-    podeli_text = None
-    if o_shtrih.cash_receipt.get('podeli', 0) == 1 \
-            and o_shtrih.cash_receipt.get('summ4', 0) != 0:
-        try:
-            from podeli import create_sale_waiting_pay_podeli, refund_podeli
-        except Exception as exc:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(0, 'Ошибка модуля подели', f'ошибка {exc} модуля подели\nзвоните в ИТ отдел', 4096 + 16)
-            logger_check.debug(f'ошибка импорта подели {exc}, код выхода 9990')
-            exit(9990)
-        o_shtrih.cash_receipt['adr'] = o_shtrih.addres_fr()
-        if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
-            logger_check.debug('начинаем продажу по Подели')
-            podeli_text = create_sale_waiting_pay_podeli(o_shtrih)
-        elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
-            podeli_text = refund_podeli(o_shtrih)
-            # пока не готово
-        elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_sale':
-            # при пробитии чеков коррекции не надо деньги трогать
-            pass
-        elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_return_sale':
-            # при пробитии чеков коррекции не надо деньги трогать
-            pass
-        elif o_shtrih.cash_receipt.get('summ3', 0) == 0:
-            # за каким-то чертом кассиры делают пробитие чеков по подели
-            # с нулевой суммой, в таком случае просто не надо к подели обращаться
-            pass
-        else:
-            # если мы не знаем что это, то выходим
-            logger_check.debug('неизвестная операция, выход')
-            exit(99)
-    return podeli_text
 
 
 def _prepare_shtrih(i_path: str, i_file_name: str):
@@ -500,12 +461,10 @@ def main() -> Tuple:
     _check_km_or_exit(o_shtrih)
     # операци по СБП, оплата или возврат
     sbp_text = _process_sbp(o_shtrih)
-    podeli_text = _process_podeli(o_shtrih)
-
 
     pin_error, pinpad_text = _process_pinpad(o_shtrih)
     if pin_error == 0:
-        _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text, podeli_text)
+        _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text)
         return _finalize_receipt(o_shtrih, cutter_on, pinpad_text, sbp_text)
     else:
         return pin_error, None, 'nothing'

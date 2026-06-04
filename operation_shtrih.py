@@ -132,23 +132,6 @@ def main():
             i_shtrih.print_pinpad(str_registry_SBP)
             i_shtrih.drv.StringQuantity = 3
             i_shtrih.drv.FeedDocument()
-    # печать отчета подели
-    if comp_rec.get('podeli', 0) == 1:
-        podeli_text = None
-        try:
-            from podeli import reconciliation_of_orders
-        except Exception as exc:
-            logging.debug(f'проблема импорта reconciliation_of_orders {exc}')
-            podeli_text = "ошибка импорта модуля подели"
-        if podeli_text is None:
-            podeli_text = reconciliation_of_orders(delta_start=0,
-                                                   delta_end=0,
-                                                   detailing=True,
-                                                   rn=i_shtrih.cash_receipt.get('rn', 'unknown_number')
-                                                   )
-        i_shtrih.print_pinpad(podeli_text)
-        i_shtrih.drv.StringQuantity = 3
-        i_shtrih.drv.FeedDocument()
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:
         pinpad_type = str(comp_rec.get('pinpad_type', 'sber')).lower().strip()
