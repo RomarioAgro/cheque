@@ -137,7 +137,7 @@ def return_sale_sbp(o_shtrih, sbp_qr) ->str:
     logger_check.debug(data_status)
     return sbp_text_local
 
-def return_sale_sbp_hlynov(o_shtrih, sbp_qr) ->str:
+def return_sale_sbp_alfa(o_shtrih, sbp_qr) ->str:
     """
     функция обработки возврата по СБП
     :param o_shtrih:
@@ -279,7 +279,7 @@ def _process_sbp(o_shtrih):
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'Alfa_SBP':
                 logger_check.debug('начинаем возврат по СБП Альфабанк')
-                sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
+                sbp_text = return_sale_sbp_alfa(o_shtrih, sbp_qr)
             else:
                 logger_check.debug('начинаем возврат по СБП Сбербанк')
                 sbp_text = return_sale_sbp(o_shtrih, sbp_qr)
