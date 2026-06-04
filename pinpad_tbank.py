@@ -1,4 +1,4 @@
-# -*- coding: cp1251 -*-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import argparse
@@ -23,34 +23,26 @@ import getpass
 import re
 
 
-DEFAULT_TIMEOUT_SECONDS = 180
-DEFAULT_CURRENCY_CODE = "643"
 DEFAULT_INI_SECTION = "kassir1"
 DEFAULT_TIMEOUT_SECTION = "timeout"
-DEFAULT_POSGUI_ADDR = "127.0.0.1:6000"
-DEFAULT_POSGUI_CODEPAGE = "windows-1251"
-DEFAULT_POSGUI_CONNECT_TIMEOUT_SECONDS = 1.0
-DEFAULT_POSGUI_RESPONSE_TIMEOUT_PADDING_SECONDS = 5.0
-DEFAULT_POSGUI_MANUAL_DIALOGS = True
-DEFAULT_POSGUI_RESULT_DIALOG_TIMEOUT_SECONDS = 3
 
 def clean_garbage(text: str) -> str:
-    """Удаляет служебный мусор из строки ответа T-Bank перед разбором или печатью."""
+    """РЈРґР°Р»СЏРµС‚ СЃР»СѓР¶РµР±РЅС‹Р№ РјСѓСЃРѕСЂ РёР· СЃС‚СЂРѕРєРё РѕС‚РІРµС‚Р° T-Bank РїРµСЂРµРґ СЂР°Р·Р±РѕСЂРѕРј РёР»Рё РїРµС‡Р°С‚СЊСЋ."""
     """
-    удаляем мусор из строки ответа тбанка
-    :param text: str кусок ответа тбанка
-    :return: str очищенный ответ от тбанка
+    СѓРґР°Р»СЏРµРј РјСѓСЃРѕСЂ РёР· СЃС‚СЂРѕРєРё РѕС‚РІРµС‚Р° С‚Р±Р°РЅРєР°
+    :param text: str РєСѓСЃРѕРє РѕС‚РІРµС‚Р° С‚Р±Р°РЅРєР°
+    :return: str РѕС‡РёС‰РµРЅРЅС‹Р№ РѕС‚РІРµС‚ РѕС‚ С‚Р±Р°РЅРєР°
     """
     patterns = [
-        r'~?0xD[EF]\^\^[^~\n]*~?0xDD\^\^/~?',  # полный блок
-        r'^\s*~?0xD[EF]\^\^\s*',  # только префикс в начале строки
+        r'~?0xD[EF]\^\^[^~\n]*~?0xDD\^\^/~?',  # РїРѕР»РЅС‹Р№ Р±Р»РѕРє
+        r'^\s*~?0xD[EF]\^\^\s*',  # С‚РѕР»СЊРєРѕ РїСЂРµС„РёРєСЃ РІ РЅР°С‡Р°Р»Рµ СЃС‚СЂРѕРєРё
     ]
     for pattern in patterns:
         text = re.sub(pattern, '', text, flags=re.MULTILINE)
     return text.rstrip()
 
 class OperationCode:
-    """Коды операций Dual Connector, используемые при обращении к терминалу."""
+    """РљРѕРґС‹ РѕРїРµСЂР°С†РёР№ Dual Connector, РёСЃРїРѕР»СЊР·СѓРµРјС‹Рµ РїСЂРё РѕР±СЂР°С‰РµРЅРёРё Рє С‚РµСЂРјРёРЅР°Р»Сѓ."""
     SALE = 1
     REFUND = 4
     RECONCILE_TOTALS = 59
@@ -58,13 +50,13 @@ class OperationCode:
 
 
 class UserCommandCode:
-    """Коды пользовательских команд терминала для отчетов."""
+    """РљРѕРґС‹ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРёС… РєРѕРјР°РЅРґ С‚РµСЂРјРёРЅР°Р»Р° РґР»СЏ РѕС‚С‡РµС‚РѕРІ."""
     SHORT_REPORT = 20
     FULL_REPORT = 21
 
 
 class PosGuiDialogType:
-    """Типы окон DC PosGUI, которые используются в обмене с терминалом."""
+    """РўРёРїС‹ РѕРєРѕРЅ DC PosGUI, РєРѕС‚РѕСЂС‹Рµ РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ РІ РѕР±РјРµРЅРµ СЃ С‚РµСЂРјРёРЅР°Р»РѕРј."""
     INFO = 1
     CONFIRM = 2
     CHOICE = 3
@@ -73,7 +65,7 @@ class PosGuiDialogType:
 
 
 class PosGuiMessageLevel:
-    """Уровни сообщений DC PosGUI, определяющие вид окна."""
+    """РЈСЂРѕРІРЅРё СЃРѕРѕР±С‰РµРЅРёР№ DC PosGUI, РѕРїСЂРµРґРµР»СЏСЋС‰РёРµ РІРёРґ РѕРєРЅР°."""
     INFO = 1
     QUESTION = 2
     WARNING = 3
@@ -81,7 +73,7 @@ class PosGuiMessageLevel:
 
 
 class PosGuiButton:
-    """Битовые флаги кнопок, доступных в окнах DC PosGUI."""
+    """Р‘РёС‚РѕРІС‹Рµ С„Р»Р°РіРё РєРЅРѕРїРѕРє, РґРѕСЃС‚СѓРїРЅС‹С… РІ РѕРєРЅР°С… DC PosGUI."""
     OK = 0x01
     YES = 0x02
     CANCEL = 0x04
@@ -89,7 +81,7 @@ class PosGuiButton:
 
 
 class PosGuiAnswer:
-    """Коды ответов, которые возвращает DC PosGUI после показа окна."""
+    """РљРѕРґС‹ РѕС‚РІРµС‚РѕРІ, РєРѕС‚РѕСЂС‹Рµ РІРѕР·РІСЂР°С‰Р°РµС‚ DC PosGUI РїРѕСЃР»Рµ РїРѕРєР°Р·Р° РѕРєРЅР°."""
     NOTHING = 0
     OK = 1
     YES = 2
@@ -101,24 +93,24 @@ class PosGuiAnswer:
 
 
 class DualConnectorError(Exception):
-    """Базовая ошибка для всех исключений, связанных с Dual Connector."""
+    """Р‘Р°Р·РѕРІР°СЏ РѕС€РёР±РєР° РґР»СЏ РІСЃРµС… РёСЃРєР»СЋС‡РµРЅРёР№, СЃРІСЏР·Р°РЅРЅС‹С… СЃ Dual Connector."""
     pass
 
 
 class DualConnectorResponseError(DualConnectorError):
-    """Ошибка обмена с терминалом, когда ответ пришел, но операция не завершилась успешно."""
+    """РћС€РёР±РєР° РѕР±РјРµРЅР° СЃ С‚РµСЂРјРёРЅР°Р»РѕРј, РєРѕРіРґР° РѕС‚РІРµС‚ РїСЂРёС€РµР», РЅРѕ РѕРїРµСЂР°С†РёСЏ РЅРµ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ СѓСЃРїРµС€РЅРѕ."""
     pass
 
 
 class PosGuiError(DualConnectorError):
-    """Ошибка, связанная с недоступностью или некорректной работой DC PosGUI."""
+    """РћС€РёР±РєР°, СЃРІСЏР·Р°РЅРЅР°СЏ СЃ РЅРµРґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊСЋ РёР»Рё РЅРµРєРѕСЂСЂРµРєС‚РЅРѕР№ СЂР°Р±РѕС‚РѕР№ DC PosGUI."""
     pass
 
 
 class UserCancelledOperationError(DualConnectorError):
-    """Ошибка, которую поднимают при отмене операции пользователем."""
-    def __init__(self, message: str = "Операция отменена пользователем", code: int = 2000) -> None:
-        """Сохраняет код и текст отмены в виде исключения с понятными полями."""
+    """РћС€РёР±РєР°, РєРѕС‚РѕСЂСѓСЋ РїРѕРґРЅРёРјР°СЋС‚ РїСЂРё РѕС‚РјРµРЅРµ РѕРїРµСЂР°С†РёРё РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј."""
+    def __init__(self, message: str = "РћРїРµСЂР°С†РёСЏ РѕС‚РјРµРЅРµРЅР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј", code: int = 2000) -> None:
+        """РЎРѕС…СЂР°РЅСЏРµС‚ РєРѕРґ Рё С‚РµРєСЃС‚ РѕС‚РјРµРЅС‹ РІ РІРёРґРµ РёСЃРєР»СЋС‡РµРЅРёСЏ СЃ РїРѕРЅСЏС‚РЅС‹РјРё РїРѕР»СЏРјРё."""
         super().__init__(message)
         self.code = int(code)
         self.message = message
@@ -126,7 +118,7 @@ class UserCancelledOperationError(DualConnectorError):
 
 class RefundRrnDialog(simpledialog.Dialog):
     def __init__(self, parent, title: str) -> None:
-        """Создает диалог и подготавливает поле для сохранения введенного RRN."""
+        """РЎРѕР·РґР°РµС‚ РґРёР°Р»РѕРі Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°РµС‚ РїРѕР»Рµ РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ РІРІРµРґРµРЅРЅРѕРіРѕ RRN."""
         self.result_value: Optional[str] = None
         super().__init__(parent, title)
 
@@ -136,7 +128,7 @@ class RefundRrnDialog(simpledialog.Dialog):
         self.entry_font = ("Arial", 20, "bold")
         tk.Label(
             master,
-            text="Введите номер ссылки rrn",
+            text="Р’РІРµРґРёС‚Рµ РЅРѕРјРµСЂ СЃСЃС‹Р»РєРё rrn",
             font=self.title_font,
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(18, 10))
         self.entry = tk.Entry(master, width=40, font=self.entry_font)
@@ -165,7 +157,7 @@ class RefundRrnDialog(simpledialog.Dialog):
 
 @dataclass
 class OperationResult:
-    """Нормализованный результат обмена с терминалом Dual Connector."""
+    """РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚ РѕР±РјРµРЅР° СЃ С‚РµСЂРјРёРЅР°Р»РѕРј Dual Connector."""
     exchange_result: int
     fields: Dict[str, str]
     session_id: str
@@ -201,7 +193,7 @@ class OperationResult:
 
 @dataclass
 class PosGuiResponse:
-    """Нормализованный ответ от DC PosGUI после показа диалога."""
+    """РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ РѕС‚РІРµС‚ РѕС‚ DC PosGUI РїРѕСЃР»Рµ РїРѕРєР°Р·Р° РґРёР°Р»РѕРіР°."""
     dialog_type: int
     data: str
     adata: Optional[str]
@@ -230,12 +222,12 @@ class PosGuiResponse:
 class PosGuiClient:
     def __init__(
         self,
-        address: str = DEFAULT_POSGUI_ADDR,
-        codepage: str = DEFAULT_POSGUI_CODEPAGE,
-        connect_timeout_seconds: float = DEFAULT_POSGUI_CONNECT_TIMEOUT_SECONDS,
-        response_timeout_padding_seconds: float = DEFAULT_POSGUI_RESPONSE_TIMEOUT_PADDING_SECONDS,
+        address: str,
+        codepage: str,
+        connect_timeout_seconds: float,
+        response_timeout_padding_seconds: float,
     ) -> None:
-        """Настраивает адрес, кодировку и таймауты подключения к DC PosGUI."""
+        """РќР°СЃС‚СЂР°РёРІР°РµС‚ Р°РґСЂРµСЃ, РєРѕРґРёСЂРѕРІРєСѓ Рё С‚Р°Р№РјР°СѓС‚С‹ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє DC PosGUI."""
         self.address = address
         self.host, self.port = _parse_host_port(address)
         self.codepage = _normalize_codepage(codepage)
@@ -243,10 +235,10 @@ class PosGuiClient:
         self.response_timeout_padding_seconds = float(response_timeout_padding_seconds)
 
     def check_available(self) -> bool:
-        """Проверяет доступность DC PosGUI по настроенному адресу.
+        """РџСЂРѕРІРµСЂСЏРµС‚ РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ DC PosGUI РїРѕ РЅР°СЃС‚СЂРѕРµРЅРЅРѕРјСѓ Р°РґСЂРµСЃСѓ.
 
         Returns:
-            bool: `True`, если соединение удалось установить.
+            bool: `True`, РµСЃР»Рё СЃРѕРµРґРёРЅРµРЅРёРµ СѓРґР°Р»РѕСЃСЊ СѓСЃС‚Р°РЅРѕРІРёС‚СЊ.
         """
         try:
             with socket.create_connection(
@@ -264,16 +256,16 @@ class PosGuiClient:
         timeout_seconds: int = 10,
         level: int = PosGuiMessageLevel.INFO,
     ) -> PosGuiResponse:
-        """Показывает информационное окно и возвращает ответ диалога.
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РёРЅС„РѕСЂРјР°С†РёРѕРЅРЅРѕРµ РѕРєРЅРѕ Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ РґРёР°Р»РѕРіР°.
 
         Args:
-            title: Заголовок окна.
-            message: Текст сообщения.
-            timeout_seconds: Таймаут ожидания ответа пользователя.
-            level: Уровень сообщения.
+            title: Р—Р°РіРѕР»РѕРІРѕРє РѕРєРЅР°.
+            message: РўРµРєСЃС‚ СЃРѕРѕР±С‰РµРЅРёСЏ.
+            timeout_seconds: РўР°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+            level: РЈСЂРѕРІРµРЅСЊ СЃРѕРѕР±С‰РµРЅРёСЏ.
 
         Returns:
-            PosGuiResponse: Нормализованный ответ DC PosGUI.
+            PosGuiResponse: РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ РѕС‚РІРµС‚ DC PosGUI.
         """
         data = self._display_data(level, None, title, message)
         return self.send_request(PosGuiDialogType.INFO, data, timeout_seconds=timeout_seconds)
@@ -286,17 +278,17 @@ class PosGuiClient:
         buttons: int = PosGuiButton.OK | PosGuiButton.CANCEL,
         level: int = PosGuiMessageLevel.QUESTION,
     ) -> PosGuiResponse:
-        """Показывает окно подтверждения и возвращает ответ пользователя.
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
 
         Args:
-            title: Заголовок окна.
-            message: Текст сообщения.
-            timeout_seconds: Таймаут ожидания ответа пользователя.
-            buttons: Набор доступных кнопок.
-            level: Уровень сообщения.
+            title: Р—Р°РіРѕР»РѕРІРѕРє РѕРєРЅР°.
+            message: РўРµРєСЃС‚ СЃРѕРѕР±С‰РµРЅРёСЏ.
+            timeout_seconds: РўР°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+            buttons: РќР°Р±РѕСЂ РґРѕСЃС‚СѓРїРЅС‹С… РєРЅРѕРїРѕРє.
+            level: РЈСЂРѕРІРµРЅСЊ СЃРѕРѕР±С‰РµРЅРёСЏ.
 
         Returns:
-            PosGuiResponse: Нормализованный ответ DC PosGUI.
+            PosGuiResponse: РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ РѕС‚РІРµС‚ DC PosGUI.
         """
         data = self._display_data(level, buttons, title, message)
         return self.send_request(PosGuiDialogType.CONFIRM, data, timeout_seconds=timeout_seconds)
@@ -310,18 +302,18 @@ class PosGuiClient:
         buttons: int = PosGuiButton.OK,
         level: int = PosGuiMessageLevel.QUESTION,
     ) -> PosGuiResponse:
-        """Показывает окно выбора из списка вариантов.
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ РІС‹Р±РѕСЂР° РёР· СЃРїРёСЃРєР° РІР°СЂРёР°РЅС‚РѕРІ.
 
         Args:
-            title: Заголовок окна.
-            message: Текст сообщения.
-            choices: Список доступных вариантов.
-            timeout_seconds: Таймаут ожидания ответа пользователя.
-            buttons: Набор доступных кнопок.
-            level: Уровень сообщения.
+            title: Р—Р°РіРѕР»РѕРІРѕРє РѕРєРЅР°.
+            message: РўРµРєСЃС‚ СЃРѕРѕР±С‰РµРЅРёСЏ.
+            choices: РЎРїРёСЃРѕРє РґРѕСЃС‚СѓРїРЅС‹С… РІР°СЂРёР°РЅС‚РѕРІ.
+            timeout_seconds: РўР°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+            buttons: РќР°Р±РѕСЂ РґРѕСЃС‚СѓРїРЅС‹С… РєРЅРѕРїРѕРє.
+            level: РЈСЂРѕРІРµРЅСЊ СЃРѕРѕР±С‰РµРЅРёСЏ.
 
         Returns:
-            PosGuiResponse: Нормализованный ответ DC PosGUI.
+            PosGuiResponse: РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ РѕС‚РІРµС‚ DC PosGUI.
         """
         choice_items = [self._sanitize_field(choice) for choice in choices]
         if not choice_items:
@@ -344,18 +336,18 @@ class PosGuiClient:
         buttons: int = PosGuiButton.OK,
         level: int = PosGuiMessageLevel.QUESTION,
     ) -> PosGuiResponse:
-        """Показывает окно ввода и возвращает введенный текст.
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ РІРІРѕРґР° Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РІРІРµРґРµРЅРЅС‹Р№ С‚РµРєСЃС‚.
 
         Args:
-            title: Заголовок окна.
-            message: Текст сообщения.
-            mask: Маска поля ввода.
-            timeout_seconds: Таймаут ожидания ответа пользователя.
-            buttons: Набор доступных кнопок.
-            level: Уровень сообщения.
+            title: Р—Р°РіРѕР»РѕРІРѕРє РѕРєРЅР°.
+            message: РўРµРєСЃС‚ СЃРѕРѕР±С‰РµРЅРёСЏ.
+            mask: РњР°СЃРєР° РїРѕР»СЏ РІРІРѕРґР°.
+            timeout_seconds: РўР°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+            buttons: РќР°Р±РѕСЂ РґРѕСЃС‚СѓРїРЅС‹С… РєРЅРѕРїРѕРє.
+            level: РЈСЂРѕРІРµРЅСЊ СЃРѕРѕР±С‰РµРЅРёСЏ.
 
         Returns:
-            PosGuiResponse: Нормализованный ответ DC PosGUI.
+            PosGuiResponse: РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ РѕС‚РІРµС‚ DC PosGUI.
         """
         data = self._display_data(level, buttons, title, message)
         return self.send_request(
@@ -366,13 +358,13 @@ class PosGuiClient:
         )
 
     def print_data(self, data: str) -> PosGuiResponse:
-        """Отправляет строку на печать через DC PosGUI.
+        """РћС‚РїСЂР°РІР»СЏРµС‚ СЃС‚СЂРѕРєСѓ РЅР° РїРµС‡Р°С‚СЊ С‡РµСЂРµР· DC PosGUI.
 
         Args:
-            data: Текст, который нужно напечатать.
+            data: РўРµРєСЃС‚, РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РЅР°РїРµС‡Р°С‚Р°С‚СЊ.
 
         Returns:
-            PosGuiResponse: Нормализованный ответ DC PosGUI.
+            PosGuiResponse: РќРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Р№ РѕС‚РІРµС‚ DC PosGUI.
         """
         return self.send_request(PosGuiDialogType.PRINT, self._sanitize_field(data))
 
@@ -384,17 +376,17 @@ class PosGuiClient:
         timeout_seconds: Optional[int] = None,
         response_timeout_seconds: Optional[float] = None,
     ) -> PosGuiResponse:
-        """Формирует XML-запрос, отправляет его и разбирает XML-ответ.
+        """Р¤РѕСЂРјРёСЂСѓРµС‚ XML-Р·Р°РїСЂРѕСЃ, РѕС‚РїСЂР°РІР»СЏРµС‚ РµРіРѕ Рё СЂР°Р·Р±РёСЂР°РµС‚ XML-РѕС‚РІРµС‚.
 
         Args:
-            dialog_type: Тип диалога DC PosGUI.
-            data: Основные данные окна.
-            adata: Дополнительные данные окна.
-            timeout_seconds: Таймаут ожидания ответа пользователя.
-            response_timeout_seconds: Явный таймаут ожидания ответа сокета.
+            dialog_type: РўРёРї РґРёР°Р»РѕРіР° DC PosGUI.
+            data: РћСЃРЅРѕРІРЅС‹Рµ РґР°РЅРЅС‹Рµ РѕРєРЅР°.
+            adata: Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ РѕРєРЅР°.
+            timeout_seconds: РўР°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+            response_timeout_seconds: РЇРІРЅС‹Р№ С‚Р°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° СЃРѕРєРµС‚Р°.
 
         Returns:
-            PosGuiResponse: Ответ сервера DC PosGUI.
+            PosGuiResponse: РћС‚РІРµС‚ СЃРµСЂРІРµСЂР° DC PosGUI.
         """
         request_bytes = self._build_request_xml(
             dialog_type=dialog_type,
@@ -431,10 +423,10 @@ class PosGuiClient:
         adata: Optional[str],
         timeout_seconds: Optional[int],
     ) -> bytes:
-        """Собирает XML-запрос для передачи в DC PosGUI.
+        """РЎРѕР±РёСЂР°РµС‚ XML-Р·Р°РїСЂРѕСЃ РґР»СЏ РїРµСЂРµРґР°С‡Рё РІ DC PosGUI.
 
         Returns:
-            bytes: Сериализованный XML в нужной кодировке.
+            bytes: РЎРµСЂРёР°Р»РёР·РѕРІР°РЅРЅС‹Р№ XML РІ РЅСѓР¶РЅРѕР№ РєРѕРґРёСЂРѕРІРєРµ.
         """
         root = ET.Element("request")
         ET.SubElement(root, "type").text = str(int(dialog_type))
@@ -446,13 +438,13 @@ class PosGuiClient:
         return ET.tostring(root, encoding=self.codepage, method="xml")
 
     def _read_response(self, sock: socket.socket) -> PosGuiResponse:
-        """Читает XML-ответ из сокета и преобразует его в объект ответа.
+        """Р§РёС‚Р°РµС‚ XML-РѕС‚РІРµС‚ РёР· СЃРѕРєРµС‚Р° Рё РїСЂРµРѕР±СЂР°Р·СѓРµС‚ РµРіРѕ РІ РѕР±СЉРµРєС‚ РѕС‚РІРµС‚Р°.
 
         Args:
-            sock: Открытый сокет с подключением к DC PosGUI.
+            sock: РћС‚РєСЂС‹С‚С‹Р№ СЃРѕРєРµС‚ СЃ РїРѕРґРєР»СЋС‡РµРЅРёРµРј Рє DC PosGUI.
 
         Returns:
-            PosGuiResponse: Распарсенный ответ сервера.
+            PosGuiResponse: Р Р°СЃРїР°СЂСЃРµРЅРЅС‹Р№ РѕС‚РІРµС‚ СЃРµСЂРІРµСЂР°.
         """
         chunks = []
         while True:
@@ -496,10 +488,10 @@ class PosGuiClient:
         request_timeout_seconds: Optional[int],
         response_timeout_seconds: Optional[float],
     ) -> float:
-        """Вычисляет таймаут ожидания ответа с учетом запаса на передачу.
+        """Р’С‹С‡РёСЃР»СЏРµС‚ С‚Р°Р№РјР°СѓС‚ РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° СЃ СѓС‡РµС‚РѕРј Р·Р°РїР°СЃР° РЅР° РїРµСЂРµРґР°С‡Сѓ.
 
         Returns:
-            float: Таймаут сокета в секундах.
+            float: РўР°Р№РјР°СѓС‚ СЃРѕРєРµС‚Р° РІ СЃРµРєСѓРЅРґР°С….
         """
         if response_timeout_seconds is not None:
             return float(response_timeout_seconds)
@@ -514,10 +506,10 @@ class PosGuiClient:
         title: str,
         message: str,
     ) -> str:
-        """Формирует строку данных для отображения в окне DC PosGUI.
+        """Р¤РѕСЂРјРёСЂСѓРµС‚ СЃС‚СЂРѕРєСѓ РґР°РЅРЅС‹С… РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ РІ РѕРєРЅРµ DC PosGUI.
 
         Returns:
-            str: Строка формата, ожидаемого DC PosGUI.
+            str: РЎС‚СЂРѕРєР° С„РѕСЂРјР°С‚Р°, РѕР¶РёРґР°РµРјРѕРіРѕ DC PosGUI.
         """
         level_text = "" if level is None else str(int(level))
         buttons_text = "" if buttons is None else str(int(buttons))
@@ -532,24 +524,24 @@ class PosGuiClient:
 
     @staticmethod
     def _sanitize_field(value: object) -> str:
-        """Очищает текст от символов, которые мешают формированию XML-запроса.
+        """РћС‡РёС‰Р°РµС‚ С‚РµРєСЃС‚ РѕС‚ СЃРёРјРІРѕР»РѕРІ, РєРѕС‚РѕСЂС‹Рµ РјРµС€Р°СЋС‚ С„РѕСЂРјРёСЂРѕРІР°РЅРёСЋ XML-Р·Р°РїСЂРѕСЃР°.
 
         Returns:
-            str: Безопасная строка для включения в XML.
+            str: Р‘РµР·РѕРїР°СЃРЅР°СЏ СЃС‚СЂРѕРєР° РґР»СЏ РІРєР»СЋС‡РµРЅРёСЏ РІ XML.
         """
         return str(value).replace("^", " ").replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _normalize_codepage(codepage: str) -> str:
-    """Преобразует числовую кодировку в имя вида cp1251."""
-    value = str(codepage or DEFAULT_POSGUI_CODEPAGE).strip()
+    """РџСЂРµРѕР±СЂР°Р·СѓРµС‚ С‡РёСЃР»РѕРІСѓСЋ РєРѕРґРёСЂРѕРІРєСѓ РІ РёРјСЏ РІРёРґР° cp1251."""
+    value = str(codepage or "windows-1251").strip()
     if value.isdigit():
         return f"cp{value}"
     return value
 
 
 def _parse_host_port(address: str, default_port: int = 6000) -> Tuple[str, int]:
-    """Разбирает адрес вида host:port или URL и возвращает пару host/port."""
+    """Р Р°Р·Р±РёСЂР°РµС‚ Р°РґСЂРµСЃ РІРёРґР° host:port РёР»Рё URL Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РїР°СЂСѓ host/port."""
     value = str(address or "").strip()
     if not value:
         raise ValueError("address is empty")
@@ -568,19 +560,19 @@ def _parse_host_port(address: str, default_port: int = 6000) -> Tuple[str, int]:
 
 
 def _parse_bool(value: Optional[object], default: bool = False) -> bool:
-    """Преобразует строковое представление булевого значения в bool."""
+    """РџСЂРµРѕР±СЂР°Р·СѓРµС‚ СЃС‚СЂРѕРєРѕРІРѕРµ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёРµ Р±СѓР»РµРІРѕРіРѕ Р·РЅР°С‡РµРЅРёСЏ РІ bool."""
     if value is None:
         return default
     normalized = str(value).strip().lower()
-    if normalized in {"1", "true", "yes", "on", "y", "да"}:
+    if normalized in {"1", "true", "yes", "on", "y", "РґР°"}:
         return True
-    if normalized in {"0", "false", "no", "off", "n", "нет"}:
+    if normalized in {"0", "false", "no", "off", "n", "РЅРµС‚"}:
         return False
     return default
 
 
 def _load_ini_section(section_name: str = DEFAULT_INI_SECTION) -> Dict[str, str]:
-    """Читает указанную секцию из `tbank.ini` и возвращает её параметры."""
+    """Р§РёС‚Р°РµС‚ СѓРєР°Р·Р°РЅРЅСѓСЋ СЃРµРєС†РёСЋ РёР· `tbank.ini` Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РµС‘ РїР°СЂР°РјРµС‚СЂС‹."""
     config_path = Path(__file__).with_name("tbank.ini")
     config = configparser.ConfigParser()
     if not config_path.exists():
@@ -592,12 +584,20 @@ def _load_ini_section(section_name: str = DEFAULT_INI_SECTION) -> Dict[str, str]
 
 
 def _load_timeout_config() -> Dict[str, str]:
-    """Читает общую секцию с таймаутами из `tbank.ini`."""
+    """Р§РёС‚Р°РµС‚ РѕР±С‰СѓСЋ СЃРµРєС†РёСЋ СЃ С‚Р°Р№РјР°СѓС‚Р°РјРё РёР· `tbank.ini`."""
     return _load_ini_section(DEFAULT_TIMEOUT_SECTION)
 
 
+def _require_timeout_value(config: Dict[str, str], key: str) -> str:
+    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РёР· РѕР±С‰РµР№ СЃРµРєС†РёРё С‚Р°Р№РјР°СѓС‚РѕРІ."""
+    value = str(config.get(key, "")).strip()
+    if not value:
+        raise ValueError(f"Missing required timeout config value: {key}")
+    return value
+
+
 def _parse_int(value: Optional[object], default: int) -> int:
-    """Безопасно преобразует значение в `int` с запасным значением по умолчанию."""
+    """Р‘РµР·РѕРїР°СЃРЅРѕ РїСЂРµРѕР±СЂР°Р·СѓРµС‚ Р·РЅР°С‡РµРЅРёРµ РІ `int` СЃ Р·Р°РїР°СЃРЅС‹Рј Р·РЅР°С‡РµРЅРёРµРј РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ."""
     if value is None:
         return int(default)
     try:
@@ -606,10 +606,10 @@ def _parse_int(value: Optional[object], default: int) -> int:
         return int(default)
 
 def get_cashier():
-    """Определяет имя текущей кассирской секции по имени пользователя Windows."""
+    """РћРїСЂРµРґРµР»СЏРµС‚ РёРјСЏ С‚РµРєСѓС‰РµР№ РєР°СЃСЃРёСЂСЃРєРѕР№ СЃРµРєС†РёРё РїРѕ РёРјРµРЅРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Windows."""
     """
-    получаем имя юзера, по этому имени
-    в ini файле есть секция с параметрами
+    РїРѕР»СѓС‡Р°РµРј РёРјСЏ СЋР·РµСЂР°, РїРѕ СЌС‚РѕРјСѓ РёРјРµРЅРё
+    РІ ini С„Р°Р№Р»Рµ РµСЃС‚СЊ СЃРµРєС†РёСЏ СЃ РїР°СЂР°РјРµС‚СЂР°РјРё
     :return:
     """
     cashier = getpass.getuser().lower()
@@ -619,7 +619,7 @@ def get_cashier():
         return 'kassir1'
 
 class TbankDC1:
-    """Основная обертка над Dual Connector для операций оплаты, возврата и отчетов."""
+    """РћСЃРЅРѕРІРЅР°СЏ РѕР±РµСЂС‚РєР° РЅР°Рґ Dual Connector РґР»СЏ РѕРїРµСЂР°С†РёР№ РѕРїР»Р°С‚С‹, РІРѕР·РІСЂР°С‚Р° Рё РѕС‚С‡РµС‚РѕРІ."""
     def __init__(
         self,
         base_url: Optional[str] = None,
@@ -633,7 +633,7 @@ class TbankDC1:
         posgui_manual_dialogs: Optional[bool] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
-        """Собирает настройки из `tbank.ini` и подготавливает клиент терминала."""
+        """РЎРѕР±РёСЂР°РµС‚ РЅР°СЃС‚СЂРѕР№РєРё РёР· `tbank.ini` Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°РµС‚ РєР»РёРµРЅС‚ С‚РµСЂРјРёРЅР°Р»Р°."""
 
         ini_config = _load_ini_section(ini_section)
         timeout_config = _load_timeout_config()
@@ -650,35 +650,35 @@ class TbankDC1:
             posgui_addr
             or ini_config.get("posgui_addr")
             or ini_config.get("gui_addr")
-            or DEFAULT_POSGUI_ADDR
+            or _require_timeout_value(timeout_config, "posgui_addr")
         ).strip()
         self.posgui_enabled = (
-            _parse_bool(posgui_enabled, True)
+            _parse_bool(posgui_enabled, _parse_bool(_require_timeout_value(timeout_config, "posgui_enabled"), False))
             if posgui_enabled is not None
-            else _parse_bool(ini_config.get("posgui_enabled"), True)
+            else _parse_bool(ini_config.get("posgui_enabled"), _parse_bool(_require_timeout_value(timeout_config, "posgui_enabled"), False))
         )
         self.posgui_required = (
-            _parse_bool(posgui_required, False)
+            _parse_bool(posgui_required, _parse_bool(_require_timeout_value(timeout_config, "posgui_required"), False))
             if posgui_required is not None
-            else _parse_bool(ini_config.get("posgui_required"), False)
+            else _parse_bool(ini_config.get("posgui_required"), _parse_bool(_require_timeout_value(timeout_config, "posgui_required"), False))
         )
         self.posgui_codepage = (
             posgui_codepage
             or ini_config.get("posgui_codepage")
-            or DEFAULT_POSGUI_CODEPAGE
+            or _require_timeout_value(timeout_config, "posgui_codepage")
         ).strip()
         self.posgui_manual_dialogs = (
-            _parse_bool(posgui_manual_dialogs, DEFAULT_POSGUI_MANUAL_DIALOGS)
+            _parse_bool(posgui_manual_dialogs, _parse_bool(_require_timeout_value(timeout_config, "posgui_manual_dialogs"), False))
             if posgui_manual_dialogs is not None
-            else _parse_bool(ini_config.get("posgui_manual_dialogs"), DEFAULT_POSGUI_MANUAL_DIALOGS)
+            else _parse_bool(ini_config.get("posgui_manual_dialogs"), _parse_bool(_require_timeout_value(timeout_config, "posgui_manual_dialogs"), False))
         )
         self.operation_timeout_seconds = _parse_int(
-            timeout_config.get("operation_timeout_seconds"),
-            DEFAULT_TIMEOUT_SECONDS,
+            _require_timeout_value(timeout_config, "operation_timeout_seconds"),
+            0,
         )
         self.posgui_result_dialog_timeout_seconds = _parse_int(
-            timeout_config.get("posgui_result_dialog_timeout_seconds"),
-            DEFAULT_POSGUI_RESULT_DIALOG_TIMEOUT_SECONDS,
+            _require_timeout_value(timeout_config, "posgui_result_dialog_timeout_seconds"),
+            0,
         )
         self.logger = logger or get_logger(f"{__name__}.{self.__class__.__name__}")
 
@@ -691,7 +691,12 @@ class TbankDC1:
         self._dc = None
         self._posgui_checked = False
         self._posgui_client = (
-            PosGuiClient(self.posgui_addr, codepage=self.posgui_codepage)
+            PosGuiClient(
+                self.posgui_addr,
+                self.posgui_codepage,
+                float(_require_timeout_value(timeout_config, "posgui_connect_timeout_seconds")),
+                float(_require_timeout_value(timeout_config, "posgui_response_timeout_padding_seconds")),
+            )
             if self.posgui_enabled
             else None
         )
@@ -709,7 +714,7 @@ class TbankDC1:
         )
 
     def _log_packet_snapshot(self, packet, title: str) -> None:
-        """Логирует важные поля COM-пакета для диагностики обмена."""
+        """Р›РѕРіРёСЂСѓРµС‚ РІР°Р¶РЅС‹Рµ РїРѕР»СЏ COM-РїР°РєРµС‚Р° РґР»СЏ РґРёР°РіРЅРѕСЃС‚РёРєРё РѕР±РјРµРЅР°."""
         interesting_properties = (
             "Amount",
             "CurrencyCode",
@@ -738,7 +743,7 @@ class TbankDC1:
                   operation_name: str = "x_otchet",
                   amount: Union[int, float, str, Decimal] = 0
                   ):
-        """Выбирает нужную операцию терминала по имени и запускает её."""
+        """Р’С‹Р±РёСЂР°РµС‚ РЅСѓР¶РЅСѓСЋ РѕРїРµСЂР°С†РёСЋ С‚РµСЂРјРёРЅР°Р»Р° РїРѕ РёРјРµРЅРё Рё Р·Р°РїСѓСЃРєР°РµС‚ РµС‘."""
         operation = (operation_name or "").strip().lower()
 
         if operation in ("sale", "payment", "oplata", "1"):
@@ -759,7 +764,7 @@ class TbankDC1:
         amount: Union[int, float, str, Decimal],
         timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
-        """Проводит оплату по карте через терминал."""
+        """РџСЂРѕРІРѕРґРёС‚ РѕРїР»Р°С‚Сѓ РїРѕ РєР°СЂС‚Рµ С‡РµСЂРµР· С‚РµСЂРјРёРЅР°Р»."""
         return self._financial_operation(
             OperationCode.SALE,
             amount,
@@ -771,7 +776,7 @@ class TbankDC1:
         amount: Union[int, float, str, Decimal],
         timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
-        """Проводит возврат по карте через терминал."""
+        """РџСЂРѕРІРѕРґРёС‚ РІРѕР·РІСЂР°С‚ РїРѕ РєР°СЂС‚Рµ С‡РµСЂРµР· С‚РµСЂРјРёРЅР°Р»."""
         rrn = self._request_refund_rrn()
         return self._financial_operation(
             OperationCode.REFUND,
@@ -781,9 +786,9 @@ class TbankDC1:
         )
 
     def reconcile_totals(self, timeout_seconds: Optional[int] = None) -> OperationResult:
-        """Запускает сверку итогов на терминале."""
+        """Р—Р°РїСѓСЃРєР°РµС‚ СЃРІРµСЂРєСѓ РёС‚РѕРіРѕРІ РЅР° С‚РµСЂРјРёРЅР°Р»Рµ."""
         request = self._create_packet()
-        request.CurrencyCode = DEFAULT_CURRENCY_CODE
+        request.CurrencyCode = _require_timeout_value(_load_timeout_config(), "currency_code")
         request.OperationCode = OperationCode.RECONCILE_TOTALS
         request.TerminalID = self.tid
         return self._exchange(
@@ -792,14 +797,14 @@ class TbankDC1:
         )
 
     def short_report(self, timeout_seconds: Optional[int] = None) -> OperationResult:
-        """Запрашивает короткий отчет терминала."""
+        """Р—Р°РїСЂР°С€РёРІР°РµС‚ РєРѕСЂРѕС‚РєРёР№ РѕС‚С‡РµС‚ С‚РµСЂРјРёРЅР°Р»Р°."""
         return self._user_command(
             UserCommandCode.SHORT_REPORT,
             timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
         )
 
     def full_report(self, timeout_seconds: Optional[int] = None) -> OperationResult:
-        """Запрашивает полный отчет терминала."""
+        """Р—Р°РїСЂР°С€РёРІР°РµС‚ РїРѕР»РЅС‹Р№ РѕС‚С‡РµС‚ С‚РµСЂРјРёРЅР°Р»Р°."""
         return self._user_command(
             UserCommandCode.FULL_REPORT,
             timeout_seconds if timeout_seconds is not None else self.operation_timeout_seconds,
@@ -810,7 +815,7 @@ class TbankDC1:
         amount: Union[int, float, str, Decimal],
         timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
-        """Совместимый алиас для операции оплаты."""
+        """РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Р°Р»РёР°СЃ РґР»СЏ РѕРїРµСЂР°С†РёРё РѕРїР»Р°С‚С‹."""
         return self.payment(amount, timeout_seconds)
 
     def vozvrat(
@@ -818,23 +823,23 @@ class TbankDC1:
         amount: Union[int, float, str, Decimal],
         timeout_seconds: Optional[int] = None,
     ) -> OperationResult:
-        """Совместимый алиас для операции возврата."""
+        """РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Р°Р»РёР°СЃ РґР»СЏ РѕРїРµСЂР°С†РёРё РІРѕР·РІСЂР°С‚Р°."""
         return self.refund(amount, timeout_seconds)
 
     def sverka_itogov(self, timeout_seconds: Optional[int] = None) -> OperationResult:
-        """Совместимый алиас для сверки итогов."""
+        """РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Р°Р»РёР°СЃ РґР»СЏ СЃРІРµСЂРєРё РёС‚РѕРіРѕРІ."""
         return self.reconcile_totals(timeout_seconds)
 
     def kratkiy_otchet(self, timeout_seconds: Optional[int] = None) -> OperationResult:
-        """Совместимый алиас для короткого отчета."""
+        """РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Р°Р»РёР°СЃ РґР»СЏ РєРѕСЂРѕС‚РєРѕРіРѕ РѕС‚С‡РµС‚Р°."""
         return self.short_report(timeout_seconds)
 
     def polniy_otchet(self, timeout_seconds: Optional[int] = None) -> OperationResult:
-        """Совместимый алиас для полного отчета."""
+        """РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Р°Р»РёР°СЃ РґР»СЏ РїРѕР»РЅРѕРіРѕ РѕС‚С‡РµС‚Р°."""
         return self.full_report(timeout_seconds)
 
     def close(self) -> None:
-        """Освобождает COM-ресурсы и завершает работу клиента."""
+        """РћСЃРІРѕР±РѕР¶РґР°РµС‚ COM-СЂРµСЃСѓСЂСЃС‹ Рё Р·Р°РІРµСЂС€Р°РµС‚ СЂР°Р±РѕС‚Сѓ РєР»РёРµРЅС‚Р°."""
         if self._dc is not None and self._resources_initialized:
             try:
                 self.logger.debug("FreeResources start")
@@ -851,11 +856,11 @@ class TbankDC1:
             self.logger.debug("CoUninitialize finish")
 
     def close_open_connection(self) -> None:
-        """Явно запрещает старый режим закрытия соединения в COM-версии."""
+        """РЇРІРЅРѕ Р·Р°РїСЂРµС‰Р°РµС‚ СЃС‚Р°СЂС‹Р№ СЂРµР¶РёРј Р·Р°РєСЂС‹С‚РёСЏ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ COM-РІРµСЂСЃРёРё."""
         raise NotImplementedError("close_open_connection is not used in COM mode")
 
     def get_receipt_bytes(self, result: Optional[OperationResult] = None) -> bytes:
-        """Возвращает чек терминала в виде байтов для печати."""
+        """Р’РѕР·РІСЂР°С‰Р°РµС‚ С‡РµРє С‚РµСЂРјРёРЅР°Р»Р° РІ РІРёРґРµ Р±Р°Р№С‚РѕРІ РґР»СЏ РїРµС‡Р°С‚Рё."""
         operation_result = result or self.last_result
         if operation_result is None:
             return b""
@@ -869,7 +874,7 @@ class TbankDC1:
         timeout_seconds: int = 10,
         level: int = PosGuiMessageLevel.INFO,
     ) -> PosGuiResponse:
-        """Показывает информационное окно через DC PosGUI."""
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РёРЅС„РѕСЂРјР°С†РёРѕРЅРЅРѕРµ РѕРєРЅРѕ С‡РµСЂРµР· DC PosGUI."""
         return self._get_posgui_client().show_info(title, message, timeout_seconds, level)
 
     def posgui_show_confirm(
@@ -880,7 +885,7 @@ class TbankDC1:
         buttons: int = PosGuiButton.OK | PosGuiButton.CANCEL,
         level: int = PosGuiMessageLevel.QUESTION,
     ) -> PosGuiResponse:
-        """Показывает подтверждающее окно через DC PosGUI."""
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РїРѕРґС‚РІРµСЂР¶РґР°СЋС‰РµРµ РѕРєРЅРѕ С‡РµСЂРµР· DC PosGUI."""
         return self._get_posgui_client().show_confirm(title, message, timeout_seconds, buttons, level)
 
     def posgui_show_choice(
@@ -892,7 +897,7 @@ class TbankDC1:
         buttons: int = PosGuiButton.OK,
         level: int = PosGuiMessageLevel.QUESTION,
     ) -> PosGuiResponse:
-        """Показывает окно выбора через DC PosGUI."""
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ РІС‹Р±РѕСЂР° С‡РµСЂРµР· DC PosGUI."""
         return self._get_posgui_client().show_choice(
             title,
             message,
@@ -911,7 +916,7 @@ class TbankDC1:
         buttons: int = PosGuiButton.OK,
         level: int = PosGuiMessageLevel.QUESTION,
     ) -> PosGuiResponse:
-        """Показывает окно ввода через DC PosGUI."""
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ РІРІРѕРґР° С‡РµСЂРµР· DC PosGUI."""
         return self._get_posgui_client().show_input(
             title,
             message,
@@ -928,10 +933,10 @@ class TbankDC1:
         timeout_seconds: int,
         reference_number: Optional[str] = None,
     ) -> OperationResult:
-        """Создает и отправляет финансовый запрос на терминал."""
+        """РЎРѕР·РґР°РµС‚ Рё РѕС‚РїСЂР°РІР»СЏРµС‚ С„РёРЅР°РЅСЃРѕРІС‹Р№ Р·Р°РїСЂРѕСЃ РЅР° С‚РµСЂРјРёРЅР°Р»."""
         request = self._create_packet()
         request.Amount = self._amount_to_minor_units(amount)
-        request.CurrencyCode = DEFAULT_CURRENCY_CODE
+        request.CurrencyCode = _require_timeout_value(_load_timeout_config(), "currency_code")
         request.OperationCode = operation_code
         request.TerminalID = self.tid
         if reference_number:
@@ -940,9 +945,9 @@ class TbankDC1:
         return self._exchange(request, timeout_seconds)
 
     def _user_command(self, command_code: int, timeout_seconds: int) -> OperationResult:
-        """Создает и отправляет пользовательскую команду терминалу."""
+        """РЎРѕР·РґР°РµС‚ Рё РѕС‚РїСЂР°РІР»СЏРµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєСѓСЋ РєРѕРјР°РЅРґСѓ С‚РµСЂРјРёРЅР°Р»Сѓ."""
         request = self._create_packet()
-        request.CurrencyCode = DEFAULT_CURRENCY_CODE
+        request.CurrencyCode = _require_timeout_value(_load_timeout_config(), "currency_code")
         request.OperationCode = OperationCode.USER_COMMAND
         request.TerminalID = self.tid
         # User command code must be sent in field 65. CommandMode serializes to field 64,
@@ -952,8 +957,8 @@ class TbankDC1:
         return self._exchange(request, timeout_seconds)
 
     def _request_refund_rrn(self) -> Optional[str]:
-        """Запрашивает у пользователя RRN, необходимый для возврата."""
-        title = "Введите номер ссылки rrn"
+        """Р—Р°РїСЂР°С€РёРІР°РµС‚ Сѓ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ RRN, РЅРµРѕР±С…РѕРґРёРјС‹Р№ РґР»СЏ РІРѕР·РІСЂР°С‚Р°."""
+        title = "Р’РІРµРґРёС‚Рµ РЅРѕРјРµСЂ СЃСЃС‹Р»РєРё rrn"
         self.logger.debug("refund rrn dialog shown title=%r", title)
         root = tk.Tk()
         root.withdraw()
@@ -978,7 +983,7 @@ class TbankDC1:
         return None
 
     def _exchange(self, request, timeout_seconds: int) -> OperationResult:
-        """Выполняет обмен запросом и ответом через Dual Connector."""
+        """Р’С‹РїРѕР»РЅСЏРµС‚ РѕР±РјРµРЅ Р·Р°РїСЂРѕСЃРѕРј Рё РѕС‚РІРµС‚РѕРј С‡РµСЂРµР· Dual Connector."""
         self.logger.debug("create response packet start")
         response = self._create_packet()
         self.logger.debug("create response packet finish")
@@ -1011,7 +1016,7 @@ class TbankDC1:
         except Exception:
             self._show_posgui_info_safe(
                 "T-Bank",
-                "Ошибка обмена с терминалом",
+                "РћС€РёР±РєР° РѕР±РјРµРЅР° СЃ С‚РµСЂРјРёРЅР°Р»РѕРј",
                 timeout_seconds=self.posgui_result_dialog_timeout_seconds,
                 level=PosGuiMessageLevel.ERROR,
             )
@@ -1055,13 +1060,13 @@ class TbankDC1:
         return result
 
     def _get_posgui_client(self) -> PosGuiClient:
-        """Возвращает клиент DC PosGUI или выбрасывает ошибку, если он выключен."""
+        """Р’РѕР·РІСЂР°С‰Р°РµС‚ РєР»РёРµРЅС‚ DC PosGUI РёР»Рё РІС‹Р±СЂР°СЃС‹РІР°РµС‚ РѕС€РёР±РєСѓ, РµСЃР»Рё РѕРЅ РІС‹РєР»СЋС‡РµРЅ."""
         if self._posgui_client is None:
             raise PosGuiError("DC PosGUI support is disabled")
         return self._posgui_client
 
     def _ensure_posgui_available(self) -> None:
-        """Проверяет доступность DC PosGUI один раз за сессию."""
+        """РџСЂРѕРІРµСЂСЏРµС‚ РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ DC PosGUI РѕРґРёРЅ СЂР°Р· Р·Р° СЃРµСЃСЃРёСЋ."""
         if not self.posgui_enabled or self._posgui_checked:
             return
         try:
@@ -1076,7 +1081,7 @@ class TbankDC1:
         self.logger.debug("DC PosGUI is available at %s", self.posgui_addr)
 
     def _show_operation_start_dialog(self, request, timeout_seconds: int) -> None:
-        """Показывает окно ожидания начала операции с таймаутом самой операции."""
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ РѕР¶РёРґР°РЅРёСЏ РЅР°С‡Р°Р»Р° РѕРїРµСЂР°С†РёРё СЃ С‚Р°Р№РјР°СѓС‚РѕРј СЃР°РјРѕР№ РѕРїРµСЂР°С†РёРё."""
         if not self.posgui_manual_dialogs:
             return
         operation_code = self._safe_int(getattr(request, "OperationCode", None))
@@ -1090,14 +1095,14 @@ class TbankDC1:
         )
 
     def _show_operation_result_dialog(self, result: OperationResult) -> None:
-        """Показывает окно с результатом операции после обмена с терминалом."""
+        """РџРѕРєР°Р·С‹РІР°РµС‚ РѕРєРЅРѕ СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј РѕРїРµСЂР°С†РёРё РїРѕСЃР»Рµ РѕР±РјРµРЅР° СЃ С‚РµСЂРјРёРЅР°Р»РѕРј."""
         if not self.posgui_manual_dialogs:
             return
         if result.exchange_result == 0 and (result.status or "").strip() == "1":
-            message = result.text_response or "Операция выполнена"
+            message = result.text_response or "РћРїРµСЂР°С†РёСЏ РІС‹РїРѕР»РЅРµРЅР°"
             level = PosGuiMessageLevel.INFO
         else:
-            message = result.text_response or "Операция не выполнена"
+            message = result.text_response or "РћРїРµСЂР°С†РёСЏ РЅРµ РІС‹РїРѕР»РЅРµРЅР°"
             level = PosGuiMessageLevel.WARNING
         self._show_posgui_info_safe(
             "T-Bank",
@@ -1113,7 +1118,7 @@ class TbankDC1:
         timeout_seconds: int,
         level: int,
     ) -> None:
-        """Пытается показать окно DC PosGUI и не ломает основной поток при ошибке."""
+        """РџС‹С‚Р°РµС‚СЃСЏ РїРѕРєР°Р·Р°С‚СЊ РѕРєРЅРѕ DC PosGUI Рё РЅРµ Р»РѕРјР°РµС‚ РѕСЃРЅРѕРІРЅРѕР№ РїРѕС‚РѕРє РїСЂРё РѕС€РёР±РєРµ."""
         if not self.posgui_enabled:
             return
         try:
@@ -1130,15 +1135,15 @@ class TbankDC1:
 
     @staticmethod
     def _operation_title(operation_code: Optional[int]) -> str:
-        """Возвращает человекочитаемый заголовок для кода операции."""
+        """Р’РѕР·РІСЂР°С‰Р°РµС‚ С‡РµР»РѕРІРµРєРѕС‡РёС‚Р°РµРјС‹Р№ Р·Р°РіРѕР»РѕРІРѕРє РґР»СЏ РєРѕРґР° РѕРїРµСЂР°С†РёРё."""
         if operation_code == OperationCode.SALE:
-            return "T-Bank: оплата"
+            return "T-Bank: РѕРїР»Р°С‚Р°"
         if operation_code == OperationCode.REFUND:
-            return "T-Bank: возврат"
+            return "T-Bank: РІРѕР·РІСЂР°С‚"
         if operation_code == OperationCode.RECONCILE_TOTALS:
-            return "T-Bank: сверка итогов"
+            return "T-Bank: СЃРІРµСЂРєР° РёС‚РѕРіРѕРІ"
         if operation_code == OperationCode.USER_COMMAND:
-            return "T-Bank: отчет"
+            return "T-Bank: РѕС‚С‡РµС‚"
         return "T-Bank"
 
     def _operation_start_message(
@@ -1146,21 +1151,21 @@ class TbankDC1:
         operation_code: Optional[int],
         amount: Optional[object],
     ) -> str:
-        """Формирует текст окна ожидания для выбранной операции."""
+        """Р¤РѕСЂРјРёСЂСѓРµС‚ С‚РµРєСЃС‚ РѕРєРЅР° РѕР¶РёРґР°РЅРёСЏ РґР»СЏ РІС‹Р±СЂР°РЅРЅРѕР№ РѕРїРµСЂР°С†РёРё."""
         amount_text = self._format_minor_units(amount)
         if operation_code == OperationCode.SALE:
-            return f"Приложите карту к терминалу\nСумма: {amount_text} РУБ"
+            return f"РџСЂРёР»РѕР¶РёС‚Рµ РєР°СЂС‚Сѓ Рє С‚РµСЂРјРёРЅР°Р»Сѓ\nРЎСѓРјРјР°: {amount_text} Р РЈР‘"
         if operation_code == OperationCode.REFUND:
-            return f"Приложите карту к терминалу\nСумма возврата: {amount_text} РУБ"
+            return f"РџСЂРёР»РѕР¶РёС‚Рµ РєР°СЂС‚Сѓ Рє С‚РµСЂРјРёРЅР°Р»Сѓ\nРЎСѓРјРјР° РІРѕР·РІСЂР°С‚Р°: {amount_text} Р РЈР‘"
         if operation_code == OperationCode.RECONCILE_TOTALS:
-            return "Выполняется сверка итогов"
+            return "Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏ СЃРІРµСЂРєР° РёС‚РѕРіРѕРІ"
         if operation_code == OperationCode.USER_COMMAND:
-            return "Формируется отчет терминала"
-        return "Выполняется операция на терминале"
+            return "Р¤РѕСЂРјРёСЂСѓРµС‚СЃСЏ РѕС‚С‡РµС‚ С‚РµСЂРјРёРЅР°Р»Р°"
+        return "Р’С‹РїРѕР»РЅСЏРµС‚СЃСЏ РѕРїРµСЂР°С†РёСЏ РЅР° С‚РµСЂРјРёРЅР°Р»Рµ"
 
     @staticmethod
     def _format_minor_units(amount: Optional[object]) -> str:
-        """Преобразует сумму из копеек в рубли для отображения в окне."""
+        """РџСЂРµРѕР±СЂР°Р·СѓРµС‚ СЃСѓРјРјСѓ РёР· РєРѕРїРµРµРє РІ СЂСѓР±Р»Рё РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ РІ РѕРєРЅРµ."""
         try:
             value = Decimal(str(amount or "0")) / Decimal("100")
         except Exception:
@@ -1169,14 +1174,14 @@ class TbankDC1:
 
     @staticmethod
     def _safe_int(value: Optional[object]) -> Optional[int]:
-        """Безопасно преобразует значение в `int`, если это возможно."""
+        """Р‘РµР·РѕРїР°СЃРЅРѕ РїСЂРµРѕР±СЂР°Р·СѓРµС‚ Р·РЅР°С‡РµРЅРёРµ РІ `int`, РµСЃР»Рё СЌС‚Рѕ РІРѕР·РјРѕР¶РЅРѕ."""
         try:
             return int(value)
         except Exception:
             return None
 
     def _get_or_create_dclink(self):
-        """Создает COM-объект Dual Connector и инициализирует COM, если нужно."""
+        """РЎРѕР·РґР°РµС‚ COM-РѕР±СЉРµРєС‚ Dual Connector Рё РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ COM, РµСЃР»Рё РЅСѓР¶РЅРѕ."""
         if not self._com_initialized:
             self.logger.debug("CoInitialize start")
             pythoncom.CoInitialize()
@@ -1191,7 +1196,7 @@ class TbankDC1:
         return self._dc
 
     def _ensure_resources(self, dc) -> None:
-        """Инициализирует ресурсы Dual Connector перед обменом."""
+        """РРЅРёС†РёР°Р»РёР·РёСЂСѓРµС‚ СЂРµСЃСѓСЂСЃС‹ Dual Connector РїРµСЂРµРґ РѕР±РјРµРЅРѕРј."""
         if not self._resources_initialized:
             init_result = dc.InitResources
             self.logger.debug(
@@ -1207,12 +1212,12 @@ class TbankDC1:
 
     @staticmethod
     def _create_packet():
-        """Создает новый COM-пакет Dual Connector."""
+        """РЎРѕР·РґР°РµС‚ РЅРѕРІС‹Р№ COM-РїР°РєРµС‚ Dual Connector."""
         return win32com.client.dynamic.Dispatch("DualConnector.SAPacket")
 
     @staticmethod
     def _extract_fields(packet) -> Dict[str, str]:
-        """Извлекает важные поля ответа из COM-пакета в словарь."""
+        """РР·РІР»РµРєР°РµС‚ РІР°Р¶РЅС‹Рµ РїРѕР»СЏ РѕС‚РІРµС‚Р° РёР· COM-РїР°РєРµС‚Р° РІ СЃР»РѕРІР°СЂСЊ."""
         fields: Dict[str, str] = {}
         for field_id in ("13", "14", "15", "19", "39", "90"):
             try:
@@ -1225,7 +1230,7 @@ class TbankDC1:
 
     @staticmethod
     def _extract_response_properties(packet) -> Dict[str, str]:
-        """Извлекает основные COM-свойства ответа в обычный словарь."""
+        """РР·РІР»РµРєР°РµС‚ РѕСЃРЅРѕРІРЅС‹Рµ COM-СЃРІРѕР№СЃС‚РІР° РѕС‚РІРµС‚Р° РІ РѕР±С‹С‡РЅС‹Р№ СЃР»РѕРІР°СЂСЊ."""
         property_names = (
             "AuthorizationCode",
             "ReferenceNumber",
@@ -1253,7 +1258,7 @@ class TbankDC1:
 
     @staticmethod
     def _amount_to_minor_units(amount: Union[int, float, str, Decimal]) -> str:
-        """Преобразует сумму в рублях в строку с количеством копеек."""
+        """РџСЂРµРѕР±СЂР°Р·СѓРµС‚ СЃСѓРјРјСѓ РІ СЂСѓР±Р»СЏС… РІ СЃС‚СЂРѕРєСѓ СЃ РєРѕР»РёС‡РµСЃС‚РІРѕРј РєРѕРїРµРµРє."""
         decimal_amount = Decimal(str(amount))
         if decimal_amount < 0:
             raise ValueError(f"Invalid amount: {amount}")
@@ -1261,7 +1266,7 @@ class TbankDC1:
 
     @staticmethod
     def _resolve_error_code(result: OperationResult) -> int:
-        """Превращает ответ терминала в числовой код ошибки для вызывающего кода."""
+        """РџСЂРµРІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ С‚РµСЂРјРёРЅР°Р»Р° РІ С‡РёСЃР»РѕРІРѕР№ РєРѕРґ РѕС€РёР±РєРё РґР»СЏ РІС‹Р·С‹РІР°СЋС‰РµРіРѕ РєРѕРґР°."""
         if result.exchange_result != 0:
             return int(result.exchange_result)
 
@@ -1269,7 +1274,7 @@ class TbankDC1:
         if text_response and any(
             marker in text_response
             for marker in (
-                "таймаут",
+                "С‚Р°Р№РјР°СѓС‚",
                 "time out",
                 "timeout",
             )
@@ -1288,7 +1293,7 @@ class TbankDC1:
         return 97
 
     def __del__(self) -> None:
-        """Гарантирует попытку закрыть клиент при сборке объекта."""
+        """Р“Р°СЂР°РЅС‚РёСЂСѓРµС‚ РїРѕРїС‹С‚РєСѓ Р·Р°РєСЂС‹С‚СЊ РєР»РёРµРЅС‚ РїСЂРё СЃР±РѕСЂРєРµ РѕР±СЉРµРєС‚Р°."""
         try:
             self.close()
         except Exception:
@@ -1296,12 +1301,12 @@ class TbankDC1:
 
 
 class Tbank(TbankDC1):
-    """Совместимый алиас для основного клиента T-Bank."""
+    """РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Р°Р»РёР°СЃ РґР»СЏ РѕСЃРЅРѕРІРЅРѕРіРѕ РєР»РёРµРЅС‚Р° T-Bank."""
     pass
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
-    """Строит аргумент-парсер для ручного запуска клиента из командной строки."""
+    """РЎС‚СЂРѕРёС‚ Р°СЂРіСѓРјРµРЅС‚-РїР°СЂСЃРµСЂ РґР»СЏ СЂСѓС‡РЅРѕРіРѕ Р·Р°РїСѓСЃРєР° РєР»РёРµРЅС‚Р° РёР· РєРѕРјР°РЅРґРЅРѕР№ СЃС‚СЂРѕРєРё."""
     parser = argparse.ArgumentParser(description="Manual test client for T-Bank Dual Connector DC1 COM mode")
     parser.add_argument(
         "operation",
@@ -1329,7 +1334,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout",
         type=int,
-        default=DEFAULT_TIMEOUT_SECONDS,
+        default=int(_require_timeout_value(_load_timeout_config(), "operation_timeout_seconds")),
         help="Operation timeout in seconds",
     )
     parser.add_argument(
@@ -1350,14 +1355,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--gui-timeout",
         type=int,
-        default=3,
+        default=int(_require_timeout_value(_load_timeout_config(), "posgui_result_dialog_timeout_seconds")),
         help="Dialog timeout in seconds for posgui_info",
     )
     return parser
 
 
 def main() -> None:
-    """Точка входа для ручного тестирования операций T-Bank из CLI."""
+    """РўРѕС‡РєР° РІС…РѕРґР° РґР»СЏ СЂСѓС‡РЅРѕРіРѕ С‚РµСЃС‚РёСЂРѕРІР°РЅРёСЏ РѕРїРµСЂР°С†РёР№ T-Bank РёР· CLI."""
     logger = get_logger(__name__)
     parser = _build_arg_parser()
     args = parser.parse_args()

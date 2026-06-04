@@ -211,15 +211,15 @@ def _process_pinpad(o_shtrih):
         logger_check.debug('зашли в пинпад')
         operation_name = str(o_shtrih.cash_receipt.get('operationtype', 'sale')).lower().strip()
         pinpad_type = str(o_shtrih.cash_receipt.get('pinpad_type', 'sber')).lower().strip()
-        if pinpad_type == 'tbank':
-            Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
-            sber_pinpad = Tbank()
-            logger_check.debug('создали объект Tbank()')
-        else:
-            PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
-            sber_pinpad = PinPad()
-            logger_check.debug('создали объект сбербанк PinPad()')
         try:
+            if pinpad_type == 'tbank':
+                Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
+                sber_pinpad = Tbank()
+                logger_check.debug('создали объект Tbank()')
+            else:
+                PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
+                sber_pinpad = PinPad()
+                logger_check.debug('создали объект сбербанк PinPad()')
             sber_pinpad.pinpad_operation(
                 operation_name=o_shtrih.cash_receipt['operationtype'],
                 amount=o_shtrih.cash_receipt['sum-cashless'],
@@ -227,7 +227,7 @@ def _process_pinpad(o_shtrih):
             pin_error = sber_pinpad.error
             pinpad_text = sber_pinpad.text
         except Exception as exc:
-            logger_check.debug(f'ошибка оплаты по пинпаду {pinpad_type} {exc}', exc_info=True)
+            logger_check.exception('ошибка инициализации или оплаты по пинпаду %s', pinpad_type)
             pin_error = int(getattr(exc, 'code', 97) or 97)
             pinpad_text = getattr(exc, 'message', None) or str(exc)
 

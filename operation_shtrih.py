@@ -152,11 +152,15 @@ def main():
     # печать отчета эквайринга
     if comp_rec.get('PinPad', 0) == 1:
         pinpad_type = str(comp_rec.get('pinpad_type', 'sber')).lower().strip()
-        if pinpad_type == 'tbank':
-            from pinpad_tbank import Tbank
-            pinpad = Tbank()
-        else:
-            pinpad = PinPad()
+        try:
+            if pinpad_type == 'tbank':
+                from pinpad_tbank import Tbank
+                pinpad = Tbank()
+            else:
+                pinpad = PinPad()
+        except Exception as exc:
+            logger_operation_shtrih.exception('ошибка инициализации пинпада %s', pinpad_type)
+            raise
         pinpad.pinpad_operation(operation_name=comp_rec['operationtype'], amount=comp_rec['sum-cashless'])
         i_shtrih.print_pinpad(pinpad.text)
     # печать отчета штрих
