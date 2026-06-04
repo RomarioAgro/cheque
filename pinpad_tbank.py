@@ -1013,7 +1013,17 @@ class TbankDC1:
         self._show_operation_start_dialog(request, timeout_seconds)
         try:
             exchange_result = dc.Exchange(request, response, timeout_ms)
-        except Exception:
+        except socket.timeout as exc:
+            raise UserCancelledOperationError(
+                "Ожидание ответа терминала завершилось таймаутом",
+                code=2000,
+            ) from exc
+        except Exception as exc:
+            if "timeout" in str(exc).lower():
+                raise UserCancelledOperationError(
+                    "Ожидание ответа терминала завершилось таймаутом",
+                    code=2000,
+                ) from exc
             self._show_posgui_info_safe(
                 "T-Bank",
                 "Ошибка обмена с терминалом",
@@ -1030,6 +1040,10 @@ class TbankDC1:
         self._log_packet_snapshot(response, "response after exchange")
         fields = self._extract_fields(response)
         raw_response = self._extract_response_properties(response)
+        raw_response["ErrorCode"] = str(getattr(dc, "ErrorCode", ""))
+        raw_response["ErrorDescription"] = str(getattr(dc, "ErrorDescription", ""))
+        if "timeout" in raw_response["ErrorDescription"].strip().lower():
+            raw_response["ErrorCode"] = "2000"
         self.logger.debug("response fields=%s", fields)
         self.logger.debug("response raw_properties=%s", raw_response)
         result = OperationResult(
@@ -1051,6 +1065,12 @@ class TbankDC1:
             result.response_code_host,
             result.text_response,
         )
+
+        if self.error == 2000:
+            raise UserCancelledOperationError(
+                "Ожидание ответа терминала завершилось таймаутом",
+                code=2000,
+            )
 
         if exchange_result != 0:
             raise DualConnectorResponseError(
@@ -1236,6 +1256,7 @@ class TbankDC1:
             "ReferenceNumber",
             "ResponseCodeHost",
             "TextResponse",
+            "ErrorDescription",
             "ReceiptData",
             "Status",
             "TerminalID",
@@ -1267,10 +1288,8 @@ class TbankDC1:
     @staticmethod
     def _resolve_error_code(result: OperationResult) -> int:
         """Превращает ответ терминала в числовой код ошибки для вызывающего кода."""
-        if result.exchange_result != 0:
-            return int(result.exchange_result)
-
         text_response = (result.text_response or "").strip().lower()
+        error_description = (result.raw_response.get("ErrorDescription") or "").strip().lower()
         if text_response and any(
             marker in text_response
             for marker in (
@@ -1280,6 +1299,18 @@ class TbankDC1:
             )
         ):
             return 2000
+        if error_description and any(
+            marker in error_description
+            for marker in (
+                "таймаут",
+                "time out",
+                "timeout",
+            )
+        ):
+            return 2000
+
+        if result.exchange_result != 0:
+            return int(result.exchange_result)
 
         status = (result.status or "").strip()
         if status == "1":
