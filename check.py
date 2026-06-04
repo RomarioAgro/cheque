@@ -289,10 +289,6 @@ def _process_sbp(o_shtrih):
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'correct_return_sale':
             # при пробитии чеков коррекции не надо деньги трогать
             pass
-        elif o_shtrih.cash_receipt.get('summ3', 0) == 0:
-            # за каким-то чертом кассиры делают пробитие чеков по СБП
-            # с нулевой суммой, в таком случае просто не надо к сбп обращаться
-            pass
         else:
             # если мы не знаем что это, то выходим
             logger_check.debug('неизвестная операция, выход')
