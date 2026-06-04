@@ -258,21 +258,15 @@ def _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text):
         _print_split_payment_text(o_shtrih, sbp_text, o_shtrih.cash_receipt['summ3'])
 def _process_sbp(o_shtrih):
     sbp_text = None
-    if o_shtrih.cash_receipt.get('SBP', 0) == 1 \
-            and o_shtrih.cash_receipt.get('summ3', 0) != 0:
+    if o_shtrih.cash_receipt.get('SBP', 0) == 1 and o_shtrih.cash_receipt.get('summ3', 0) != 0:
         logger_check.debug('зашли в СБП')
         try:
             # import клаасов СБП
             # это у нас печать QR сбп для разных банков
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
-                SBP = safe_import('SBP_OOP', 'SBP', 9995)
-                sbp_qr = SBP()
-            elif o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'alfabank_bank':
-                Alfa_SBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)
-                sbp_qr = Alfa_SBP()
+                sbp_qr = safe_import('SBP_OOP', 'SBP', 9995)
             else:
-                HlynovSBP = safe_import('hlynov_bank', 'HlynovSBP', 9996)
-                sbp_qr = HlynovSBP()
+                sbp_qr = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)()
         except Exception as exc:
             Mbox('ошибка модуля СБП', str(exc), 4096 + 16)
             logger_check.debug(exc)
@@ -283,10 +277,7 @@ def _process_sbp(o_shtrih):
             logger_check.debug('начинаем оплату по СБП')
             sbp_text = sale_sbp(o_shtrih, sbp_qr)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
-            if sbp_qr.__class__.__name__ == 'HlynovSBP':
-                logger_check.debug('начинаем возврат по СБП Хлынов')
-                sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
-            elif sbp_qr.__class__.__name__ == 'Alfa_SBP':
+            if sbp_qr.__class__.__name__ == 'Alfa_SBP':
                 logger_check.debug('начинаем возврат по СБП Альфабанк')
                 sbp_text = return_sale_sbp_hlynov(o_shtrih, sbp_qr)
             else:
