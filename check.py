@@ -250,12 +250,12 @@ def _print_split_payment_text(o_shtrih, payment_text: str, payment_sum):
                 o_shtrih.print_kupon(o_shtrih.cash_receipt.get('kupon', None))
                 o_shtrih.cash_receipt['kupon'] = None
 
-
 def _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text):
     if pinpad_text:
         _print_split_payment_text(o_shtrih, pinpad_text, o_shtrih.cash_receipt['sum-cashless'])
     if sbp_text:
         _print_split_payment_text(o_shtrih, sbp_text, o_shtrih.cash_receipt['summ3'])
+
 def _process_sbp(o_shtrih):
     sbp_text = None
     if o_shtrih.cash_receipt.get('SBP', 0) == 1 and o_shtrih.cash_receipt.get('summ3', 0) != 0:
@@ -264,9 +264,11 @@ def _process_sbp(o_shtrih):
             # import клаасов СБП
             # это у нас печать QR сбп для разных банков
             if o_shtrih.cash_receipt.get('SBP-type', 'sber') == 'sber':
-                sbp_qr = safe_import('SBP_OOP', 'SBP', 9995)
+                SberSBP = safe_import('SBP_OOP', 'SBP', 9995)
+                sbp_qr = SberSBP()
             else:
-                sbp_qr = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)()
+                AlfaSBP = safe_import('alfabank_SBP', 'Alfa_SBP', 9994)()
+                sbp_qr = AlfaSBP
         except Exception as exc:
             Mbox('ошибка модуля СБП', str(exc), 4096 + 16)
             logger_check.debug(exc)
@@ -275,7 +277,11 @@ def _process_sbp(o_shtrih):
         if o_shtrih.cash_receipt.get('operationtype', 'sale') == 'sale':
             # начинаем оплату по сбп
             logger_check.debug('начинаем оплату по СБП')
-            sbp_text = sale_sbp(o_shtrih, sbp_qr)
+            try:
+                sbp_text = sale_sbp(o_shtrih, sbp_qr)
+            except BaseException as exc:
+                logger_check.debug(f'ошибка при оплате СБП {exc}')
+                exit(95)
         elif o_shtrih.cash_receipt.get('operationtype', 'sale') == 'return_sale':
             if sbp_qr.__class__.__name__ == 'Alfa_SBP':
                 logger_check.debug('начинаем возврат по СБП Альфабанк')

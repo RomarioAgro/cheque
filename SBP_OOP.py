@@ -8,13 +8,13 @@ import logging
 import os
 import socket
 import getpass
+from pathlib import Path
 from dotenv import load_dotenv
 import tkinter as tk
 from tkinter import ttk
 
-os.chdir('d:\\kassa\\script_py\\shtrih\\')
-
-env_path = os.path.join(os.path.dirname(__file__), '.env')
+BASE_DIR = Path(__file__).resolve().parent
+env_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=env_path)
 
 
@@ -158,6 +158,7 @@ class SBP(object):
             "rquid": rq_uid
         }
         time_stamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+        logging.debug('зашли в формирование параметров заказа')
         param = {
             "rq_uid": rq_uid,
             "rq_tm": time_stamp,
