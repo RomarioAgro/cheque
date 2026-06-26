@@ -22,7 +22,7 @@ Python-проект для работы с кассовым оборудован
 <!-- ontoindex:start -->
 # OntoIndex — Code Intelligence
 
-This project is indexed by OntoIndex as **cheque** (1169 symbols, 2264 relationships, 102 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by OntoIndex as **cheque** (1253 symbols, 2374 relationships, 109 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
 
 > If any OntoIndex tool warns the index is stale, coordinate first; exactly one process should run `ontoindex analyze`.
 
@@ -67,4 +67,4 @@ This project is indexed by OntoIndex as **cheque** (1169 symbols, 2264 relations
 OntoIndex/Continuum для поиска связанных символов и анализа влияния
 - для рефакторинга сначала проверять call graph и места вызова
 - после изменений запускать подходящие проверки pytest, py_compile. rumm/mypy если настроены 
-- 
+-

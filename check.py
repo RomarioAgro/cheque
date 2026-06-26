@@ -196,8 +196,12 @@ def check_KM_in_honeist_sign(o_shtrih):
             'rec_name': argv[2]
         }
         logger_check.debug(f'собрали словарь для проверки КМ {dict_for_check}')
-        logger_check.debug(f'сейчас будет импорт класса CheckKM')
-        CheckKM = safe_import('honest_sign.check_km', 'CheckKM', 9888)
+        use_tcpiot = config_rec('tcpiot', default=False, cast=bool)
+        logger_check.debug(f'сейчас будет импорт класса CheckKM, tcpiot={use_tcpiot}')
+        if use_tcpiot:
+            CheckKM = safe_import('honest_sign.esp_check_km', 'CheckKMEsp', 9888)
+        else:
+            CheckKM = safe_import('honest_sign.check_km', 'CheckKM', 9888)
         o_check = CheckKM(i_dict_km=dict_for_check)
         o_check.check_km_permission_mode()
         o_exit = o_check.pm_show_errors_honest_sign()
