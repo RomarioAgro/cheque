@@ -633,79 +633,61 @@ class Shtrih(object):
         Mbox('я не знаю что делать', f'сообщите дежурному о проблеме: произошло обращение к методу check_km', 4096 + 16)
 
     def about_me(self) -> List:
+        """Опросить ККТ и вернуть строки с основными данными устройства.
+
+        Returns:
+            List: Строки с параметрами ККТ для последующего сохранения в файл.
         """
-        метод опроса кассы на предмет всяких данных
-        потом сохраняем в текстовый файл
-        :return:
-        """
+        def read_table_string(table_number: int, row_number: int, field_number: int) -> str:
+            self.drv.TableNumber = table_number
+            self.drv.RowNumber = row_number
+            self.drv.FieldNumber = field_number
+            self.drv.ReadTable()
+            return self.drv.ValueOfFieldString
+
         list_about_fr = []
         self.drv.FNGetExpirationTime()
         if self.drv.ResultCode != 0:
             return list_about_fr
         self.drv.ReadSerialNumber()
         v_date = datetime.datetime.strftime(self.drv.Date, "%d.%m.%Y")
-        list_about_fr.append(v_date + '_' + self.drv.SerialNumber)
-        list_about_fr.append('SROK ' + v_date)
-        list_about_fr.append('ZN ' + self.drv.SerialNumber)
+        list_about_fr.extend([
+            v_date + '_' + self.drv.SerialNumber,
+            'SROK ' + v_date,
+            'ZN ' + self.drv.SerialNumber,
+        ])
         self.drv.FNGetFiscalizationResult()
         list_about_fr.append('RN ' + self.drv.KKTRegistrationNumber)
         self.cash_receipt['rn'] = self.drv.KKTRegistrationNumber
         self.drv.FNGetSerial()
         list_about_fr.append('FN ' + self.drv.SerialNumber)
         self.drv.ReadFeatureLicenses()
-        if self.drv.License == '':
-            list_about_fr.append('LIC NONE')
-        else:
-            list_about_fr.append('LIC ' + self.drv.License)
+        list_about_fr.append('LIC ' + self.drv.License if self.drv.License else 'LIC NONE')
         self.drv.FNGetFiscalizationResult()
-        if self.drv.WorkModeEx == 16:
-            list_about_fr.append('FFD 1.2')
-        else:
-            list_about_fr.append('FFD 1.05')
-        self.drv.TableNumber = 18
-        self.drv.RowNumber = 1
-        self.drv.FieldNumber = 10
-        self.drv.ReadTable()
-        list_about_fr.append('OFD ' + self.drv.ValueOfFieldString)
-        self.drv.TableNumber = 18
-        self.drv.RowNumber = 1
-        self.drv.FieldNumber = 14
-        self.drv.ReadTable()
-        list_about_fr.append('MESTO ' + self.drv.ValueOfFieldString)
+        list_about_fr.append('FFD 1.2' if self.drv.WorkModeEx == 16 else 'FFD 1.05')
         list_about_fr.append('INN ' + self.drv.INN)
-        self.drv.TableNumber = 18
-        self.drv.RowNumber = 1
-        self.drv.FieldNumber = 7
-        self.drv.ReadTable()
-        list_about_fr.append('ORG ' + self.drv.ValueOfFieldString)
-        self.drv.TableNumber = 18
-        self.drv.RowNumber = 1
-        self.drv.FieldNumber = 9
-        self.drv.ReadTable()
-        list_about_fr.append('ADR ' + self.drv.ValueOfFieldString)
+        for prefix, table_number, row_number, field_number in (
+                ('OFD ', 18, 1, 10),
+                ('ORG ', 18, 1, 7),
+                ('ADR ', 18, 1, 9),
+                ('MESTO ', 18, 1, 14),
+                ('GENMAN ', 18, 1, 8)):
+            list_about_fr.append(prefix + read_table_string(table_number, row_number, field_number))
         self.drv.GetECRStatus()
         list_about_fr.append('DATEFIRMWARE ' + datetime.datetime.strftime(self.drv.ECRSoftDate, "%d.%m.%Y"))
         self.drv.GetDeviceMetrics()
         list_about_fr.append('MODEL ' + self.drv.UDescription)
         list_about_fr.append('DRIVER VERSION ' + self.drv.DriverVersion)
         self.drv.Connect()
-        if self.drv.ConnectionType == 6:
-            list_about_fr.append('CONNECTION TYPE TCP-Socket')
-        else:
-            list_about_fr.append('CONNECTION TYPE LOCAL')
+        list_about_fr.append(
+            'CONNECTION TYPE TCP-Socket' if self.drv.ConnectionType == 6 else 'CONNECTION TYPE LOCAL'
+        )
         list_about_fr.append('IP ADRESS ' + self.drv.IPAddress)
-        self.drv.GetFieldStruct()
-        self.drv.TableNumber = 16
-        self.drv.RowNumber = 1
-        self.drv.FieldNumber = 1
-        self.drv.ReadTable()
-        list_about_fr.append('STATIC IP ' + self.drv.ValueOfFieldString)
-        self.drv.GetFieldStruct()
-        self.drv.TableNumber = 16
-        self.drv.RowNumber = 1
-        self.drv.FieldNumber = 2
-        self.drv.ReadTable()
-        list_about_fr.append('DHCP STATUS ' + self.drv.ValueOfFieldString)
+        for prefix, table_number, row_number, field_number in (
+                ('STATIC IP ', 16, 1, 1),
+                ('DHCP STATUS ', 16, 1, 2)):
+            self.drv.GetFieldStruct()
+            list_about_fr.append(prefix + read_table_string(table_number, row_number, field_number))
         self.drv.GetFieldStruct()
         self.drv.TableNumber = 10
         self.drv.RowNumber = 1
