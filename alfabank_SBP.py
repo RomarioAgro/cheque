@@ -3,7 +3,8 @@ import logging
 import PySimpleGUI as sg
 import ctypes
 import os
-from OpenSSL import crypto
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 from dotenv import load_dotenv
 import requests
 import json
@@ -148,7 +149,10 @@ class Alfa_SBP(object):
         path_key = os.path.normpath(os.path.join(os.path.dirname(__file__), self.private_key_path))
         try:
             with open(path_key, 'rb') as key_file:
-                private_key = crypto.load_privatekey(crypto.FILETYPE_PEM, key_file.read())
+                private_key = serialization.load_pem_private_key(
+                    key_file.read(),
+                    password=None,
+                )
         except Exception as exc:
             logger_check.debug(f'ошибка формирования приватного ключа={exc}')
             f_name = socket.gethostname().upper() + '_' + getpass.getuser().upper()
@@ -164,7 +168,11 @@ class Alfa_SBP(object):
             except Exception as exc:
                 logging.debug('ошибка отправки телеграм {0}'.format(exc))
             exit(9990)
-        signature = crypto.sign(private_key, json_order, 'sha256')
+        signature = private_key.sign(
+            json_order,
+            padding.PKCS1v15(),
+            hashes.SHA256(),
+        )
         encoded_data = base64.b64encode(signature)
         encoded_data_str = encoded_data.decode('utf-8').replace('\r', '').replace('\n', '')
         logger_check.debug(f'токен={encoded_data_str}')
