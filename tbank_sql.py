@@ -6,7 +6,7 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, Optional
 
 from dotenv import load_dotenv
 
@@ -59,6 +59,24 @@ class TbankSalesDB:
                     (date, sbis_id, tbank_id, summ),
                 )
 
+    def find_tbank_id(self, date: str, sbis_id: str) -> Optional[str]:
+        """Find the latest T-Bank reference number for an SBIS receipt.
+
+        Args:
+            date: Original sale date in ``YYYY-MM-DD`` format.
+            sbis_id: Original sale receipt number in SBIS.
+
+        Returns:
+            The stored T-Bank reference number, or ``None`` if not found.
+        """
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT tbank_id FROM tbank WHERE date = ? AND sbis_id = ? "
+                "ORDER BY id DESC LIMIT 1",
+                (date, sbis_id),
+            ).fetchone()
+        return str(row[0]) if row else None
+
 
 def save_tbank_sale(receipt: Mapping[str, object], reference_number: str) -> None:
     """Save a successful T-Bank sale using receipt and environment data.
@@ -84,4 +102,30 @@ def save_tbank_sale(receipt: Mapping[str, object], reference_number: str) -> Non
         sbis_id=str(receipt["number_receipt"]),
         tbank_id=reference_number,
         summ=receipt["sum-cashless"],
+    )
+
+
+def find_tbank_refund_reference(receipt: Mapping[str, object]) -> Optional[str]:
+    """Find the original T-Bank sale reference for a refund receipt.
+
+    Args:
+        receipt: Refund receipt containing ``initial_sale_date`` and
+            ``initial_sale_number``.
+
+    Returns:
+        The stored T-Bank reference number, or ``None`` if no sale matches.
+
+    Raises:
+        KeyError: If required receipt fields are missing.
+        ValueError: If the database path or sale date is invalid.
+        sqlite3.Error: If the database cannot be read.
+    """
+    db_path = os.getenv("tbank_sql_path")
+    if not db_path:
+        raise ValueError("tbank_sql_path is not configured")
+
+    sale_date = datetime.strptime(str(receipt["initial_sale_date"]), "%d.%m.%y").strftime("%Y-%m-%d")
+    return TbankSalesDB(db_path).find_tbank_id(
+        date=sale_date,
+        sbis_id=str(receipt["initial_sale_number"]),
     )

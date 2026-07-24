@@ -8,7 +8,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from tbank_sql import save_tbank_sale
+from tbank_sql import find_tbank_refund_reference, save_tbank_sale
 
 
 class TbankSalesDBTest(unittest.TestCase):
@@ -38,6 +38,27 @@ class TbankSalesDBTest(unittest.TestCase):
             ["id", "date", "sbis_id", "tbank_id", "summ"],
         )
         self.assertEqual(row, (1, "2026-07-24", "256736/01", "620412740441", 1699))
+
+    def test_find_tbank_refund_reference_returns_saved_sale_or_none(self):
+        """Find the original sale RRN and fall back when no row matches."""
+        sale = {
+            "date_create": "20260724",
+            "number_receipt": "377230/01",
+            "sum-cashless": 100.0,
+        }
+        refund = {
+            "initial_sale_date": "24.07.26",
+            "initial_sale_number": "377230/01",
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "tbank.db"
+            with patch.dict(os.environ, {"tbank_sql_path": str(db_path)}):
+                save_tbank_sale(sale, "620412740441")
+                save_tbank_sale(sale, "620412740442")
+                self.assertEqual(find_tbank_refund_reference(refund), "620412740442")
+                refund["initial_sale_number"] = "missing"
+                self.assertIsNone(find_tbank_refund_reference(refund))
 
 
 if __name__ == "__main__":

@@ -225,10 +225,24 @@ def _process_pinpad(o_shtrih):
                 PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
                 sber_pinpad = PinPad()
                 logger_check.debug('создали объект сбербанк PinPad()')
-            operation_result = sber_pinpad.pinpad_operation(
-                operation_name=o_shtrih.cash_receipt['operationtype'],
-                amount=o_shtrih.cash_receipt['sum-cashless'],
-            )
+            operation_kwargs = {
+                'operation_name': o_shtrih.cash_receipt['operationtype'],
+                'amount': o_shtrih.cash_receipt['sum-cashless'],
+            }
+            if pinpad_type == 'tbank' and operation_name == 'return_sale':
+                reference_number = None
+                try:
+                    from tbank_sql import find_tbank_refund_reference
+                    reference_number = find_tbank_refund_reference(o_shtrih.cash_receipt)
+                    if reference_number:
+                        logger_check.debug('нашли номер ссылки Т-Банка для возврата')
+                    else:
+                        logger_check.warning('номер ссылки Т-Банка не найден, запрашиваем вручную')
+                except Exception:
+                    logger_check.exception('ошибка поиска номера ссылки Т-Банка, запрашиваем вручную')
+                operation_kwargs['reference_number'] = reference_number
+
+            operation_result = sber_pinpad.pinpad_operation(**operation_kwargs)
             pin_error = sber_pinpad.error
             pinpad_text = sber_pinpad.text
         except Exception as exc:

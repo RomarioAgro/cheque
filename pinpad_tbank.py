@@ -741,15 +741,29 @@ class TbankDC1:
 
     def pinpad_operation(self,
                   operation_name: str = "x_otchet",
-                  amount: Union[int, float, str, Decimal] = 0
+                  amount: Union[int, float, str, Decimal] = 0,
+                  *,
+                  reference_number: Optional[str] = None,
                   ):
-        """Выбирает нужную операцию терминала по имени и запускает её."""
+        """Выбирает нужную операцию терминала по имени и запускает её.
+
+        Args:
+            operation_name: Имя операции терминала.
+            amount: Сумма финансовой операции в рублях.
+            reference_number: Номер ссылки исходной продажи для возврата.
+
+        Returns:
+            Результат выбранной операции терминала.
+
+        Raises:
+            ValueError: Если имя операции не поддерживается.
+        """
         operation = (operation_name or "").strip().lower()
 
         if operation in ("sale", "payment", "oplata", "1"):
             return self.payment(amount)
         if operation in ("return_sale", "refund", "vozvrat", "4"):
-            return self.refund(amount)
+            return self.refund(amount, reference_number=reference_number)
         if operation in ("x_otchet", "short_report", "kratkiy_otchet"):
             return self.short_report()
         if operation in ("full_otchet", "full_report", "polniy_otchet"):
@@ -775,9 +789,21 @@ class TbankDC1:
         self,
         amount: Union[int, float, str, Decimal],
         timeout_seconds: Optional[int] = None,
+        *,
+        reference_number: Optional[str] = None,
     ) -> OperationResult:
-        """Проводит возврат по карте через терминал."""
-        rrn = self._request_refund_rrn()
+        """Проводит возврат по карте через терминал.
+
+        Args:
+            amount: Сумма возврата в рублях.
+            timeout_seconds: Таймаут операции или ``None`` для настройки по умолчанию.
+            reference_number: Номер ссылки исходной продажи. Если отсутствует,
+                запрашивается у пользователя.
+
+        Returns:
+            Нормализованный результат операции возврата.
+        """
+        rrn = reference_number or self._request_refund_rrn()
         return self._financial_operation(
             OperationCode.REFUND,
             amount,
