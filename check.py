@@ -215,6 +215,7 @@ def _process_pinpad(o_shtrih):
         logger_check.debug('зашли в пинпад')
         operation_name = str(o_shtrih.cash_receipt.get('operationtype', 'sale')).lower().strip()
         pinpad_type = str(o_shtrih.cash_receipt.get('pinpad_type', 'sber')).lower().strip()
+        operation_result = None
         try:
             if pinpad_type == 'tbank':
                 Tbank = safe_import('pinpad_tbank', 'Tbank', 9992)
@@ -224,7 +225,7 @@ def _process_pinpad(o_shtrih):
                 PinPad = safe_import('pinpad_OOP', 'PinPad', 9997)
                 sber_pinpad = PinPad()
                 logger_check.debug('создали объект сбербанк PinPad()')
-            sber_pinpad.pinpad_operation(
+            operation_result = sber_pinpad.pinpad_operation(
                 operation_name=o_shtrih.cash_receipt['operationtype'],
                 amount=o_shtrih.cash_receipt['sum-cashless'],
             )
@@ -234,6 +235,13 @@ def _process_pinpad(o_shtrih):
             logger_check.exception('ошибка инициализации или оплаты по пинпаду %s', pinpad_type)
             pin_error = int(getattr(exc, 'code', 97) or 97)
             pinpad_text = getattr(exc, 'message', None) or str(exc)
+
+        if pinpad_type == 'tbank' and operation_name == 'sale' and pin_error == 0:
+            try:
+                from tbank_sql import save_tbank_sale
+                save_tbank_sale(o_shtrih.cash_receipt, operation_result.reference_number)
+            except Exception:
+                logger_check.exception('ошибка сохранения успешной продажи Т-Банка')
 
         if operation_name in {'sale', 'return_sale'} and pin_error != 0:
             Mbox(f'Ошибка {pin_error}', pinpad_text or 'Операция не выполнена', 4096 + 16)
