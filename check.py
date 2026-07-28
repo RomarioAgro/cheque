@@ -476,11 +476,10 @@ def main() -> Tuple:
     o_shtrih, cutter_on, prep_status_code = _prepare_shtrih(argv[1], argv[2])
     if prep_status_code != 0:
         return prep_status_code
-
+    # 2проверка КМ в ЧЗ
     _check_km_or_exit(o_shtrih)
     # операци по СБП, оплата или возврат
     sbp_text = _process_sbp(o_shtrih)
-
     pin_error, pinpad_text = _process_pinpad(o_shtrih)
     if pin_error == 0:
         _process_payment_text_printing(o_shtrih, pinpad_text, sbp_text)
