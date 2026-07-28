@@ -173,7 +173,7 @@ class Shtrih(object):
 
                 self.drv.WaitForPrinting()
                 if item.get('fullprice', None) is not None:
-                    self.print_str(i_str='Первоначальная розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
+                    self.print_str(i_str='Перв. розничная цена=' + str(item.get('fullprice', '0')), i_font=1)
                 if item.get('discount', None) is not None:
                     self.print_str(i_str='Скидка = ' + str(item.get('discount', '0')), i_font=1)
                 if item.get('bonuswritedown', None) is not None:
