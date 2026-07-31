@@ -1342,11 +1342,11 @@ class TbankDC1:
         if status == "1":
             return 0
         if status.isdigit():
-            return int(status)
+            return int(status) or 97
 
         host_code = result.response_code_host
         if host_code and host_code.lstrip("-").isdigit():
-            return int(host_code)
+            return int(host_code) or 97
         return 97
 
     def __del__(self) -> None:
