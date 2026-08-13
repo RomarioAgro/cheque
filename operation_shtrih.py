@@ -95,10 +95,46 @@ def repeat_rec(shtrih: object, i_data: dict = {}):
         shtrih.print_pinpad(str_pin_pad, summ)
     shtrih.shtrih_repeat_receipt(row[1])
 
+
+def open_shift(shtrih):
+    try:
+        error, description = shtrih.check_connect_fr()
+        if error:
+            logger_operation_shtrih.error('ошибка связи с кассой %s: %s', error, description)
+            return error
+
+        mode, description = shtrih.get_ecr_status()
+        if shtrih.drv.ResultCode:
+            logger_operation_shtrih.error('ошибка проверки режима кассы %s: %s', shtrih.drv.ResultCode,
+                                          shtrih.drv.ResultCodeDescription)
+            return shtrih.drv.ResultCode
+        if mode == 2:
+            return 0
+        if mode != 4:
+            logger_operation_shtrih.error('смена не открыта: режим кассы %s — %s', mode, description)
+            return 1
+
+        shtrih.open_session()
+        mode, description = shtrih.get_ecr_status()
+        if shtrih.drv.ResultCode:
+            logger_operation_shtrih.error('ошибка проверки режима кассы %s: %s', shtrih.drv.ResultCode,
+                                          shtrih.drv.ResultCodeDescription)
+            return shtrih.drv.ResultCode
+        if mode == 2:
+            return 0
+        logger_operation_shtrih.error('касса не перешла в открытую смену: %s — %s', mode, description)
+        return 1
+    except Exception:
+        logger_operation_shtrih.exception('ошибка открытия смены')
+        return 1
+
+
 def main():
     comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     logging.debug(comp_rec['operationtype'])
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
+    if comp_rec['operationtype'] == 'open_shift':
+        return open_shift(i_shtrih)
     i_shtrih.print_on()
     if comp_rec['operationtype'] == 'z_otchet_only':
         logging.debug('сейчас будет запуск команды Z отчета')
@@ -196,4 +232,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main() or 0)
