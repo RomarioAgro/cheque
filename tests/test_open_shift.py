@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 with patch.object(os, 'chdir'), patch.object(sys, 'argv', ['operation_shtrih.py', '.', 'test']):
     import operation_shtrih
-    from operation_shtrih import ask_cashier_code, find_cashier, get_cashier, open_shift, update_cashiers
+    from operation_shtrih import ask_cashier_code, find_cashier, get_cashier, open_shift, show_shift_error, update_cashiers
 
 
 class FakeDriver:
@@ -45,6 +45,12 @@ class FakeShtrih:
 
 
 class OpenShiftTest(unittest.TestCase):
+    def setUp(self):
+        self.real_show_shift_error = show_shift_error
+        self.show_error_patcher = patch.object(operation_shtrih, 'show_shift_error')
+        self.show_error = self.show_error_patcher.start()
+        self.addCleanup(self.show_error_patcher.stop)
+
     def test_shtrih_can_skip_json_receipt(self):
         with patch.object(operation_shtrih.Shtrih, 'make_dict_receipt') as make_receipt, \
                 patch.object(operation_shtrih.Shtrih, 'make_com_object_progid', return_value=object()):
@@ -98,6 +104,39 @@ class OpenShiftTest(unittest.TestCase):
     def test_gui_error_returns_nonzero_from_open_shift(self):
         with patch.object(operation_shtrih, 'get_cashier', side_effect=tk.TclError):
             self.assertNotEqual(open_shift(FakeShtrih([4])), 0)
+        self.show_error.assert_called_with(
+            'Ошибка открытия смены', 'Не удалось открыть смену. Подробности записаны в журнал.')
+
+    def test_cashier_error_shows_safe_gui_message(self):
+        with patch.object(operation_shtrih, 'get_cashier', side_effect=ValueError('кассир не найден')):
+            self.assertNotEqual(open_shift(FakeShtrih([4])), 0)
+        self.show_error.assert_called_once_with('Ошибка кассира', 'кассир не найден')
+
+    def test_shift_error_dialog_is_topmost_and_safe_on_failure(self):
+        root = unittest.mock.MagicMock()
+        with patch.object(tk, 'Tk', return_value=root), patch('tkinter.messagebox.showerror') as message:
+            self.real_show_shift_error('Ошибка', 'Понятная причина')
+            root.attributes.assert_called_once_with('-topmost', True)
+            message.assert_called_once_with('Ошибка', 'Понятная причина', parent=root)
+            root.destroy.assert_called_once()
+
+        root.reset_mock()
+        with patch.object(tk, 'Tk', return_value=root), \
+                patch('tkinter.messagebox.showerror', side_effect=RuntimeError('secret')), \
+                patch.object(operation_shtrih.logger_operation_shtrih, 'warning') as warning:
+            self.real_show_shift_error('Ошибка', 'Понятная причина')
+            self.assertNotIn('secret', str(warning.call_args))
+            root.destroy.assert_called_once()
+
+    def test_dialog_destroy_failure_preserves_device_error_code(self):
+        root = unittest.mock.MagicMock()
+        root.destroy.side_effect = RuntimeError('secret')
+        with patch.object(operation_shtrih, 'show_shift_error', self.real_show_shift_error), \
+                patch.object(tk, 'Tk', return_value=root), \
+                patch('tkinter.messagebox.showerror'), \
+                patch.object(operation_shtrih.logger_operation_shtrih, 'warning') as warning:
+            self.assertEqual(open_shift(FakeShtrih([], connect_error=5)), 5)
+            self.assertNotIn('secret', str(warning.call_args))
 
     def test_opens_closed_shift_once(self):
         shtrih = FakeShtrih([4, 2])
@@ -115,7 +154,10 @@ class OpenShiftTest(unittest.TestCase):
 
     def test_returns_error_for_connection_or_invalid_mode(self):
         self.assertNotEqual(open_shift(FakeShtrih([], connect_error=5)), 0)
+        self.show_error.assert_called_with('Ошибка связи с кассой', 'Код 5: connection')
+        self.show_error.reset_mock()
         self.assertNotEqual(open_shift(FakeShtrih([8])), 0)
+        self.show_error.assert_called_with('Неверный режим кассы', 'Режим 8: mode')
 
     def test_returns_error_when_shift_does_not_open(self):
         with patch.object(operation_shtrih, 'get_cashier', return_value=('Иванов Иван', '123456789012', '1234567890')):

@@ -180,12 +180,36 @@ def ask_cashier_code(dialog_class=None):
         root.destroy()
 
 
+def show_shift_error(title, message):
+    root = None
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        messagebox.showerror(title, message, parent=root)
+    except Exception as exc:
+        logger_operation_shtrih.warning('не удалось показать GUI-ошибку: %s', type(exc).__name__)
+    finally:
+        if root is not None:
+            try:
+                root.destroy()
+            except Exception as exc:
+                logger_operation_shtrih.warning('не удалось закрыть GUI-ошибку: %s', type(exc).__name__)
+
+
 def get_cashier():
     update_cashiers()
     code = ask_cashier_code()
     if not code:
         raise ValueError('номер кассира не введён')
-    return find_cashier(code)
+    try:
+        return find_cashier(code)
+    except FileNotFoundError as exc:
+        raise ValueError('файл сотрудников не найден') from exc
+    except (OSError, UnicodeError, csv.Error) as exc:
+        raise ValueError('не удалось прочитать файл сотрудников') from exc
 
 
 def open_shift(shtrih):
@@ -193,28 +217,40 @@ def open_shift(shtrih):
         error, description = shtrih.check_connect_fr()
         if error:
             logger_operation_shtrih.error('ошибка связи с кассой %s: %s', error, description)
+            show_shift_error('Ошибка связи с кассой', f'Код {error}: {description}')
             return error
 
         mode, description = shtrih.get_ecr_status()
         if shtrih.drv.ResultCode:
             logger_operation_shtrih.error('ошибка проверки режима кассы %s: %s', shtrih.drv.ResultCode,
                                           shtrih.drv.ResultCodeDescription)
+            show_shift_error('Ошибка кассы',
+                             f'Код {shtrih.drv.ResultCode}: {shtrih.drv.ResultCodeDescription}')
             return shtrih.drv.ResultCode
         if mode == 2:
             return 0
         if mode != 4:
             logger_operation_shtrih.error('смена не открыта: режим кассы %s — %s', mode, description)
+            show_shift_error('Неверный режим кассы', f'Режим {mode}: {description}')
             return 1
 
-        name, cashier_inn, employer_inn = get_cashier()
+        try:
+            name, cashier_inn, employer_inn = get_cashier()
+        except ValueError as exc:
+            logger_operation_shtrih.error('ошибка данных кассира: %s', exc)
+            show_shift_error('Ошибка кассира', str(exc))
+            return 1
         shtrih.drv.FNGetFiscalizationResult()
         if shtrih.drv.ResultCode:
             logger_operation_shtrih.error('ошибка чтения данных регистрации ККТ: %s',
                                           shtrih.drv.ResultCodeDescription)
+            show_shift_error('Ошибка кассы',
+                             f'Код {shtrih.drv.ResultCode}: {shtrih.drv.ResultCodeDescription}')
             return shtrih.drv.ResultCode
         kkt_inn = str(shtrih.drv.INN).strip()
         if not cashier_inn or not employer_inn or not kkt_inn or employer_inn != kkt_inn:
             logger_operation_shtrih.error('проверка ИНН перед открытием смены не пройдена')
+            show_shift_error('Ошибка ИНН', 'ИНН не заполнен или не совпадает с данными кассы')
             return 1
         shtrih.cash_receipt['tag1021'] = name
         shtrih.cash_receipt['tag1203'] = cashier_inn
@@ -223,13 +259,17 @@ def open_shift(shtrih):
         if shtrih.drv.ResultCode:
             logger_operation_shtrih.error('ошибка проверки режима кассы %s: %s', shtrih.drv.ResultCode,
                                           shtrih.drv.ResultCodeDescription)
+            show_shift_error('Ошибка кассы',
+                             f'Код {shtrih.drv.ResultCode}: {shtrih.drv.ResultCodeDescription}')
             return shtrih.drv.ResultCode
         if mode == 2:
             return 0
         logger_operation_shtrih.error('касса не перешла в открытую смену: %s — %s', mode, description)
+        show_shift_error('Смена не открыта', f'Режим {mode}: {description}')
         return 1
-    except Exception:
-        logger_operation_shtrih.exception('ошибка открытия смены')
+    except Exception as exc:
+        logger_operation_shtrih.error('неожиданная ошибка открытия смены: %s', type(exc).__name__)
+        show_shift_error('Ошибка открытия смены', 'Не удалось открыть смену. Подробности записаны в журнал.')
         return 1
 
 
