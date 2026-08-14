@@ -58,7 +58,7 @@ class Shtrih(object):
     класс нашего кассового аппарата
     """
 
-    def __init__(self, i_path: str = 'd:\\files', i_file_name: str = 'x'):
+    def __init__(self, i_path: str = 'd:\\files', i_file_name: str = 'x', load_receipt: bool = True):
         """
         конструктор класса, инициализируется
         :param i_path: str путь где лежит json с параметрами
@@ -66,7 +66,7 @@ class Shtrih(object):
         prn - объект драйвера штриха
  
         """
-        self.cash_receipt = self.make_dict_receipt(i_path=i_path, i_file_name=i_file_name)
+        self.cash_receipt = self.make_dict_receipt(i_path=i_path, i_file_name=i_file_name) if load_receipt else {}
         self.drv = self.make_com_object_progid()
 
     def make_com_object_progid(self):

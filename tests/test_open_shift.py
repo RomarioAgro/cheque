@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import tkinter as tk
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -8,7 +9,7 @@ from unittest.mock import patch
 
 with patch.object(os, 'chdir'), patch.object(sys, 'argv', ['operation_shtrih.py', '.', 'test']):
     import operation_shtrih
-    from operation_shtrih import find_cashier, open_shift, update_cashiers
+    from operation_shtrih import ask_cashier_code, find_cashier, get_cashier, open_shift, update_cashiers
 
 
 class FakeDriver:
@@ -44,6 +45,60 @@ class FakeShtrih:
 
 
 class OpenShiftTest(unittest.TestCase):
+    def test_shtrih_can_skip_json_receipt(self):
+        with patch.object(operation_shtrih.Shtrih, 'make_dict_receipt') as make_receipt, \
+                patch.object(operation_shtrih.Shtrih, 'make_com_object_progid', return_value=object()):
+            shtrih = operation_shtrih.Shtrih(load_receipt=False)
+            self.assertEqual(shtrih.cash_receipt, {})
+            make_receipt.assert_not_called()
+
+        with patch.object(operation_shtrih.Shtrih, 'make_dict_receipt', return_value={'operationtype': 'sale'}) as make_receipt, \
+                patch.object(operation_shtrih.Shtrih, 'make_com_object_progid', return_value=object()):
+            shtrih = operation_shtrih.Shtrih('path', 'receipt')
+            self.assertEqual(shtrih.cash_receipt, {'operationtype': 'sale'})
+            make_receipt.assert_called_once_with(i_path='path', i_file_name='receipt')
+
+    def test_main_open_shift_cli_does_not_read_json(self):
+        shtrih = FakeShtrih([2])
+        with patch.object(operation_shtrih, 'OPEN_SHIFT_CLI', True), \
+                patch.object(operation_shtrih, 'read_composition_receipt') as read_json, \
+                patch.object(operation_shtrih, 'Shtrih', return_value=shtrih) as shtrih_class:
+            self.assertEqual(operation_shtrih.main(), 0)
+            read_json.assert_not_called()
+            shtrih_class.assert_called_once_with(load_receipt=False)
+
+    def test_gui_cashier_code_success_and_cancel(self):
+        root = unittest.mock.MagicMock()
+        dialog = unittest.mock.MagicMock()
+        with patch.object(tk, 'Tk', return_value=root):
+            dialog.return_value.result = '  007  '
+            self.assertEqual(ask_cashier_code(dialog), '007')
+            root.withdraw.assert_called_once()
+            root.destroy.assert_called_once()
+
+            root.reset_mock()
+            dialog.return_value.result = None
+            self.assertIsNone(ask_cashier_code(dialog))
+            root.destroy.assert_called_once()
+
+            root.reset_mock()
+            root.withdraw.side_effect = RuntimeError
+            with self.assertRaises(RuntimeError):
+                ask_cashier_code(dialog)
+            root.destroy.assert_called_once()
+
+    def test_empty_gui_cashier_code_blocks_lookup(self):
+        with patch.object(operation_shtrih, 'update_cashiers'), \
+                patch.object(operation_shtrih, 'ask_cashier_code', return_value=''), \
+                patch.object(operation_shtrih, 'find_cashier') as find:
+            with self.assertRaises(ValueError):
+                get_cashier()
+            find.assert_not_called()
+
+    def test_gui_error_returns_nonzero_from_open_shift(self):
+        with patch.object(operation_shtrih, 'get_cashier', side_effect=tk.TclError):
+            self.assertNotEqual(open_shift(FakeShtrih([4])), 0)
+
     def test_opens_closed_shift_once(self):
         shtrih = FakeShtrih([4, 2])
         with patch.object(operation_shtrih, 'get_cashier', return_value=('Иванов Иван', '123456789012', '1234567890')):

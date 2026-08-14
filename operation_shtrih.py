@@ -1,6 +1,10 @@
 import struct, sys
 import time
 
+OPEN_SHIFT_CLI = sys.argv[1:] == ['open_shift']
+if OPEN_SHIFT_CLI:
+    sys.argv[:] = [sys.argv[0], '.', 'open_shift']
+
 print("python:", sys.executable)
 print("bitness:", struct.calcsize("P") * 8)
 import logging
@@ -140,9 +144,48 @@ def find_cashier(code, path=CASHIERS_FILE):
     return matches[0]
 
 
+def ask_cashier_code(dialog_class=None):
+    import tkinter as tk
+    from tkinter import simpledialog
+
+    class CashierCodeDialog(simpledialog.Dialog):
+        def body(self, master):
+            self.geometry('640x260')
+            tk.Label(master, text='Введите номер кассира', foreground='red',
+                     font=('Arial', 28, 'bold')).pack(padx=20, pady=(30, 20))
+            self.entry = tk.Entry(master, width=24, font=('Arial', 28, 'bold'))
+            self.entry.pack(padx=20, pady=10)
+            return self.entry
+
+        def buttonbox(self):
+            box = tk.Frame(self)
+            font = ('Arial', 20, 'bold')
+            tk.Button(box, text='ОК', width=10, command=self.ok, default=tk.ACTIVE, font=font).pack(
+                side=tk.LEFT, padx=10, pady=20)
+            tk.Button(box, text='Отмена', width=10, command=self.cancel, font=font).pack(
+                side=tk.LEFT, padx=10, pady=20)
+            box.pack()
+            self.bind('<Return>', lambda event: self.ok())
+            self.bind('<Escape>', lambda event: self.cancel())
+
+        def apply(self):
+            self.result = self.entry.get()
+
+    root = tk.Tk()
+    try:
+        root.withdraw()
+        result = (dialog_class or CashierCodeDialog)(root, 'Открытие смены').result
+        return result.strip() if result else None
+    finally:
+        root.destroy()
+
+
 def get_cashier():
     update_cashiers()
-    return find_cashier(input('Введите номер кассира: ').strip())
+    code = ask_cashier_code()
+    if not code:
+        raise ValueError('номер кассира не введён')
+    return find_cashier(code)
 
 
 def open_shift(shtrih):
@@ -191,6 +234,8 @@ def open_shift(shtrih):
 
 
 def main():
+    if OPEN_SHIFT_CLI:
+        return open_shift(Shtrih(load_receipt=False))
     comp_rec = read_composition_receipt(argv[1] + '\\' + argv[2] + '.json')
     logging.debug(comp_rec['operationtype'])
     i_shtrih = Shtrih(i_path=argv[1], i_file_name=argv[2])
