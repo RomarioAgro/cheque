@@ -10,7 +10,9 @@ import getpass
 import json
 from sys import argv, exit
 import datetime
+import csv
 import sqlite3
+import subprocess
 from pathlib import Path
 from logger_config import get_logger
 
@@ -25,6 +27,7 @@ from shtrih_OOP import Shtrih
 CUTTER = '~S'
 
 DB_SHTRIH = 'd:\\kassa\\db_receipt\\'
+CASHIERS_FILE = Path(r'D:\discont\sotrud.txt')
 current_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H_%M_%S')
 logger_operation_shtrih: logging.Logger = get_logger(
     __name__,
@@ -96,6 +99,52 @@ def repeat_rec(shtrih: object, i_data: dict = {}):
     shtrih.shtrih_repeat_receipt(row[1])
 
 
+def update_cashiers():
+    user = os.environ.get('RSYNC_USER')
+    host = os.environ.get('RSYNC_HOST')
+    if not user or not host:
+        logger_operation_shtrih.warning('обновление списка сотрудников пропущено: нет настроек rsync')
+        return False
+    try:
+        result = subprocess.run([
+            r'D:\Rsync\bin\rsync.exe', '-rct', '--progress',
+            f'rsync://{user}{host}/magazin/sotrud.txt',
+            '/cygdrive/d/discont/sotrud.txt',
+        ], shell=False, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        logger_operation_shtrih.warning('не удалось обновить список сотрудников')
+        return False
+    if result.returncode:
+        logger_operation_shtrih.warning('не удалось обновить список сотрудников, код %s', result.returncode)
+        return False
+    return True
+
+
+def find_cashier(code, path=CASHIERS_FILE):
+    matches = []
+    with open(path, newline='', encoding='cp1251') as cashiers:
+        for row in csv.reader(cashiers):
+            if not row:
+                continue
+            fields = [field.strip() for field in row]
+            if len(fields) != 4:
+                raise ValueError('неверный формат списка сотрудников')
+            cashier_code, name, cashier_inn, employer_inn = fields
+            if (not cashier_code or not name or not cashier_inn.isdigit() or len(cashier_inn) != 12
+                    or not employer_inn.isdigit() or len(employer_inn) not in (10, 12)):
+                raise ValueError('неверные данные сотрудника')
+            if cashier_code == code:
+                matches.append((name, cashier_inn, employer_inn))
+    if len(matches) != 1:
+        raise ValueError('кассир не найден или код дублируется')
+    return matches[0]
+
+
+def get_cashier():
+    update_cashiers()
+    return find_cashier(input('Введите номер кассира: ').strip())
+
+
 def open_shift(shtrih):
     try:
         error, description = shtrih.check_connect_fr()
@@ -114,6 +163,18 @@ def open_shift(shtrih):
             logger_operation_shtrih.error('смена не открыта: режим кассы %s — %s', mode, description)
             return 1
 
+        name, cashier_inn, employer_inn = get_cashier()
+        shtrih.drv.FNGetFiscalizationResult()
+        if shtrih.drv.ResultCode:
+            logger_operation_shtrih.error('ошибка чтения данных регистрации ККТ: %s',
+                                          shtrih.drv.ResultCodeDescription)
+            return shtrih.drv.ResultCode
+        kkt_inn = str(shtrih.drv.INN).strip()
+        if not cashier_inn or not employer_inn or not kkt_inn or employer_inn != kkt_inn:
+            logger_operation_shtrih.error('проверка ИНН перед открытием смены не пройдена')
+            return 1
+        shtrih.cash_receipt['tag1021'] = name
+        shtrih.cash_receipt['tag1203'] = cashier_inn
         shtrih.open_session()
         mode, description = shtrih.get_ecr_status()
         if shtrih.drv.ResultCode:
