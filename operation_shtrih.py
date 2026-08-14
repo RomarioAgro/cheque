@@ -131,14 +131,18 @@ def find_cashier(code, path=CASHIERS_FILE):
             if not row:
                 continue
             fields = [field.strip() for field in row]
-            if len(fields) != 4:
+            if not fields or fields[0] != code:
+                continue
+            if len(fields) == 4:
+                cashier_code, name, cashier_inn, employer_inn = fields
+            elif len(fields) == 5 and not fields[2]:
+                cashier_code, name, _, cashier_inn, employer_inn = fields
+            else:
                 raise ValueError('неверный формат списка сотрудников')
-            cashier_code, name, cashier_inn, employer_inn = fields
             if (not cashier_code or not name or not cashier_inn.isdigit() or len(cashier_inn) != 12
                     or not employer_inn.isdigit() or len(employer_inn) not in (10, 12)):
                 raise ValueError('неверные данные сотрудника')
-            if cashier_code == code:
-                matches.append((name, cashier_inn, employer_inn))
+            matches.append((name, cashier_inn, employer_inn))
     if len(matches) != 1:
         raise ValueError('кассир не найден или код дублируется')
     return matches[0]

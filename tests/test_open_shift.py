@@ -226,6 +226,21 @@ class OpenShiftTest(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             find_cashier('7', Path(directory) / 'missing.txt')
 
+    def test_find_cashier_013_after_service_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'sotrud.txt'
+            path.write_text(
+                '9999,Служебная строка,,\n'
+                '000,Без ИНН,,\n'
+                '001,Другой кассир,,123456789012,\n'
+                '013,Семёнова Екатерина,,123456789012,1234567890\n',
+                encoding='cp1251',
+            )
+            self.assertEqual(
+                find_cashier('013', path),
+                ('Семёнова Екатерина', '123456789012', '1234567890'),
+            )
+
     def test_empty_inn_or_kkt_mismatch_blocks_shift(self):
         for cashier in (
                 ('Иванов Иван', '', '1234567890'),
