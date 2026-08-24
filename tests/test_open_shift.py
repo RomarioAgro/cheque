@@ -170,6 +170,59 @@ class OpenShiftTest(unittest.TestCase):
                 patch.object(operation_shtrih, 'Shtrih', return_value=shtrih):
             self.assertEqual(operation_shtrih.main(), 0)
 
+    def test_tspiot_z_report_prints_x_report_and_notice(self):
+        shtrih = unittest.mock.MagicMock()
+        shtrih.cash_receipt = {'tag1021': 'Кассир'}
+        shtrih.about_me.return_value = ['ККТ']
+        receipt = {'operationtype': 'z_otchet', 'tspiot': '1'}
+
+        with patch.object(operation_shtrih, 'read_composition_receipt', return_value=receipt), \
+                patch.object(operation_shtrih, 'Shtrih', return_value=shtrih), \
+                patch.object(operation_shtrih, 'show_z_report_notice') as notice, \
+                patch.object(operation_shtrih, 'save_about_fr'), \
+                patch.object(operation_shtrih.getpass, 'getuser', return_value='KASSIR1'), \
+                patch.object(operation_shtrih.time, 'sleep'):
+            self.assertIsNone(operation_shtrih.main())
+
+        shtrih.x_otchet.assert_called_once_with()
+        shtrih.z_otchet.assert_not_called()
+        notice.assert_called_once_with()
+        shtrih.drv.SetTime.assert_not_called()
+        shtrih.drv.RebootKKT.assert_not_called()
+
+        root = unittest.mock.MagicMock()
+        with patch.object(tk, 'Tk', return_value=root), patch('tkinter.messagebox.showinfo') as showinfo:
+            operation_shtrih.show_z_report_notice()
+        root.attributes.assert_called_once_with('-topmost', True)
+        showinfo.assert_called_once_with(
+            'Закрытие смены',
+            'Закрытие смены выполняется автоматически.\n'
+            'Плановое закрытие: 23:00.\n'
+            'Для ручного закрытия обратитесь к администратору.',
+            parent=root,
+        )
+        root.destroy.assert_called_once_with()
+
+    def test_tspiot_is_ignored_for_other_user(self):
+        shtrih = unittest.mock.MagicMock()
+        shtrih.cash_receipt = {'tag1021': 'Кассир'}
+        shtrih.about_me.return_value = ['ККТ']
+
+        with patch.object(operation_shtrih, 'read_composition_receipt',
+                          return_value={'operationtype': 'z_otchet', 'tspiot': '1'}), \
+                patch.object(operation_shtrih, 'Shtrih', return_value=shtrih), \
+                patch.object(operation_shtrih, 'save_about_fr'), \
+                patch.object(operation_shtrih, 'show_z_report_notice') as notice, \
+                patch.object(operation_shtrih.getpass, 'getuser', return_value='kassir2'), \
+                patch.object(operation_shtrih.time, 'sleep'):
+            self.assertIsNone(operation_shtrih.main())
+
+        shtrih.z_otchet.assert_called_once_with()
+        shtrih.x_otchet.assert_not_called()
+        notice.assert_not_called()
+        shtrih.drv.SetTime.assert_called_once_with()
+        shtrih.drv.RebootKKT.assert_called_once_with()
+
     def test_rsync_uses_exact_argv_and_ignores_failure(self):
         with patch.dict(os.environ, {}, clear=True), \
                 patch.object(operation_shtrih.subprocess, 'run') as run, \

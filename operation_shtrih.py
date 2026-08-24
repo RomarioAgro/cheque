@@ -203,6 +203,25 @@ def show_shift_error(title, message):
                 logger_operation_shtrih.warning('не удалось закрыть GUI-ошибку: %s', type(exc).__name__)
 
 
+def show_z_report_notice():
+    import tkinter as tk
+    from tkinter import messagebox
+
+    root = tk.Tk()
+    try:
+        root.withdraw()
+        root.attributes('-topmost', True)
+        messagebox.showinfo(
+            'Закрытие смены',
+            'Закрытие смены выполняется автоматически.\n'
+            'Плановое закрытие: 23:00.\n'
+            'Для ручного закрытия обратитесь к администратору.',
+            parent=root,
+        )
+    finally:
+        root.destroy()
+
+
 def get_cashier():
     update_cashiers()
     code = ask_cashier_code()
@@ -356,9 +375,16 @@ def main():
         logging.debug(f'X отчет распечатали ошибок нет')
     if comp_rec['operationtype'] == 'z_otchet':
         time.sleep(5)
-        logging.debug('сейчас будет запуск команды Z отчета')
-        i_shtrih.z_otchet()
-        logging.debug('Z отчет отработал')
+        tspiot = comp_rec.get('tspiot') == '1' and getpass.getuser().lower() == 'kassir1'
+        if tspiot:
+            logging.debug('сейчас будет запуск команды X отчета вместо Z отчета')
+            i_shtrih.x_otchet()
+            show_z_report_notice()
+            logging.debug('X отчет вместо Z отчета отработал')
+        else:
+            logging.debug('сейчас будет запуск команды Z отчета')
+            i_shtrih.z_otchet()
+            logging.debug('Z отчет отработал')
         # сохраняем фио кассира в таблице драйвера кассы
         i_shtrih.drv.TableNumber = 2
         i_shtrih.drv.RowNumber = 30
@@ -371,13 +397,15 @@ def main():
         i_shtrih.drv.ValueOfFieldInteger = 63
         i_shtrih.drv.GetFieldStruct()
         i_shtrih.drv.WriteTable()
-        # правим время
-        i_shtrih.drv.Time = datetime.datetime.now().time().strftime("%H:%M:%S")
-        i_shtrih.drv.SetTime()
+        if not tspiot:
+            # правим время
+            i_shtrih.drv.Time = datetime.datetime.now().time().strftime("%H:%M:%S")
+            i_shtrih.drv.SetTime()
         logging.debug(i_shtrih.error_analysis_soft())
         list_aboutfr = i_shtrih.about_me()
         save_about_fr(list_aboutfr)
-        i_shtrih.drv.RebootKKT()
+        if not tspiot:
+            i_shtrih.drv.RebootKKT()
 
 
 
